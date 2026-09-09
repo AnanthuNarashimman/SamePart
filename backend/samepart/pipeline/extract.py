@@ -39,6 +39,9 @@ def _match_enum(attr: AttributeDef, raw: str) -> str | None:
     for allowed in attr.values:
         if _squash(allowed) == target:
             return allowed
+    for synonym, canonical in attr.value_aliases.items():
+        if _squash(synonym) == target:
+            return canonical
     return None
 
 
@@ -71,9 +74,12 @@ def extract_one(attr: AttributeDef, text: str) -> Value:
     # No pattern hit. For enums, look for a declared value or alias sitting in the text.
     if attr.values:
         squashed = _squash(text)
-        for allowed in sorted(attr.values, key=len, reverse=True):
-            if _squash(allowed) in squashed:
-                return Value(attr.key, allowed, evidence=allowed, confidence=0.9)
+        # Longest first, so "HOT DIP GALVANISED" wins over a bare "GALVANISED".
+        candidates = [(v, v) for v in attr.values] + list(attr.value_aliases.items())
+        for surface, canonical in sorted(candidates, key=lambda c: -len(c[0])):
+            if _squash(surface) in squashed:
+                conf = 0.9 if surface == canonical else 0.85
+                return Value(attr.key, canonical, evidence=surface, confidence=conf)
 
     return Value(attr.key, None, status="unknown", method="regex")
 

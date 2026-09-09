@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from samepart.api.deps import MODE
+from samepart.api.deps import live_services, mode
 from samepart.api.routers import analytics, catalogue, families, prevention, review
 
 DESCRIPTION = """
@@ -45,8 +45,8 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", tags=["meta"])
     def health():
-        return {"status": "ok", "mode": MODE,
-                "note": "mode=stub returns fixtures; shapes match the live implementation"}
+        return {"status": "ok", "mode": mode(), "live_services": live_services(),
+                "note": "services not listed as live return fixtures in the same shape"}
 
     return app
 

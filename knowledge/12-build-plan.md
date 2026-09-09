@@ -8,8 +8,8 @@ frontend changing.
 
 ---
 
-## Step 1 — Live ingestion
-**Flips:** `catalogue_service`
+## Step 1 — Live ingestion ✅ DONE
+**Flips:** `catalogue_service` · shipped 2026-09-09
 
 - CSV loader with per-source column mapping, not a hardcoded parser
 - Persist `Organisation` and `SourceRecord`, normalising unit of measure, quantity and price

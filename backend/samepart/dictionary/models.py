@@ -47,6 +47,12 @@ class AttributeDef(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     patterns: list[str] = Field(default_factory=list)
     values: list[str] = Field(default_factory=list)
+    value_aliases: dict[str, str] = Field(
+        default_factory=dict,
+        description="Synonym seen in source text -> canonical value. Real material masters "
+                    "carry many wordings for the same fact; this is where a domain owner "
+                    "records them, as data.",
+    )
     normalise: list[str] = Field(default_factory=list)
     derive: str | None = None
 

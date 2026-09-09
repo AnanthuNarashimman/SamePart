@@ -74,6 +74,14 @@ attributes:
     normalise: [upper, strip_spaces]
     aliases: [grade, property class, class, material grade, strength grade]
     values: [A2-70, A4-70, A2-80, A4-80, "8.8", "10.9", "12.9", "4.6", ASTM-A325, ASTM-A490]
+    value_aliases:
+      SS304 A2-70: A2-70
+      AISI 304 A2-70: A2-70
+      STAINLESS A2-70: A2-70
+      SS316 A4-70: A4-70
+      AISI 316 A4-70: A4-70
+      ASTM A325: ASTM-A325
+      ASTM A490: ASTM-A490
     patterns:
       - '\b(?P<value>A[24][\s-]?[78]0)\b'
       - '\bgrade\s?(?P<value>\d{1,2}\.\d)\b'
@@ -95,6 +103,13 @@ attributes:
     normalise: [upper, strip_spaces]
     aliases: [standard, spec, specification, governing spec, as per]
     values: [ISO4014, ISO4017, DIN931, DIN933, ASMEB18.2.1, IS1364]
+    value_aliases:
+      ISO 4014: ISO4014
+      ISO 4017: ISO4017
+      DIN 931: DIN931
+      DIN 933: DIN933
+      IS 1364: IS1364
+      "IS:1364": IS1364
     patterns:
       - '\b(?P<value>ISO\s?40(?:14|17))\b'
       - '\b(?P<value>DIN\s?9(?:31|33))\b'
@@ -107,6 +122,20 @@ attributes:
     normalise: [upper, strip_spaces]
     aliases: [finish, coating, plating, surface treatment]
     values: [PLAIN, ZINCPLATED, HOTDIPGALVANISED, PTFE, PASSIVATED]
+    value_aliases:
+      SELF COLOUR: PLAIN
+      SELF COLOR: PLAIN
+      BLACK: PLAIN
+      UNCOATED: PLAIN
+      ZP: ZINCPLATED
+      ELECTRO GALVANISED: ZINCPLATED
+      ELECTRO GALVANIZED: ZINCPLATED
+      ZINC PLATED: ZINCPLATED
+      HDG: HOTDIPGALVANISED
+      GALVANISED: HOTDIPGALVANISED
+      GALVANIZED: HOTDIPGALVANISED
+      HOT DIP GALV: HOTDIPGALVANISED
+      PICKLED AND PASSIVATED: PASSIVATED
 
   - key: thread_designation
     label: Thread designation

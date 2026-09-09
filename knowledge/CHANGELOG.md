@@ -18,6 +18,58 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Step 1 of the build plan is live: ingestion
+**Who:** Aditya (with Claude) · **Flips:** `catalogue_service` from stub to live
+
+`/api/orgs` and `/api/imports` now read and write the database. 654 records across four
+simulated CPSEs ingested end to end, 6,540 attributes extracted with per-field evidence.
+
+Three things worth knowing about how it works.
+
+- **Column mapping is configuration per source, never a hardcoded parser.** Every CPSE
+  exports different headings for the same facts
+- **Units are converted at the boundary.** A price of 1,550.85 per hundred is stored as
+  15.51 per each. Nothing downstream ever sees an unnormalised price, which is what makes
+  the later price-variance and aggregation views valid
+- **Unknown attributes are stored, not omitted.** A missing critical attribute is the reason
+  the system asks a question, so it has to survive into the database and onto the screen
+
+Also handled: re-importing the same file skips already-seen source codes rather than
+duplicating, and a file without the required columns fails with a message naming the columns
+it actually found.
+
+Seed the database with `python -m samepart.cli seed` and inspect it with `... cli stats`.
+
+### Services can now be live and stubbed at the same time
+**Who:** Aditya (with Claude)
+
+`SAMEPART_MODE=live` flips only the services that have a live implementation; the rest keep
+returning fixtures in the same shape. `/api/health` reports which are real, so the frontend
+can see progress without asking. **Verified:** catalogue served from the database while the
+review queue still served fixtures, in the same process.
+
+### Dictionary gains value synonyms, not just field-name aliases
+**Who:** Aditya (with Claude) · **Found by:** measuring extraction, not by inspection
+
+**From:** attributes carried `aliases`, which are synonyms for the *field name*.
+**To:** attributes also carry `value_aliases`, mapping a wording seen in source text to the
+canonical value.
+
+**Why:** 62% of finishes came back unknown. The enum listed `ZINCPLATED` and
+`HOTDIPGALVANISED`, but real descriptions say "self colour", "electro galvanised", "HDG",
+"ZP" and "pickled and passivated". Field-name aliases do not help with that at all.
+After recording the synonyms, unknown finishes fell to 28%, which matches the generator's
+own drop rate almost exactly. Longest surface form wins, so "hot dip galvanised" beats a
+bare "galvanised".
+
+**This is a domain-owner job, not a developer one.** Value synonyms are exactly the kind of
+knowledge a plant engineer has and a programmer does not, and they live in the YAML.
+
+Remaining unknowns are all legitimate: thread pitch is never written in these descriptions,
+and manufacturer, part number, grade and standard are absent from the source at the rates
+the generator was told to omit them.
+
+
 ### Backend shape: one application → routers over a swappable service layer
 **Who:** Aditya (with Claude)
 
