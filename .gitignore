@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+samepart.db
+.venv/
+data/generated/

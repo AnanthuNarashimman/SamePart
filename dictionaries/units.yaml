@@ -1,0 +1,58 @@
+# Unit registry. Every quantity in the system is normalised to its dimension's base unit
+# before comparison. Packaging units resolve to a count of the base issue unit, which is
+# what makes cross-CPSE price and demand comparison valid.
+version: 1
+
+dimensions:
+  length:
+    base: mm
+    units:
+      mm:   {factor: 1.0,    aliases: [mm, millimetre, millimeter, millimetres, millimeters]}
+      cm:   {factor: 10.0,   aliases: [cm, centimetre, centimeter]}
+      m:    {factor: 1000.0, aliases: [m, metre, meter, mtr]}
+      in:   {factor: 25.4,   aliases: [in, inch, inches, '"']}
+      ft:   {factor: 304.8,  aliases: [ft, foot, feet]}
+
+  mass:
+    base: kg
+    units:
+      kg:   {factor: 1.0,    aliases: [kg, kgs, kilogram, kilogramme]}
+      g:    {factor: 0.001,  aliases: [g, gm, gram, gramme]}
+      t:    {factor: 1000.0, aliases: [t, tonne, mt, "metric ton"]}
+      lb:   {factor: 0.45359237, aliases: [lb, lbs, pound]}
+
+  force:
+    base: N
+    units:
+      N:    {factor: 1.0,   aliases: [n, newton]}
+      kN:   {factor: 1000.0, aliases: [kn, kilonewton]}
+
+  pressure:
+    base: MPa
+    units:
+      MPa:  {factor: 1.0,     aliases: [mpa, "n/mm2", "n/mm^2"]}
+      bar:  {factor: 0.1,     aliases: [bar]}
+      psi:  {factor: 0.00689476, aliases: [psi]}
+
+  # Discrete issue units. Factor is "how many base issue units does one of these contain".
+  count:
+    base: EA
+    units:
+      EA:      {factor: 1,    aliases: [ea, each, no, nos, "no.", number, pc, pcs, piece, pieces, unit]}
+      PAIR:    {factor: 2,    aliases: [pair, pr]}
+      DOZ:     {factor: 12,   aliases: [doz, dozen, dz]}
+      BOX-50:  {factor: 50,   aliases: ["box of 50", box-50, bx50, "pkt of 50"]}
+      BOX-100: {factor: 100,  aliases: ["box of 100", box-100, bx100, "pkt of 100", "packet of 100"]}
+      BOX-500: {factor: 500,  aliases: ["box of 500", box-500, bx500]}
+      SET-4:   {factor: 4,    aliases: ["set of 4", set-4]}
+      C:       {factor: 100,  aliases: [hundred, "per hundred"]}
+      M:       {factor: 1000, aliases: ["per thousand", thousand, mille]}
+
+# Cross-dimension conversion needs a per-material physical property, exactly as SAP holds
+# alternative units per material in MARM rather than globally. A record issued by mass is
+# only comparable to one issued by count if unit_mass_kg is known for that material.
+cross_dimension:
+  - from_dimension: mass
+    to_dimension: count
+    requires: unit_mass_kg
+    formula: "count = mass_kg / unit_mass_kg"

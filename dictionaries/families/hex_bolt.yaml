@@ -1,0 +1,181 @@
+# Material family definition. This file is DATA, not code. Adding a family means adding a
+# file like this one; no pipeline change is required. That is what makes a live bootstrap
+# of a new family possible in front of an evaluator.
+family: hex_bolt
+label: Bolt, hex head
+version: 1
+
+# Noun-modifier naming, per the NATO item-name convention that ISO 8000 description rules
+# also follow: noun first, then design/type modifiers, then dimensions, then material and
+# standard, then finish.
+naming:
+  noun: BOLT
+  modifier: HEX HEAD
+  short_template: "{noun}, {modifier}; {thread_designation}X{length_mm}; {grade}; {standard}"
+  long_template: "{noun}, {modifier}; thread {thread_designation}; length {length_mm} MM; property class {grade}; standard {standard}; finish {finish}"
+
+# criticality drives the conflict gates:
+#   identity      - if these agree, it is the same item regardless of description
+#   critical      - disagreement means a different material, always
+#   major         - disagreement means different unless a substitution rule applies
+#   informational - disagreement never blocks a merge
+attributes:
+  - key: manufacturer
+    label: Manufacturer
+    type: string
+    criticality: identity
+    aliases: [make, brand, mfr, manufacturer name, oem]
+
+  - key: manufacturer_part_number
+    label: Manufacturer part number
+    type: string
+    criticality: identity
+    normalise: [upper, strip_non_alnum]
+    aliases: [mpn, part no, part number, cat no, catalogue no, mfr part no]
+
+  - key: thread_diameter_mm
+    label: Nominal thread diameter
+    type: number
+    unit: mm
+    dimension: length
+    criticality: critical
+    aliases: [dia, diameter, nominal dia, size, thread size]
+    patterns:
+      - 'M\s?(?P<value>\d+(?:\.\d+)?)\s?[xX*]'
+      - '\bDIA\s+(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '(?P<value>\d+(?:\.\d+)?)\s?mm\s+dia'
+
+  - key: thread_pitch_mm
+    label: Thread pitch
+    type: number
+    unit: mm
+    dimension: length
+    criticality: major
+    aliases: [pitch, thread pitch]
+    patterns:
+      - 'M\s?\d+(?:\.\d+)?\s?[xX*]\s?(?P<value>\d\.\d+)\b'
+
+  - key: length_mm
+    label: Nominal length under head
+    type: number
+    unit: mm
+    dimension: length
+    criticality: critical
+    aliases: [length, lg, long, shank length]
+    patterns:
+      - 'M\s?\d+(?:\.\d+)?\s?[xX*]\s?(?P<value>\d+(?:\.\d+)?)'
+      - '\b(?:LG|LENGTH)\s+(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '(?P<value>\d+(?:\.\d+)?)\s?mm\s+(?:lg|long|length)'
+
+  - key: grade
+    label: Property class or grade
+    type: enum
+    criticality: critical
+    normalise: [upper, strip_spaces]
+    aliases: [grade, property class, class, material grade, strength grade]
+    values: [A2-70, A4-70, A2-80, A4-80, "8.8", "10.9", "12.9", "4.6", ASTM-A325, ASTM-A490]
+    patterns:
+      - '\b(?P<value>A[24][\s-]?[78]0)\b'
+      - '\bgrade\s?(?P<value>\d{1,2}\.\d)\b'
+      - '\b(?P<value>\d{1,2}\.\d)\b'
+      - '\bASTM\s?(?P<value>A325|A490)\b'
+
+  - key: head_type
+    label: Head type
+    type: enum
+    criticality: critical
+    normalise: [upper, strip_spaces]
+    aliases: [head, head style, drive]
+    values: [HEX, HEXFLANGE, SOCKET, COUNTERSUNK, CARRIAGE]
+
+  - key: standard
+    label: Governing specification
+    type: enum
+    criticality: major
+    normalise: [upper, strip_spaces]
+    aliases: [standard, spec, specification, governing spec, as per]
+    values: [ISO4014, ISO4017, DIN931, DIN933, ASMEB18.2.1, IS1364]
+    patterns:
+      - '\b(?P<value>ISO\s?40(?:14|17))\b'
+      - '\b(?P<value>DIN\s?9(?:31|33))\b'
+      - '\b(?P<value>IS\s?1364)\b'
+
+  - key: finish
+    label: Surface finish
+    type: enum
+    criticality: informational
+    normalise: [upper, strip_spaces]
+    aliases: [finish, coating, plating, surface treatment]
+    values: [PLAIN, ZINCPLATED, HOTDIPGALVANISED, PTFE, PASSIVATED]
+
+  - key: thread_designation
+    label: Thread designation
+    type: derived
+    criticality: informational
+    derive: "M{thread_diameter_mm:g}"
+
+# Retrieval strategy, declared as data. Records whose primary key is fully extracted are
+# blocked on it exactly. Records that fail to parse fall back to text similarity over the
+# canonical form, which is the only place an embedding model is used.
+blocking:
+  primary_key: [thread_diameter_mm, length_mm]
+  fallback: canonical_text
+  fallback_top_k: 20
+
+# Deterministic conflict gates. These run AFTER whichever tier produced a verdict and can
+# override it. They are never a model call. ~20 lines of rules a domain reviewer can read.
+gates:
+  - id: identity_match
+    when: all_present
+    attributes: [manufacturer, manufacturer_part_number]
+    rule: all_equal
+    action: force_same
+    message: "Same manufacturer and part number. Identity is established without inference."
+
+  - id: critical_conflict
+    when: both_present
+    attributes: [thread_diameter_mm, length_mm, grade, head_type]
+    rule: any_not_equal
+    action: force_different
+    message: "A critical attribute differs. These are not the same material."
+
+  - id: missing_critical
+    when: either_missing
+    attributes: [thread_diameter_mm, length_mm, grade]
+    action: force_insufficient
+    message: "A critical attribute is unknown on at least one record. Cannot decide safely."
+
+  - id: major_conflict
+    when: both_present
+    attributes: [standard, thread_pitch_mm]
+    rule: any_not_equal
+    action: downgrade_to_alternative
+    message: "Specification or pitch differs. Substitution may be acceptable but identities stay separate."
+
+# Substitution is contextual. Two materials can be interchangeable for one application and
+# not for another, so an alternative verdict carries the condition under which it holds.
+substitution_groups:
+  - id: stainless_property_class
+    attribute: grade
+    members: [A2-70, A4-70]
+    relation: possible_alternative
+    condition: >-
+      A4 (316-type) is required where chloride or marine exposure is present.
+      A2 (304-type) is acceptable for dry indoor service. Do not substitute A2 for A4
+      in coastal or offshore installations.
+
+  - id: metric_strength_class
+    attribute: grade
+    members: ["8.8", "10.9"]
+    relation: possible_alternative
+    condition: >-
+      10.9 may substitute for 8.8 where the joint is not designed for controlled yield.
+      8.8 must never substitute for 10.9. Direction matters; this relation is not symmetric.
+
+  - id: hex_bolt_standard
+    attribute: standard
+    members: [ISO4014, DIN931]
+    relation: equivalent
+    condition: >-
+      DIN 931 was superseded by ISO 4014 for partially threaded hex bolts. Dimensionally
+      interchangeable for standard sizes.

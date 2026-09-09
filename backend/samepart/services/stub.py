@@ -1,0 +1,230 @@
+"""Stub services returning fixed, realistic data.
+
+These exist so the frontend is never blocked on the pipeline. The shapes are exactly what
+the live services will return, and the content is the five seeded demo cases, so what gets
+built against these stubs is what gets demonstrated.
+
+Every stub is replaced independently. Nothing here is throwaway UI work.
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+from samepart.api import schemas as s
+
+_A = s.AttributeView
+
+
+def _attr(key, label, value, crit, unit=None, evidence=None, status=None, method="regex"):
+    return _A(
+        key=key, label=label, value=value, unit=unit,
+        status=s.AttributeStatus(status or ("unknown" if value is None else "extracted")),
+        method=s.ExtractionMethod(method),
+        evidence=evidence, confidence=None if value is None else 0.99, criticality=crit,
+    )
+
+
+def _bolt(rid, org, code, desc, dia, ln, grade, std, finish="PLAIN", *,
+          uom="EA", qty=1.0, price=41.0, base_qty=None, grade_ev=None, short=None):
+    base_qty = base_qty if base_qty is not None else qty
+    return s.RecordView(
+        record_id=rid, org_code=org, source_code=code, raw_description=desc,
+        standardised_short=short,
+        uom=uom, base_uom="EA", quantity=qty,
+        unit_price=price, unit_price_base=round(price / base_qty, 2),
+        attributes=[
+            _attr("thread_diameter_mm", "Nominal thread diameter", dia, "critical", "mm", f"M{dia:g}"),
+            _attr("length_mm", "Nominal length under head", ln, "critical", "mm", f"{ln:g}"),
+            _attr("grade", "Property class or grade", grade, "critical", evidence=grade_ev or grade),
+            _attr("head_type", "Head type", "HEX", "critical", evidence="HEX"),
+            _attr("standard", "Governing specification", std, "major", evidence=std),
+            _attr("finish", "Surface finish", finish, "informational", evidence=finish),
+        ],
+    )
+
+
+# --- the five seeded demo cases -------------------------------------------------------
+_CLEAN_A = _bolt(1, "CPCL", "CPCL-000156", "HEX BOLT M16X80  A2-70  ISO 4014  PLAIN",
+                 16, 80, "A2-70", "ISO4014", price=41.00,
+                 short="BOLT, HEX HEAD; M16X80; A2-70; ISO4014")
+_CLEAN_B = _bolt(2, "IOCL", "IOCL-000158",
+                 "Bolt, Hexagon Head, M16 x 80mm, Property Class A2-70, Conforming to ISO 4014",
+                 16, 80, "A2-70", "ISO4014", uom="BOX-100", qty=1.0, price=4180.00, base_qty=100,
+                 short="BOLT, HEX HEAD; M16X80; A2-70; ISO4014")
+_CONFLICT_A = _bolt(3, "CPCL", "CPCL-000201", "HEX BOLT M20X100  8.8  DIN 931  HDG",
+                    20, 100, "8.8", "DIN931", "HOTDIPGALVANISED", price=88.0, grade_ev="8.8")
+_CONFLICT_B = _bolt(4, "NTPC", "NTPC-000167",
+                    "BOLT HEX HEAD; DIA 20MM; LG 100MM; GRADE 10.9  DIN 931  HOT DIP GALVANISED",
+                    20, 100, "10.9", "DIN931", "HOTDIPGALVANISED", price=102.0, grade_ev="GRADE 10.9")
+_INCOMPLETE_A = _bolt(5, "CPCL", "CPCL-000210", "HEX BOLT M12X60  ISO 4017  ZINC PLATED",
+                      12, 60, None, "ISO4017", "ZINCPLATED", price=22.5)
+_INCOMPLETE_B = _bolt(6, "IOCL", "IOCL-000214",
+                      "Bolt, Hexagon Head, M12 x 60mm, Property Class 8.8, Conforming to ISO 4017, Zinc Plated",
+                      12, 60, "8.8", "ISO4017", "ZINCPLATED", price=24.1)
+_ALT_A = _bolt(7, "BPCL", "BPCL-000164", "BLT HEX HD M10X40MM  SS304 A2-70  ISO4014",
+               10, 40, "A2-70", "ISO4014", price=18.0, grade_ev="SS304 A2-70")
+_ALT_B = _bolt(8, "NTPC", "NTPC-000171",
+               "BOLT HEX HEAD; DIA 10MM; LG 40MM; GRADE A4-70  ISO 4014",
+               10, 40, "A4-70", "ISO4014", price=26.5, grade_ev="GRADE A4-70")
+
+_MATCHES: dict[int, s.MatchDetail] = {
+    1: s.MatchDetail(
+        id=1, verdict=s.Verdict.SAME_MATERIAL, decided_by="deterministic", score=0.98,
+        gate_overrode=False, a=_CLEAN_A, b=_CLEAN_B,
+        gate_firings=[s.GateFiring(
+            gate_id="critical_conflict", action="none",
+            message="No critical attribute disagrees.", attributes=[])],
+        notes=["Both records normalise to the same base unit, so unit prices are comparable: "
+               "41.00 against 41.80 per each."]),
+    2: s.MatchDetail(
+        id=2, verdict=s.Verdict.DIFFERENT, decided_by="gate", score=0.94,
+        gate_overrode=True, a=_CONFLICT_A, b=_CONFLICT_B,
+        gate_firings=[s.GateFiring(
+            gate_id="critical_conflict", action="force_different",
+            message="A critical attribute differs. These are not the same material.",
+            attributes=["grade"], detail="grade: 8.8 vs 10.9")],
+        notes=["The matcher proposed a merge on description similarity. The conflict gate "
+               "overruled it."]),
+    3: s.MatchDetail(
+        id=3, verdict=s.Verdict.INSUFFICIENT_EVIDENCE, decided_by="gate",
+        gate_overrode=True, a=_INCOMPLETE_A, b=_INCOMPLETE_B,
+        gate_firings=[s.GateFiring(
+            gate_id="missing_critical", action="force_insufficient",
+            message="A critical attribute is unknown on at least one record. Cannot decide safely.",
+            attributes=["grade"], detail="unknown on at least one record: grade")],
+        notes=["Provide the property class for CPCL-000210 to resolve this pair."]),
+    4: s.MatchDetail(
+        id=4, verdict=s.Verdict.POSSIBLE_ALTERNATIVE, decided_by="gate",
+        gate_overrode=True, a=_ALT_A, b=_ALT_B,
+        gate_firings=[s.GateFiring(
+            gate_id="substitution_rule", action="downgrade_to_alternative",
+            message="A declared substitution covers this difference; identities stay separate.",
+            attributes=["grade"], detail="grade: A2-70 vs A4-70")],
+        substitution_conditions=[
+            "A4 (316-type) is required where chloride or marine exposure is present. "
+            "A2 (304-type) is acceptable for dry indoor service. Do not substitute A2 for "
+            "A4 in coastal or offshore installations."],
+        notes=["Substitution is application-dependent. These stay separate identities and "
+               "are linked as alternatives."]),
+}
+
+_HEADLINES = {
+    1: "Same material across two CPSEs, worded differently",
+    2: "Grade conflict: 8.8 against 10.9",
+    3: "Property class unknown on one record",
+    4: "A2-70 against A4-70, conditional substitute",
+}
+_GROUP = {
+    s.Verdict.INSUFFICIENT_EVIDENCE: "needs_input",
+    s.Verdict.POSSIBLE_ALTERNATIVE: "possible_alternative",
+    s.Verdict.SAME_MATERIAL: "same_material",
+    s.Verdict.DIFFERENT: "different",
+}
+
+
+class StubCatalogue:
+    def list_orgs(self):
+        return [
+            s.Org(code="CPCL", name="Chennai Petroleum Corporation Limited (simulated)", record_count=159),
+            s.Org(code="IOCL", name="Indian Oil Corporation Limited (simulated)", record_count=160),
+            s.Org(code="BPCL", name="Bharat Petroleum Corporation Limited (simulated)", record_count=168),
+            s.Org(code="NTPC", name="NTPC Limited (simulated)", record_count=167),
+        ]
+
+    def create_org(self, code, name):
+        return s.Org(code=code, name=name, record_count=0)
+
+    def start_import(self, req, filename, content):
+        rows = max(content.count(b"\n") - 1, 0)
+        return s.ImportStatus(
+            import_id=str(uuid.uuid4())[:8], org_code=req.org_code, status="completed",
+            rows_read=rows, rows_ingested=rows, attributes_extracted=rows * 6,
+            started_at=datetime.now(timezone.utc))
+
+    def import_status(self, import_id):
+        return s.ImportStatus(import_id=import_id, org_code="CPCL", status="completed",
+                              rows_read=159, rows_ingested=159, attributes_extracted=954,
+                              started_at=datetime.now(timezone.utc))
+
+
+class StubReview:
+    def queue(self, group, cursor, limit):
+        counts = s.QueueCounts(needs_input=1, possible_alternative=1, same_material=1, different=1)
+        items = [
+            s.QueueItem(id=m.id, verdict=m.verdict, review_state=m.review_state,
+                        a_description=m.a.raw_description, b_description=m.b.raw_description,
+                        a_org=m.a.org_code, b_org=m.b.org_code, headline=_HEADLINES[m.id])
+            for m in _MATCHES.values()
+            if group in (None, "", _GROUP[m.verdict])
+        ]
+        order = ["needs_input", "possible_alternative", "same_material", "different"]
+        items.sort(key=lambda i: order.index(_GROUP[i.verdict]))
+        return s.QueuePage(counts=counts, items=items[:limit], next_cursor=None)
+
+    def match(self, match_id):
+        if match_id not in _MATCHES:
+            raise KeyError(match_id)
+        return _MATCHES[match_id]
+
+    def decide(self, match_id, req):
+        if match_id not in _MATCHES:
+            raise KeyError(match_id)
+        m = _MATCHES[match_id]
+        if req.action is s.DecisionAction.APPROVE:
+            return s.DecisionResult(
+                match_id=match_id, new_state=s.ReviewState.APPROVED,
+                canonical_id="SMP-000417", verdict=m.verdict,
+                message="Mapped to SMP-000417. Both source codes are retained and unchanged.")
+        if req.action is s.DecisionAction.REJECT:
+            return s.DecisionResult(
+                match_id=match_id, new_state=s.ReviewState.REJECTED, verdict=m.verdict,
+                message="Recorded as a cannot-link constraint. These will never be merged.")
+        return s.DecisionResult(
+            match_id=match_id, new_state=s.ReviewState.INFO_REQUESTED, verdict=m.verdict,
+            message="Information requested. The pair returns to the queue when answered.")
+
+
+class StubCheck:
+    def check(self, req):
+        return s.CheckResult(
+            verdict=s.Verdict.SAME_MATERIAL, safe_to_create=False,
+            message="An equivalent material already exists as SMP-000417. "
+                    "Creating a new code would duplicate it.",
+            extracted=_CLEAN_A.attributes,
+            candidates=[_MATCHES[1]])
+
+
+class StubAnalytics:
+    def summary(self):
+        return s.AnalyticsSummary(
+            records=654, canonical_materials=268, merged=386, conflicts_caught=41,
+            duplicate_rate=0.409,
+            queue_by_group=s.QueueCounts(needs_input=1, possible_alternative=1,
+                                         same_material=1, different=1))
+
+    def savings(self):
+        clusters = [
+            s.SavingsCluster(canonical_id="SMP-000417",
+                             standardised_short="BOLT, HEX HEAD; M16X80; A2-70; ISO4014",
+                             orgs=["CPCL", "IOCL", "BPCL"], price_min=41.00, price_max=43.90,
+                             spread_pct=7.1, total_quantity=12400,
+                             aggregation_opportunity=18104.0),
+            s.SavingsCluster(canonical_id="SMP-000418",
+                             standardised_short="BOLT, HEX HEAD; M20X100; 8.8; DIN931",
+                             orgs=["CPCL", "NTPC", "BPCL", "IOCL"], price_min=79.20,
+                             price_max=118.40, spread_pct=49.5, total_quantity=6800,
+                             aggregation_opportunity=94656.0),
+        ]
+        return s.SavingsResult(total_opportunity=sum(c.aggregation_opportunity for c in clusters),
+                               clusters=clusters)
+
+
+class StubFamilies:
+    def list_families(self):
+        return [s.FamilySummary(family="hex_bolt", label="Bolt, hex head",
+                                attribute_count=10, gate_count=4,
+                                blocking_key=["thread_diameter_mm", "length_mm"])]
+
+    def load_family(self, yaml_text):
+        return s.FamilyLoadResult(family="gasket", loaded=True, attribute_count=7, gate_count=3)

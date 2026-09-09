@@ -18,6 +18,56 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Backend shape: one application → routers over a swappable service layer
+**Who:** Aditya (with Claude)
+
+**From:** a single application module owning HTTP, business logic and data access together.
+
+**To:** three separated layers.
+- `api/routers/` — one small router per concern (catalogue, review, prevention, analytics,
+  families). HTTP only: parse, validate, delegate, return
+- `services/protocols.py` — a protocol per concern, which is the only thing routers depend on
+- `services/stub.py` — fixture implementations, selected in `api/deps.py`
+
+**Why:** each endpoint can move from stub to live **independently**, touching one file, with
+no change on the frontend. A monolithic handler would force an all-at-once cutover and make
+the stub work throwaway. It is not.
+
+**How to go live on one endpoint:** write the real implementation, satisfy the protocol,
+change the one line in `api/deps.py` that returns it. Nothing else moves.
+
+### Stub API shipped so the frontend is not blocked
+**Who:** Aditya (with Claude) · **Unblocks:** Ananthu
+
+Every endpoint in [11-team-split-and-stack.md](11-team-split-and-stack.md) §4 now responds,
+returning the **five seeded demo cases** rather than placeholder text, so what gets built
+against the stubs is what gets demonstrated.
+
+Verified live: queue returns groups ordered `needs_input` first per
+[10-frontend-plan.md](10-frontend-plan.md); match detail carries per-field evidence and
+renders `unknown` explicitly; approve returns a canonical id and states that both source
+codes are retained; unknown match returns 404; unknown queue group returns 400.
+
+Run it with `uvicorn samepart.api.app:app`, generate types from `/openapi.json`. Mode is
+reported at `/api/health`.
+
+### `api/schemas.py` is now the single source of truth for the contract
+**Who:** Aditya (with Claude)
+
+Frontend types are generated from the published OpenAPI schema. **Nobody hand-writes the
+other side's types**, because hand-written types drift silently. Changing a field here
+changes the frontend on its next generation, which is why contract changes are a
+conversation first.
+
+### Dependencies: sentence-transformers and PyTorch removed
+**Who:** Aditya (with Claude) · **Follows:** the retrieval measurements below
+
+Roughly 2.5GB of dependency for zero measured gain. `pipeline/embeddings.py` and the
+`Embedder` injection point remain, defaulting to `None`, so a model can be reintroduced in
+one line **if a measurement justifies it**. Added `python-multipart`, required by FastAPI
+for the file upload on the import endpoint.
+
+
 ### Retrieval architecture: text similarity → attribute blocking with lexical fallback
 **Who:** Aditya (with Claude) · **Reverses:** original plan §3 and §5, "candidate retrieval
 via embeddings"

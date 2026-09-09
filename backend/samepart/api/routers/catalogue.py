@@ -1,0 +1,44 @@
+"""Organisations and catalogue import."""
+from __future__ import annotations
+
+import json
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+
+from samepart.api import schemas as s
+from samepart.api.deps import catalogue_service
+from samepart.services.protocols import CatalogueService
+
+router = APIRouter(tags=["catalogue"])
+
+
+@router.get("/orgs", response_model=list[s.Org])
+def list_orgs(svc: CatalogueService = Depends(catalogue_service)):
+    return svc.list_orgs()
+
+
+@router.post("/orgs", response_model=s.Org, status_code=201)
+def create_org(org: s.Org, svc: CatalogueService = Depends(catalogue_service)):
+    return svc.create_org(org.code, org.name)
+
+
+@router.post("/imports", response_model=s.ImportStatus, status_code=202)
+async def start_import(
+    file: UploadFile = File(...),
+    org_code: str = Form(...),
+    family: str = Form("hex_bolt"),
+    column_map: str = Form("{}"),
+    svc: CatalogueService = Depends(catalogue_service),
+):
+    try:
+        mapping = json.loads(column_map)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "column_map must be valid JSON")
+    content = await file.read()
+    req = s.ImportRequest(org_code=org_code, family=family, column_map=mapping)
+    return svc.start_import(req, file.filename or "upload.csv", content)
+
+
+@router.get("/imports/{import_id}", response_model=s.ImportStatus)
+def import_status(import_id: str, svc: CatalogueService = Depends(catalogue_service)):
+    return svc.import_status(import_id)
