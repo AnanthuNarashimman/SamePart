@@ -173,6 +173,12 @@ class ImportStatus(BaseModel):
                     "a failure.")
     started_at: datetime | None = None
 
+    # Matching runs automatically after ingestion, scoped to the rows that arrived.
+    candidate_pairs: int = Field(0, description="Pairs compared involving the new records")
+    auto_merged: int = Field(0, description="Merged by rule with nobody asked")
+    queued_for_review: int = Field(0, description="Pairs now waiting for a person")
+    matched_at: datetime | None = None
+
 
 class CheckRequest(BaseModel):
     description: str

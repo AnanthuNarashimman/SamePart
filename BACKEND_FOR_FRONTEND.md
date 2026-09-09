@@ -587,9 +587,9 @@ Two actions per card:
 everything, which is correct behaviour, not a failure. Showing that as an error makes a
 working import look broken.
 
-There is also a gap: import does **not** trigger matching yet. After uploading, run
-`PYTHONPATH=backend SAMEPART_MODE=live ./.venv/bin/python -m samepart.cli match` or nothing
-appears in the queue. A button for this would be welcome.
+**Import triggers matching automatically.** No manual step. The response carries what the
+upload actually did, so show it: `candidate_pairs`, `auto_merged`, `queued_for_review`.
+Uploading 19 rows returns in about 165 ms and the queue reflects it immediately.
 
 Sample file to try: `samples/HPCL_sample_upload.csv`, upload as org `HPCL`, family
 `hex_bolt`.

@@ -42,10 +42,18 @@ colliding with data already loaded: one that matches the M16x80 cluster, one gra
 one with the grade missing, one A4 against an existing A2, and one carrying a manufacturer
 and part number. Upload as org `HPCL`, family `hex_bolt`.
 
-### Known gap: import does not trigger matching
-Ingestion extracts attributes but does not run the matcher, so nothing appears in the queue
-until `python -m samepart.cli match` is run by hand. Either the import endpoint should
-trigger it or the UI needs a button.
+### Import now triggers matching automatically ✅ (was a known gap)
+Ingestion runs the matcher immediately, **scoped to the rows that just arrived**. The new
+records still compare against the whole corpus, but the thousands of pairs already decided
+are not recomputed. That is also how it would run in production: a full rebuild is a
+migration, not a daily operation.
+
+Uploading 19 rows compared 269 pairs rather than 3,698, auto-merged 35, queued 104, and
+returned in **165 ms**. No manual `cli match` step, and the queue reflects the upload
+immediately.
+
+`ImportStatus` gained `candidate_pairs`, `auto_merged`, `queued_for_review` and `matched_at`
+so the import screen can say what the upload actually did rather than just "completed".
 
 
 ### Frontend integration guide added

@@ -77,6 +77,7 @@ class LiveCatalogue:
             return status
 
         ingested = attributes = 0
+        new_ids: set[int] = set()
         with session_scope() as db:
             org = db.scalar(select(Organisation).where(Organisation.code == req.org_code))
             if org is None:
@@ -96,13 +97,25 @@ class LiveCatalogue:
                     continue
                 existing.add(row.source_code)
                 record = self._persist(db, org.id, family.family, row)
+                new_ids.add(record.id)
                 ingested += 1
                 attributes += self._extract_into(db, record, row)
 
-        status.status = "completed"
         status.rows_ingested = ingested
         status.rows_skipped = len(skipped)
         status.attributes_extracted = attributes
+
+        # Matching runs immediately, scoped to what just arrived, so an import is visible in
+        # the queue without a separate manual step.
+        if new_ids:
+            found = LiveReview(self.dictionary).build_matches(
+                family_name=family.family, only_records=new_ids)
+            status.candidate_pairs = found["candidate_pairs"]
+            status.auto_merged = found["auto_merged"]
+            status.queued_for_review = sum(
+                n for g, n in found["by_group"].items() if g != "different")
+            status.matched_at = datetime.now(timezone.utc)
+        status.status = "completed"
         if skipped:
             shown = ", ".join(skipped[:5]) + ("…" if len(skipped) > 5 else "")
             status.warnings.append(
@@ -253,11 +266,17 @@ class LiveReview:
         self.dictionary = dictionary
 
     # -- building the queue -------------------------------------------------
-    def build_matches(self, family_name: str = "hex_bolt", verbose: bool = False) -> dict:
+    def build_matches(self, family_name: str = "hex_bolt", verbose: bool = False,
+                      only_records: set[int] | None = None) -> dict:
         """Retrieve candidates, run the cascade, persist a verdict for every pair.
 
-        Idempotent: existing rows are refreshed rather than duplicated, and any pair a
-        human has already decided is left alone.
+        Idempotent: existing rows are refreshed rather than duplicated, and any pair a human
+        has already decided is left alone.
+
+        `only_records` scopes the work to pairs involving those records, which is what an
+        import needs. Newly arrived records still compare against the whole corpus, but the
+        thousands of pairs that were already decided are not recomputed. This is also how it
+        would run in production: a full rebuild is a migration, not a daily operation.
         """
         family = self.dictionary.family(family_name)
         with session_scope() as db:
@@ -279,7 +298,12 @@ class LiveReview:
             policy = family.auto_merge
             rng = random.Random(20260909)
 
-            for sa, sb in retriever.candidate_pairs():
+            pairs = retriever.candidate_pairs()
+            if only_records:
+                pairs = {p for p in pairs
+                         if int(p[0]) in only_records or int(p[1]) in only_records}
+
+            for sa, sb in pairs:
                 a_id, b_id = sorted((int(sa), int(sb)))
                 a, b = by_id[a_id], by_id[b_id]
                 result = cascade.run(family, a.attrs(), b.attrs(),
@@ -323,7 +347,8 @@ class LiveReview:
                         row.review_state = "auto_approved"
                         auto += 1
 
-        return {"records": stats.records, "candidate_pairs": stats.candidate_pairs,
+        return {"records": stats.records,
+                "candidate_pairs": len(pairs) if only_records else stats.candidate_pairs,
                 "reduction_ratio": round(stats.reduction_ratio, 4),
                 "blocked": stats.blocked, "fallback": stats.fallback,
                 "written": written, "already_decided": skipped, "by_group": counts,
