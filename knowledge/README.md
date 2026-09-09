@@ -20,6 +20,7 @@ and so the claims we put on a slide are ones we can defend when a judge pushes b
 | 07 | [datasets.md](07-datasets.md) | What real data we can actually get, and what is a dead end |
 | 08 | [ranked-additions.md](08-ranked-additions.md) | What to build next, ordered by return per hour |
 | 09 | [open-decisions.md](09-open-decisions.md) | Decisions the team still has to make |
+| 10 | [frontend-plan.md](10-frontend-plan.md) | What pages the UI needs, and why, reconciled against the gaps above |
 
 ## Conventions used in these notes
 
