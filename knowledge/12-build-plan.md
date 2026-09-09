@@ -20,8 +20,8 @@ frontend changing.
 **Exit:** posting a real CSV to `/api/imports` populates the database, and `/api/orgs`
 returns real record counts.
 
-## Step 2 — Live matching and review queue
-**Flips:** `review_service` · the biggest step, and the demo spine
+## Step 2 — Live matching and review queue ✅ DONE
+**Flips:** `review_service` · shipped 2026-09-09
 
 - Build the retriever over ingested records, generate candidate pairs
 - Cascade tier 1: deterministic identity on manufacturer plus normalised part number

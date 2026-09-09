@@ -92,6 +92,7 @@ attributes:
     label: Head type
     type: enum
     criticality: critical
+    required_for_decision: false
     normalise: [upper, strip_spaces]
     aliases: [head, head style, drive]
     values: [HEX, HEXFLANGE, SOCKET, COUNTERSUNK, CARRIAGE]
@@ -118,7 +119,10 @@ attributes:
   - key: finish
     label: Surface finish
     type: enum
-    criticality: informational
+    criticality: critical
+    # A different finish IS a different stock item, but a finish nobody wrote down does not
+    # make the pair undecidable. Most descriptions omit it.
+    required_for_decision: false
     normalise: [upper, strip_spaces]
     aliases: [finish, coating, plating, surface treatment]
     values: [PLAIN, ZINCPLATED, HOTDIPGALVANISED, PTFE, PASSIVATED]
@@ -163,7 +167,7 @@ gates:
 
   - id: critical_conflict
     when: both_present
-    attributes: [thread_diameter_mm, length_mm, grade, head_type]
+    attributes: [thread_diameter_mm, length_mm, grade, head_type, finish]
     rule: any_not_equal
     action: force_different
     message: "A critical attribute differs. These are not the same material."

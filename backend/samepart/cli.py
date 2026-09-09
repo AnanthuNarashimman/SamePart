@@ -14,7 +14,7 @@ from samepart.api import schemas as s
 from samepart.api.deps import dictionary
 from samepart.db.models import ExtractedAttribute, Organisation, SourceRecord
 from samepart.db.session import init_db, session_scope
-from samepart.services.live import LiveCatalogue
+from samepart.services.live import LiveCatalogue, LiveReview
 from samepart.synth.generate import ORGS, generate
 
 DATA = Path("data/generated")
@@ -37,6 +37,18 @@ def seed(reset: bool = True) -> None:
         print(f"  {code}: read {status.rows_read}, ingested {status.rows_ingested}, "
               f"{status.attributes_extracted} attributes{note}")
     stats()
+    match()
+
+
+def match() -> None:
+    """Retrieve candidates and run the cascade over every pair."""
+    info = LiveReview(dictionary()).build_matches()
+    print(f"\nmatching: {info['records']} records -> {info['candidate_pairs']:,} candidate pairs "
+          f"({info['reduction_ratio']:.2%} of comparisons eliminated)")
+    print(f"  blocked on primary key: {info['blocked']}   fell back to text: {info['fallback']}")
+    print(f"  written {info['written']}, left alone because already decided {info['already_decided']}")
+    for group, n in info["by_group"].items():
+        print(f"    {group:<22s} {n:>5d}")
 
 
 def stats() -> None:
@@ -59,4 +71,4 @@ def stats() -> None:
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
-    {"seed": seed, "stats": stats}[cmd]()
+    {"seed": seed, "stats": stats, "match": match}[cmd]()

@@ -42,6 +42,13 @@ class AttributeDef(BaseModel):
     label: str
     type: str
     criticality: Criticality = Criticality.INFORMATIONAL
+    required_for_decision: bool | None = Field(
+        None,
+        description="Must this be KNOWN before a merge can be decided? Distinct from "
+                    "criticality, which asks whether a DIFFERENCE means different materials. "
+                    "Finish differing makes two stock items different; finish being unwritten "
+                    "does not make the pair undecidable. Defaults to true for critical.",
+    )
     unit: str | None = None
     dimension: str | None = None
     aliases: list[str] = Field(default_factory=list)
@@ -55,6 +62,12 @@ class AttributeDef(BaseModel):
     )
     normalise: list[str] = Field(default_factory=list)
     derive: str | None = None
+
+    @property
+    def must_be_known(self) -> bool:
+        if self.required_for_decision is not None:
+            return self.required_for_decision
+        return self.criticality is Criticality.CRITICAL
 
     @property
     def is_derived(self) -> bool:

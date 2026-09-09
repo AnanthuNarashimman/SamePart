@@ -18,6 +18,72 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Step 2 of the build plan is live: matching and the review queue
+**Who:** Aditya (with Claude) · **Flips:** `review_service`
+
+3,429 candidate pairs decided over 654 real records, eliminating 98.39% of comparisons.
+**No model call anywhere in this path.** Blocking plus deterministic rules do all of it, so
+an API outage cannot break the demo.
+
+The cascade is four tiers, cheapest first, and every decision records which tier made it:
+identity on manufacturer plus part number, then attribute agreement, then a model tier
+(step 4), then the conflict gates, which are a **veto** rather than a fallback and run on
+every pair regardless of who decided.
+
+Reviewer actions are wired end to end. Approve merges into a registry-minted canonical
+identity, or links a conditional substitute, or records a confirmed difference. Reject
+always writes a cannot-link constraint, so a rejection is never re-proposed. Supplying a
+missing value re-runs the cascade immediately and stores the answer with method `given`, so
+the audit trail distinguishes what a machine read from what a person asserted.
+
+Survivorship is settled, closing [09](09-open-decisions.md) #8: **no winning record is
+chosen.** The canonical description is synthesised from the union of evidenced attributes,
+and conflicting values are retained on the canonical record rather than silently dropped.
+
+### Attribute modelling: one setting split into two questions
+**Who:** Aditya (with Claude) · **Found by:** measuring against labels, not by inspection
+
+Every false merge in the first measurement was a pair differing only in **finish** or
+**governing standard**. The dictionary marked finish informational, so a difference never
+blocked. In real stores practice a zinc-plated bolt and a plain one are different stock
+items.
+
+Making finish critical fixed precision and destroyed recall, which exposed the real problem:
+`criticality` was answering two different questions at once. They are now separate.
+
+- `criticality` — if these DIFFER, does that make them different materials?
+- `required_for_decision` — must this be KNOWN before anything can be decided?
+
+Finish is critical but not required: a different finish means a different stock item, while
+a finish nobody wrote down does not make the pair undecidable.
+
+A third rule followed from the same measurement. If a conflict-critical attribute is stated
+on one record and absent on the other, that is **not agreement**, it is an open question,
+and it now defers to a human. Both sides silent is fine, since neither record claims
+anything.
+
+### Measured trade-off, recorded so nobody re-runs it
+Same data, same code, four dictionary settings.
+
+| Setting | Precision | Recall | F1 | False merges | Human queue |
+|---|---|---|---|---|---|
+| finish informational | 81.4% | 88.2% | 84.7% | 118 | 680 |
+| finish critical and required | 94.1% | 59.9% | 73.2% | 22 | 725 |
+| finish critical, not required | 83.5% | 88.2% | **85.8%** | 102 | 479 |
+| **+ asymmetric unknown defers (current)** | **92.2%** | 64.3% | 75.8% | **32** | 689 |
+
+**In every configuration, zero true duplicates were called "different."** Misses always
+become "needs input". The system does not get it wrong quietly; it defers.
+
+We ship the last row deliberately. F1 is not the objective here. A false merge in a refinery
+is a safety incident, while a deferred pair costs a reviewer a minute. Currently 79.9% of
+pairs are auto-decided and 689 reach a human.
+
+**This is a dial, and it lives in the dictionary.** A domain owner tunes the
+safety-versus-throughput balance per attribute without touching code. Step 5 replaces the
+guesswork with a calibrated coverage-against-risk curve.
+
+
 ### Step 1 of the build plan is live: ingestion
 **Who:** Aditya (with Claude) · **Flips:** `catalogue_service` from stub to live
 
