@@ -27,6 +27,7 @@ Everything below goes deeper on one piece of it.
 | 08 | [ranked-additions.md](08-ranked-additions.md) | What to build next, ordered by return per hour |
 | 09 | [open-decisions.md](09-open-decisions.md) | Decisions the team still has to make |
 | 10 | [frontend-plan.md](10-frontend-plan.md) | What pages the UI needs, and why, reconciled against the gaps above |
+| 11 | [team-split-and-stack.md](11-team-split-and-stack.md) | Who owns what, the tech stack, and the frozen API contract |
 
 ## Conventions used in these notes
 
