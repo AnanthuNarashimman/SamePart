@@ -7,7 +7,13 @@ Chennai Petroleum Corporation Limited).
 These notes exist so that nobody on the team re-researches something we already settled,
 and so the claims we put on a slide are ones we can defend when a judge pushes back.
 
-## Read in this order
+## Start here
+
+**New to this, or short on time? Read [00-start-here.md](00-start-here.md) first.**
+It explains the whole project and everything we found in plain language, with no jargon.
+Everything below goes deeper on one piece of it.
+
+## Then, in this order
 
 | # | File | What it answers |
 |---|---|---|
