@@ -98,6 +98,21 @@ class Blocking(BaseModel):
     fallback_top_k: int = 20
 
 
+class AutoMerge(BaseModel):
+    """When may the system merge without asking a person?
+
+    Only when there is nothing to judge: every comparable attribute agrees exactly, every
+    attribute that must be known is known, and no gate had to intervene. Anything short of
+    that goes to a human. A sampled fraction is still sent for audit, because an automation
+    rate nobody checks is a claim, not a control.
+    """
+    enabled: bool = False
+    require_all_known: bool = True
+    require_score: float = 1.0
+    forbid_gate_override: bool = True
+    audit_sample_rate: float = 0.05
+
+
 class Naming(BaseModel):
     noun: str
     modifier: str = ""
@@ -111,6 +126,7 @@ class Family(BaseModel):
     version: int = 1
     naming: Naming
     blocking: Blocking = Field(default_factory=Blocking)
+    auto_merge: AutoMerge = Field(default_factory=AutoMerge)
     attributes: list[AttributeDef]
     gates: list[Gate] = Field(default_factory=list)
     substitution_groups: list[SubstitutionGroup] = Field(default_factory=list)

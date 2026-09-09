@@ -49,6 +49,8 @@ def match() -> None:
     print(f"  written {info['written']}, left alone because already decided {info['already_decided']}")
     for group, n in info["by_group"].items():
         print(f"    {group:<22s} {n:>5d}")
+    print(f"  auto-merged without asking anyone: {info['auto_merged']}   "
+          f"sampled for audit: {info['sampled_for_audit']}")
 
 
 def stats() -> None:

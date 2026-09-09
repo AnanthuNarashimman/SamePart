@@ -21,7 +21,7 @@ class Value:
     key: str
     value: object | None
     unit: str | None = None
-    status: str = "extracted"        # extracted | unknown | derived
+    status: str = "extracted"        # extracted | unknown | derived | unresolvable
     method: str = "regex"            # regex | llm | derived | given
     evidence: str | None = None
     confidence: float | None = None

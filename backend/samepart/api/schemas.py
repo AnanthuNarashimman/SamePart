@@ -244,6 +244,12 @@ class QuestionPage(BaseModel):
     pairs_deferred: int
     questions: int = Field(description="Distinct record-and-field blanks behind those pairs")
     records: int = Field(description="Records a person actually opens")
+    curve: list[CurvePoint] = Field(
+        default_factory=list,
+        description="Diminishing returns. Answering in ranked order, how many pairs clear "
+                    "after N answers. Shown so a data owner can stop early on purpose "
+                    "rather than feeling obliged to empty the queue.",
+    )
     items: list[Question]
     next_cursor: str | None = None
 
@@ -252,6 +258,18 @@ class AnswerRequest(BaseModel):
     values: dict[str, str] = Field(description="Attribute key -> value the reviewer asserts")
     reviewer: str = "demo-reviewer"
     note: str | None = None
+
+
+class UnresolvableRequest(BaseModel):
+    keys: list[str] = Field(description="Attributes that cannot be answered from any source")
+    reason: str | None = None
+    reviewer: str = "demo-reviewer"
+
+
+class CurvePoint(BaseModel):
+    questions_answered: int
+    pairs_cleared: int
+    share_cleared: float
 
 
 class AnswerResult(BaseModel):

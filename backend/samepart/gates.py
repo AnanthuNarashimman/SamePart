@@ -86,8 +86,15 @@ def evaluate(
     a: Attrs,
     b: Attrs,
     incoming: Verdict = Verdict.INSUFFICIENT_EVIDENCE,
+    settled: set[str] | None = None,
 ) -> GateOutcome:
-    """Apply the family's gate table to a candidate pair."""
+    """Apply the family's gate table to a candidate pair.
+
+    `settled` names blanks a person has already declared unanswerable. The missing-value gate
+    skips them, because asking again for something that has been established as unobtainable
+    is how a review queue becomes permanent.
+    """
+    settled = settled or set()
     firings: list[GateFiring] = []
     conditions: list[str] = []
     notes: list[str] = []
@@ -96,7 +103,8 @@ def evaluate(
         keys = gate.attributes
 
         if gate.when is GateWhen.EITHER_MISSING:
-            missing = [k for k in keys if not (_present(a, k) and _present(b, k))]
+            missing = [k for k in keys
+                       if k not in settled and not (_present(a, k) and _present(b, k))]
             if missing:
                 firings.append(GateFiring(gate.id, gate.action, gate.message, missing,
                                           detail=f"unknown on at least one record: {', '.join(missing)}"))

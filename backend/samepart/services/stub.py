@@ -234,6 +234,8 @@ class StubQuestions:
     def questions(self, cursor, limit):
         return s.QuestionPage(
             pairs_deferred=689, questions=228, records=207,
+            curve=[s.CurvePoint(questions_answered=n, pairs_cleared=c, share_cleared=c/689)
+                   for n, c in [(10,130),(25,221),(50,348),(100,508),(228,675)]],
             items=[
                 s.Question(
                     record_id=5, org_code="CPCL", source_code="CPCL-000210",
@@ -258,6 +260,12 @@ class StubQuestions:
                         counterpart_values=[s.CounterpartValue(value="PLAIN", seen_on=9)])]),
             ],
             next_cursor="50")
+
+    def unresolvable(self, record_id, req):
+        return s.AnswerResult(
+            record_id=record_id, applied={k: "unresolvable" for k in req.keys},
+            pairs_reevaluated=12, resolved=s.QueueCounts(different=12),
+            message="Recorded as unobtainable. These pairs will not be asked about again.")
 
     def answer(self, record_id, req):
         return s.AnswerResult(

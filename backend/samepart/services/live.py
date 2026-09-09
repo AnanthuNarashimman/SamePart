@@ -6,6 +6,7 @@ cannot tell the difference.
 """
 from __future__ import annotations
 
+import random
 import uuid
 from collections import Counter
 from datetime import datetime, timezone
@@ -206,12 +207,15 @@ class LiveReview:
                 for m in db.scalars(select(CandidateMatch))
             }
             counts: dict[str, int] = {g: 0 for g in _GROUP_ORDER}
-            written = skipped = 0
+            written = skipped = auto = audit = 0
+            policy = family.auto_merge
+            rng = random.Random(20260909)
 
             for sa, sb in retriever.candidate_pairs():
                 a_id, b_id = sorted((int(sa), int(sb)))
                 a, b = by_id[a_id], by_id[b_id]
-                result = cascade.run(family, a.attrs(), b.attrs())
+                result = cascade.run(family, a.attrs(), b.attrs(),
+                                     a.unresolvable(), b.unresolvable())
                 counts[_GROUP_OF[result.verdict.value]] += 1
 
                 row = decided.get((a_id, b_id))
@@ -237,10 +241,25 @@ class LiveReview:
                      for c in result.gate.substitution_conditions]
                 written += 1
 
+                # Nothing to judge, so nobody is asked. A sampled fraction still goes to a
+                # person, because an automation rate nobody audits is a claim, not a control.
+                if result.auto_mergeable(policy):
+                    if rng.random() < policy.audit_sample_rate:
+                        row.review_state = "queued"
+                        row.rationale = (row.rationale or "") + \
+                            " Selected for audit sampling of automatic merges."
+                        audit += 1
+                    else:
+                        db.flush()
+                        self._merge(db, a, b, "auto")
+                        row.review_state = "auto_approved"
+                        auto += 1
+
         return {"records": stats.records, "candidate_pairs": stats.candidate_pairs,
                 "reduction_ratio": round(stats.reduction_ratio, 4),
                 "blocked": stats.blocked, "fallback": stats.fallback,
-                "written": written, "already_decided": skipped, "by_group": counts}
+                "written": written, "already_decided": skipped, "by_group": counts,
+                "auto_merged": auto, "sampled_for_audit": audit}
 
     # -- reads --------------------------------------------------------------
     def queue(self, group: str | None, cursor: str | None, limit: int) -> s.QueuePage:
@@ -553,7 +572,7 @@ class LiveQuestions:
                 continue
             family = self.dictionary.family(a.family)
             aa, ab = a.attrs(), b.attrs()
-            _, _, _, missing = cascade.attribute_agreement(family, aa, ab)
+            _, _, _, missing, _ = cascade.attribute_agreement(family, aa, ab)
             for key in missing:
                 silent, other = (a, ab) if key not in aa else (b, aa)
                 entry = blanks.setdefault((silent.id, key), {"pairs": set(), "counterpart": Counter()})
@@ -593,12 +612,67 @@ class LiveQuestions:
                     pairs_blocked=len(blocked)))
 
             items.sort(key=lambda q: -q.pairs_blocked)
+
+            ordered = sorted(blanks.values(), key=lambda i: -len(i["pairs"]))
+            curve, seen = [], set()
+            for n, info in enumerate(ordered, start=1):
+                seen |= info["pairs"]
+                if n in (10, 25, 50, 100, 200, len(ordered)):
+                    curve.append(s.CurvePoint(
+                        questions_answered=n, pairs_cleared=len(seen),
+                        share_cleared=round(len(seen) / deferred, 4) if deferred else 0.0))
+
             offset = int(cursor) if cursor and cursor.isdigit() else 0
             page = items[offset:offset + limit]
             return s.QuestionPage(
                 pairs_deferred=deferred, questions=len(blanks), records=len(per_record),
-                items=page,
+                curve=curve, items=page,
                 next_cursor=str(offset + limit) if offset + limit < len(items) else None)
+
+    def unresolvable(self, record_id: int, req: s.UnresolvableRequest) -> s.AnswerResult:
+        """A person looked and the answer does not exist. Stop asking.
+
+        Without this a review queue is permanent: every run re-proposes the same pair and
+        re-asks the same unanswerable question. Marking it settled lets those pairs reach a
+        final state, which is separate identities where the other side states a
+        conflict-critical fact.
+        """
+        with session_scope() as db:
+            record = db.get(SourceRecord, record_id)
+            if record is None:
+                raise KeyError(record_id)
+            family = self.dictionary.family(record.family)
+            by_key = {a.key: a for a in record.attributes}
+            marked = {}
+            for key in req.keys:
+                row = by_key.get(key)
+                if row is None:
+                    continue
+                row.status, row.method = "unresolvable", "given"
+                row.evidence = f"{req.reviewer}: {req.reason}" if req.reason else f"declared unobtainable by {req.reviewer}"
+                marked[key] = "unresolvable"
+            if not marked:
+                return s.AnswerResult(record_id=record_id, applied={}, pairs_reevaluated=0,
+                                      message="No recognised attribute was named.")
+            db.flush()
+            affected = list(db.scalars(select(CandidateMatch).where(
+                CandidateMatch.review_state == "queued",
+                (CandidateMatch.a_id == record_id) | (CandidateMatch.b_id == record_id))))
+            resolved = s.QueueCounts()
+            for m in affected:
+                a, b = db.get(SourceRecord, m.a_id), db.get(SourceRecord, m.b_id)
+                r = cascade.run(family, a.attrs(), b.attrs(), a.unresolvable(), b.unresolvable())
+                m.verdict, m.decided_by, m.score = r.verdict.value, r.decided_by, r.score
+                m.rationale, m.gate_overrode = r.rationale, r.gate_overrode
+                setattr(resolved, _GROUP_OF[m.verdict], getattr(resolved, _GROUP_OF[m.verdict]) + 1)
+            db.add(DecisionEvent(actor=req.reviewer, action="declared_unresolvable",
+                                 payload={"record_id": record_id, "keys": list(marked),
+                                          "reason": req.reason}))
+            return s.AnswerResult(
+                record_id=record_id, applied=marked, pairs_reevaluated=len(affected),
+                resolved=resolved,
+                message=f"{', '.join(marked)} recorded as unobtainable on {record.source_code}. "
+                        f"{len(affected)} pairs re-decided and will not be asked about again.")
 
     def answer(self, record_id: int, req: s.AnswerRequest) -> s.AnswerResult:
         """Fill in the blanks on one record and re-decide every pair it was blocking."""

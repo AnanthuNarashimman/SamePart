@@ -65,11 +65,15 @@ class SourceRecord(Base):
         back_populates="record", cascade="all, delete-orphan"
     )
 
+    def unresolvable(self) -> set[str]:
+        """Blanks a person has declared unanswerable. Never asked about again."""
+        return {a.key for a in self.attributes if a.status == "unresolvable"}
+
     def attrs(self) -> dict[str, object]:
         """Attribute view the matcher and gates consume."""
         out: dict[str, object] = {}
         for a in self.attributes:
-            if a.status == "unknown":
+            if a.status in ("unknown", "unresolvable"):
                 continue
             out[a.key] = a.value_number if a.value_number is not None else a.value_text
         return out
@@ -92,7 +96,10 @@ class ExtractedAttribute(Base):
     value_number: Mapped[float | None] = mapped_column(Float, default=None)
     unit: Mapped[str | None] = mapped_column(String(32), default=None)
 
-    status: Mapped[str] = mapped_column(String(16), default="extracted")  # extracted|unknown|derived
+    # extracted | unknown | derived | unresolvable
+    # `unresolvable` means a person looked and the answer does not exist anywhere. It stops
+    # the pair being asked about again, forever, instead of sitting in a queue.
+    status: Mapped[str] = mapped_column(String(16), default="extracted")
     method: Mapped[str] = mapped_column(String(16), default="regex")      # regex|llm|derived|given
     evidence: Mapped[str | None] = mapped_column(String(300), default=None)
     confidence: Mapped[float | None] = mapped_column(Float, default=None)

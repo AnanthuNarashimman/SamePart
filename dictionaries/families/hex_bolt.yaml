@@ -155,6 +155,14 @@ blocking:
   fallback: canonical_text
   fallback_top_k: 20
 
+# Automation policy. The system merges without asking only when there is nothing to judge.
+auto_merge:
+  enabled: true
+  require_all_known: true      # no critical attribute unknown on either side
+  require_score: 1.0           # every comparable attribute agrees exactly
+  forbid_gate_override: true   # no gate had to step in
+  audit_sample_rate: 0.05      # 1 in 20 auto-merges is still shown to a person
+
 # Deterministic conflict gates. These run AFTER whichever tier produced a verdict and can
 # override it. They are never a model call. ~20 lines of rules a domain reviewer can read.
 gates:

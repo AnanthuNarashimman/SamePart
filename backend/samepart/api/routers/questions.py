@@ -21,6 +21,16 @@ def questions(cursor: str | None = None, limit: int = Query(50, ge=1, le=200),
     return svc.questions(cursor, limit)
 
 
+@router.post("/records/{record_id}/unresolvable", response_model=s.AnswerResult)
+def unresolvable(record_id: int, req: s.UnresolvableRequest,
+                 svc: QuestionService = Depends(question_service)):
+    """Declare that a blank cannot be answered from any source, so it stops being asked."""
+    try:
+        return svc.unresolvable(record_id, req)
+    except KeyError:
+        raise HTTPException(404, f"no record with id {record_id}")
+
+
 @router.post("/records/{record_id}/answer", response_model=s.AnswerResult)
 def answer(record_id: int, req: s.AnswerRequest,
            svc: QuestionService = Depends(question_service)):

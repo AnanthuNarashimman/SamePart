@@ -18,6 +18,57 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Human workload cut from 446 actions to 288, by policy rather than by tuning
+**Who:** Aditya (with Claude) · **Prompted by:** "is a person answering 207 records viable?"
+
+Three additions, all declared as data so a domain owner controls them.
+
+**Auto-merge policy** (`auto_merge` in the family file). The system merges without asking
+only when there is nothing to judge: every comparable attribute agrees exactly, every
+attribute that must be known is known, and no gate had to intervene. **389 pairs merged
+automatically**, creating 184 canonical materials covering 471 source codes, with no human
+involved. One in twenty is still routed to a person, because an automation rate nobody
+audits is a claim rather than a control.
+
+**Unresolvable blanks** (`POST /api/records/{id}/unresolvable`). Some answers do not exist:
+the drawing is lost, the supplier has gone. Marking a blank unobtainable stops it being
+asked forever, and the affected pairs reach a final state, which is separate identities
+where the other record states a conflict-critical fact. Without this the queue is permanent,
+because every run re-proposes the same pair and re-asks the same unanswerable question.
+
+**Stopping curve** on `GET /api/questions`. Answering in ranked order, 10 answers clear 19%
+of the deferred pairs, 50 clear 51%, 100 clear 74%. Shown so a data owner stops early **on
+purpose** rather than feeling obliged to empty a queue.
+
+| Outcome | Pairs | Human actions |
+|---|---|---|
+| different, auto-rejected | 1,893 | 0 |
+| auto-merged, nobody asked | 389 | 0 |
+| audit a sampled auto-merge | 20 | 20 |
+| confirm a substitute group | 438 | 61 |
+| open a record, fill blanks | 689 | 207 |
+| **Total** | **3,429** | **288** |
+
+288 actions is 8.4% of pairs and 0.44 per record, down from 446 and 13.0%.
+
+**What is left is genuinely irreducible without more data.** 207 record blanks exist because
+nobody wrote the grade or finish down; no algorithm invents information that was never
+recorded. The model tier in step 4 should recover a large share, because it can read the
+whole source record rather than the 40-character short description our regex reads. The 61
+substitute confirmations are engineering judgement and should stay with a person.
+
+**Honest scale note.** At 32% of records needing a blank, a 400,000-line master implies about
+128,000 questions, roughly 200 working days for one person. That does not scale as-is. The
+fixes are the model tier reading richer fields, the stopping rule, and accepting that some
+blanks stay unresolved. Do not present the demo ratio as a rollout plan.
+
+### Bug found and fixed while testing the escape hatch
+Marking a blank unobtainable initially left 18 of 20 pairs as *possible alternative*, because
+a later gate downgraded the separation into a substitution proposal. That moved work between
+queues instead of closing it. An unobtainable value now ends the question: it can never be
+softened back to same or alternative.
+
+
 ### Grouped question view: the queue as a person actually experiences it
 **Who:** Aditya (with Claude) · **Prompted by:** "isn't 689 pairs a lot?" — it was the wrong
 denominator
