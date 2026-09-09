@@ -31,6 +31,7 @@ already been tried, reversed, and why.
 | 09 | [open-decisions.md](09-open-decisions.md) | Decisions the team still has to make |
 | 10 | [frontend-plan.md](10-frontend-plan.md) | What pages the UI needs, and why, reconciled against the gaps above |
 | 11 | [team-split-and-stack.md](11-team-split-and-stack.md) | Who owns what, the tech stack, and the frozen API contract |
+| 12 | [build-plan.md](12-build-plan.md) | Ordered steps from stubs to live, with exit conditions |
 
 ## Conventions used in these notes
 
