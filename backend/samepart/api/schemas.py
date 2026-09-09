@@ -148,6 +148,30 @@ class DecisionResult(BaseModel):
     message: str
 
 
+class ColumnSuggestion(BaseModel):
+    field: str
+    column: str | None = None
+    confidence: float = Field(description="1.0 is an exact header match; below 0.9 is a guess")
+    how: str
+    alternatives: list[str] = Field(default_factory=list)
+
+
+class ImportPreview(BaseModel):
+    """What a file looks like before committing to importing it.
+
+    The mapping is proposed, not imposed. Confident matches are pre-filled so nobody maps a
+    familiar export by hand, and anything uncertain is surfaced with alternatives.
+    """
+    kind: str
+    headers: list[str]
+    sample_rows: list[dict] = Field(default_factory=list)
+    suggestions: list[ColumnSuggestion] = Field(default_factory=list)
+    column_map: dict[str, str] = Field(
+        default_factory=dict, description="Send this straight back to POST /imports")
+    ready: bool = Field(description="True when every required field found a column")
+    missing_required: list[str] = Field(default_factory=list)
+
+
 class ImportRequest(BaseModel):
     org_code: str
     family: str

@@ -1,0 +1,57 @@
+# Header synonyms, so a CPSE export maps itself.
+#
+# Every organisation names the same fact differently, and SAP exports often carry the raw
+# table field rather than a readable label. This is the same idea as the value synonyms in a
+# family file, applied to column headings, and it lives in data for the same reason: the
+# person who knows that MAKTX means the short description is a domain person, not a
+# developer.
+#
+# Matching is on the normalised header (lowercased, punctuation and spaces removed), so
+# "Material No." and "material_no" both hit "materialno".
+version: 1
+
+catalogue:
+  source_code:
+    - material, material code, material number, material no, matnr
+    - item code, item no, item number, stock code, part code, code
+    - sap code, erp code, cpse code, local code, source code, source
+  description:
+    - description, material description, item description, short description
+    - short text, long text, maktx, text, particulars, nomenclature, item name
+  uom:
+    - uom, unit, units, unit of measure, base unit, base uom, meins
+    - order unit, issue unit, stock unit, buom
+  quantity:
+    - quantity, qty, menge, stock qty, stock quantity, on hand, closing stock
+  unit_price:
+    - unit price, price, rate, unit rate, netpr, valuation price
+    - moving average price, map, standard price, value per unit
+  manufacturer:
+    - manufacturer, mfr, mfg, make, brand, oem, manufacturer name
+  manufacturer_part_number:
+    - mpn, mfrpn, manufacturer part number, manufacturer part no, mfr part no
+    - part number, part no, catalogue number, catalogue no, cat no, model number
+
+procurement:
+  source_code:
+    - material, material code, material number, matnr, item code, code
+  po_number:
+    - po number, po no, purchase order, purchase order number, ebeln, document number
+  line_no:
+    - line, line no, line number, item, po line, ebelp
+  po_date:
+    - po date, order date, document date, date, bedat
+  vendor:
+    - vendor, supplier, vendor name, supplier name, lifnr
+  vendor_part_number:
+    - vendor part number, vendor part no, supplier part no, vendor material, idnlf
+  plant:
+    - plant, location, works, unit, site, werks
+  quantity:
+    - quantity, qty, order qty, ordered quantity, menge
+  uom:
+    - uom, unit, unit of measure, order unit, meins
+  unit_price:
+    - unit price, price, rate, net price, netpr, unit rate
+  currency:
+    - currency, curr, waers

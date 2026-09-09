@@ -18,6 +18,35 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Column mapping detects itself
+**Who:** Aditya (with Claude) · **Asked for by:** Ananthu, who did not want to click every
+column by hand
+
+New `POST /api/imports/preview`. Upload a file and it returns the headers, five sample rows,
+a proposed column mapping with a confidence per field, and whether the required columns were
+all found. Nothing is imported. Send `column_map` straight back to `POST /imports`.
+
+Header synonyms live in `dictionaries/column_aliases.yaml`, **as data**, for the same reason
+value synonyms do: the person who knows that `MAKTX` is the short description is a domain
+person, not a developer.
+
+Verified on three real header styles, all mapping with no human input:
+
+| Style | Example headers | Result |
+|---|---|---|
+| Our sample | `source_code, description, uom` | 7 of 7 exact |
+| SAP export | `MATNR, MAKTX, MEINS, MENGE, NETPR` | 6 of 6 exact |
+| Hand-made sheet | `Material Code, Item Description, Qty, Rate, Make` | 7 of 7 exact |
+
+A file missing a required column returns `ready: false` and names what is missing, rather
+than failing after the upload.
+
+**For the UI:** call preview on file selection, pre-fill the mapper from `column_map`, and
+only ask about fields where confidence is below 0.9 or the column is null. Longest field
+names are matched first, so "manufacturer part number" claims its column before plain
+"manufacturer" can take it.
+
+
 ### Import reported success as failure
 **Who:** Aditya (with Claude) · **Found by:** Ananthu, whose upload "failed" when it had not
 

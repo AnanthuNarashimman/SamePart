@@ -575,6 +575,17 @@ Two actions per card:
 
 ---
 
+## Import: map the columns automatically
+
+Do **not** make the user pick columns by hand. Call `POST /api/imports/preview` with the
+file on selection; it returns headers, sample rows, and a proposed `column_map` with a
+confidence per field. Pre-fill the mapper from it and only ask about fields where
+`confidence < 0.9` or `column` is null. `ready: false` names the required columns that were
+not found, before anything is imported.
+
+Verified: SAP raw field names (`MATNR`, `MAKTX`, `MEINS`) and human headings
+(`Material Code`, `Qty`, `Rate`, `Make`) both map with zero human input.
+
 ## Import: errors are not warnings
 
 `ImportStatus` has three separate fields and they mean different things.
