@@ -18,6 +18,31 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Frontend integration guide added
+**Who:** Aditya (with Claude) · **For:** Ananthu and any agent working on the UI
+
+[`BACKEND_FOR_FRONTEND.md`](../BACKEND_FOR_FRONTEND.md) at the repo root. Every endpoint with
+a **real captured response** rather than an illustration, which services are live against the
+database and which still return fixtures, how to run and seed the backend, and how to
+generate types from the published schema.
+
+Four things in it are not obvious from the schema and will otherwise be got wrong:
+
+- **`unit_price` and `unit_price_base` are different numbers.** A box of a hundred costs
+  4,180 and each costs 41.80. Comparing the wrong one is a hundredfold error in a figure
+  someone reads off a slide
+- **The question screen is one card per record, not one row per pair.** 689 deferred pairs
+  are 207 records. Designing it per pair triples the apparent work and misleads the reviewer
+- **`status: "unknown"` rows must be rendered, not hidden.** The blank is the reason the
+  system is asking
+- **The withheld savings figure belongs on screen**, next to the claimed one. Money we
+  deliberately do not claim, because those merges are under audit, is the point rather than
+  a footnote
+
+Live now: catalogue, review, questions, analytics. Still fixtures: prevention, families.
+Stub and live share shapes exactly, so either can be built against.
+
+
 ### Capability 6 is live: dashboard analytics, on real spend
 **Who:** Aditya (with Claude) · **Flips:** `analytics_service`
 

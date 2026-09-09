@@ -7,6 +7,9 @@ The same bolt appears on four CPSEs' material masters under four different codes
 different descriptions. SamePart works out which entries are secretly the same part, gives
 each one a national code, and **never touches anyone's existing code**.
 
+**Building the UI?** Read [`BACKEND_FOR_FRONTEND.md`](BACKEND_FOR_FRONTEND.md) — every
+endpoint with real captured responses, what is live, and what will bite you.
+
 Start with [`knowledge/00-start-here.md`](knowledge/00-start-here.md).
 Before changing anything, read [`knowledge/CHANGELOG.md`](knowledge/CHANGELOG.md).
 
