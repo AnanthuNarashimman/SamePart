@@ -207,6 +207,61 @@ class SavingsResult(BaseModel):
     clusters: list[SavingsCluster]
 
 
+class CounterpartValue(BaseModel):
+    """What other records in the blocked pairs say for this field, to help the reviewer."""
+    value: str
+    seen_on: int
+
+
+class MissingField(BaseModel):
+    key: str
+    label: str
+    criticality: str
+    pairs_blocked: int
+    counterpart_values: list[CounterpartValue] = Field(
+        default_factory=list,
+        description="Values the other side of the blocked pairs carries. Often the answer is "
+                    "visible from context, which is why we show it rather than asking blind.",
+    )
+
+
+class Question(BaseModel):
+    """One record with one or more blanks, and what filling them unblocks.
+
+    The queue holds pairs, but a person does not answer pairs. The same record appears in
+    many blocked pairs, and one answer clears all of them, so the reviewer is asked about
+    records and ranked by how much each answer is worth.
+    """
+    record_id: int
+    org_code: str
+    source_code: str
+    raw_description: str
+    missing: list[MissingField]
+    pairs_blocked: int = Field(description="Pairs this one record is blocking, across all its blanks")
+
+
+class QuestionPage(BaseModel):
+    pairs_deferred: int
+    questions: int = Field(description="Distinct record-and-field blanks behind those pairs")
+    records: int = Field(description="Records a person actually opens")
+    items: list[Question]
+    next_cursor: str | None = None
+
+
+class AnswerRequest(BaseModel):
+    values: dict[str, str] = Field(description="Attribute key -> value the reviewer asserts")
+    reviewer: str = "demo-reviewer"
+    note: str | None = None
+
+
+class AnswerResult(BaseModel):
+    record_id: int
+    applied: dict[str, str]
+    pairs_reevaluated: int
+    resolved: QueueCounts = Field(description="What the unblocked pairs became")
+    message: str
+
+
 class FamilySummary(BaseModel):
     family: str
     label: str

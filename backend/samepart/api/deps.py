@@ -13,7 +13,7 @@ from samepart.config import settings
 from samepart.dictionary.loader import Dictionary, load_dictionary
 from samepart.services import live, stub
 from samepart.services.protocols import (AnalyticsService, CatalogueService, CheckService,
-                                         FamilyService, ReviewService)
+                                         FamilyService, QuestionService, ReviewService)
 
 
 def mode() -> str:
@@ -38,6 +38,12 @@ def review_service() -> ReviewService:
     return stub.StubReview()
 
 
+def question_service() -> QuestionService:
+    if mode() == "live":
+        return live.LiveQuestions(dictionary())
+    return stub.StubQuestions()
+
+
 def check_service() -> CheckService:
     return stub.StubCheck()           # step 7
 
@@ -52,4 +58,4 @@ def family_service() -> FamilyService:
 
 def live_services() -> list[str]:
     """Reported at /api/health so the frontend can see what is real yet."""
-    return ["catalogue", "review"] if mode() == "live" else []
+    return ["catalogue", "review", "questions"] if mode() == "live" else []

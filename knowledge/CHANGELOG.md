@@ -18,6 +18,59 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Grouped question view: the queue as a person actually experiences it
+**Who:** Aditya (with Claude) · **Prompted by:** "isn't 689 pairs a lot?" — it was the wrong
+denominator
+
+New `GET /api/questions` and `POST /api/records/{id}/answer`, behind their own
+`QuestionService` protocol so they stay separable from the review queue.
+
+**The queue holds pairs. A reviewer does not answer pairs.** The same record appears in many
+blocked pairs and one answer clears all of them.
+
+| | Count |
+|---|---|
+| Deferred pairs | 689 |
+| Distinct blanks behind them | 228 |
+| **Records a person opens** | **207** |
+
+Only two attributes cause every deferral: **finish** and **grade**. Nothing else. Answering
+the fifty highest-value blanks clears half the queue; a hundred clears three quarters.
+
+Questions are ranked by how many pairs each answer unblocks, and each blank shows what the
+counterpart records say for that field, so the reviewer answers with context instead of
+blind. Verified live: answering one record re-decided 21 pairs immediately.
+
+### The real human workload, measured
+The honest number is **not** one action per pair.
+
+| Verdict | Pairs | Human actions | What the action is |
+|---|---|---|---|
+| different | 1,893 | **0** | auto-rejected, informational only |
+| same_material | 409 | **178** | approve one cluster, not one pair |
+| possible_alternative | 438 | **61** | confirm one substitute group |
+| insufficient_evidence | 689 | **207** | open a record, fill one or two blanks |
+| **Total** | **3,429** | **446** | **13% of pairs** |
+
+Merge clusters are mostly small: 92 pairs of two, 60 of three, and the largest is seven
+records across four CPSEs.
+
+**Step 5 is what cuts this further.** A calibrated auto-merge threshold removes most of the
+178 cluster approvals, because a cluster where every attribute agrees exactly does not need
+a person. The 207 record blanks are irreducible: nobody wrote the grade down, so somebody
+has to say what it is.
+
+**This is also a product, not just a cost.** The system hands a data owner a ranked worklist
+saying "these 207 records are missing a grade or a finish, start with this one because it
+unblocks twenty comparisons." That is the same shape as the missing-synonyms report, and it
+is worth saying out loud in the pitch.
+
+### Considered and rejected: relaxing the finish rule
+Exempting finish from the asymmetric-unknown rule saves 210 deferrals and **triples false
+merges**, from 32 to 102. In a refinery that is the wrong direction. Recorded so nobody
+re-runs it.
+
+
 ### Step 2 of the build plan is live: matching and the review queue
 **Who:** Aditya (with Claude) · **Flips:** `review_service`
 

@@ -228,3 +228,39 @@ class StubFamilies:
 
     def load_family(self, yaml_text):
         return s.FamilyLoadResult(family="gasket", loaded=True, attribute_count=7, gate_count=3)
+
+
+class StubQuestions:
+    def questions(self, cursor, limit):
+        return s.QuestionPage(
+            pairs_deferred=689, questions=228, records=207,
+            items=[
+                s.Question(
+                    record_id=5, org_code="CPCL", source_code="CPCL-000210",
+                    raw_description="HEX BOLT M12X60  ISO 4017  ZINC PLATED",
+                    pairs_blocked=20,
+                    missing=[s.MissingField(
+                        key="grade", label="Property class or grade", criticality="critical",
+                        pairs_blocked=20,
+                        counterpart_values=[s.CounterpartValue(value="8.8", seen_on=17),
+                                            s.CounterpartValue(value="10.9", seen_on=3)])]),
+                s.Question(
+                    record_id=9, org_code="BPCL", source_code="BPCL-000038",
+                    raw_description="BLT HEX HD M24X100MM  DIN933",
+                    pairs_blocked=16,
+                    missing=[s.MissingField(
+                        key="grade", label="Property class or grade", criticality="critical",
+                        pairs_blocked=16,
+                        counterpart_values=[s.CounterpartValue(value="A2-70", seen_on=11)]),
+                        s.MissingField(
+                        key="finish", label="Surface finish", criticality="critical",
+                        pairs_blocked=9,
+                        counterpart_values=[s.CounterpartValue(value="PLAIN", seen_on=9)])]),
+            ],
+            next_cursor="50")
+
+    def answer(self, record_id, req):
+        return s.AnswerResult(
+            record_id=record_id, applied=dict(req.values), pairs_reevaluated=20,
+            resolved=s.QueueCounts(same_material=14, different=6),
+            message="Recorded. 20 blocked pairs re-decided.")
