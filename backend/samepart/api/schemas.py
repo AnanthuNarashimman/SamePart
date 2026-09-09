@@ -160,8 +160,17 @@ class ImportStatus(BaseModel):
     status: str
     rows_read: int = 0
     rows_ingested: int = 0
+    rows_skipped: int = Field(0, description="Rows already present. Re-importing is safe.")
     attributes_extracted: int = 0
-    errors: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(
+        default_factory=list,
+        description="Things that went WRONG. An import with an empty errors list succeeded.")
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Things worth knowing that are not failures, such as rows skipped "
+                    "because they were already imported. Render these differently from "
+                    "errors; a re-import that skips everything is correct behaviour, not "
+                    "a failure.")
     started_at: datetime | None = None
 
 

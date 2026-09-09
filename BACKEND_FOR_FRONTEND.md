@@ -575,6 +575,25 @@ Two actions per card:
 
 ---
 
+## Import: errors are not warnings
+
+`ImportStatus` has three separate fields and they mean different things.
+
+- `errors` — things that went **wrong**. Empty list means the import succeeded
+- `warnings` — not failures. Rows skipped because they were already imported land here
+- `rows_skipped` — a count
+
+**Render warnings differently from errors.** Re-importing a file is safe and skips
+everything, which is correct behaviour, not a failure. Showing that as an error makes a
+working import look broken.
+
+There is also a gap: import does **not** trigger matching yet. After uploading, run
+`PYTHONPATH=backend SAMEPART_MODE=live ./.venv/bin/python -m samepart.cli match` or nothing
+appears in the queue. A button for this would be welcome.
+
+Sample file to try: `samples/HPCL_sample_upload.csv`, upload as org `HPCL`, family
+`hex_bolt`.
+
 ## Things that will bite you
 
 - **`unit_price` and `unit_price_base` are different numbers.** One box of a hundred costs

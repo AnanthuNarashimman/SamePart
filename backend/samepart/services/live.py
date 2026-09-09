@@ -89,10 +89,10 @@ class LiveCatalogue:
                     select(SourceRecord.source_code).where(SourceRecord.org_id == org.id)
                 )
             )
+            skipped: list[str] = []
             for row in result.rows:
                 if row.source_code in existing:
-                    status.errors.append(
-                        f"{row.source_code}: already imported for {req.org_code}, skipped")
+                    skipped.append(row.source_code)
                     continue
                 existing.add(row.source_code)
                 record = self._persist(db, org.id, family.family, row)
@@ -101,7 +101,14 @@ class LiveCatalogue:
 
         status.status = "completed"
         status.rows_ingested = ingested
+        status.rows_skipped = len(skipped)
         status.attributes_extracted = attributes
+        if skipped:
+            shown = ", ".join(skipped[:5]) + ("…" if len(skipped) > 5 else "")
+            status.warnings.append(
+                f"{len(skipped)} of {result.rows_read} rows were already imported for "
+                f"{req.org_code} and were skipped ({shown}). Re-importing the same file is "
+                f"safe and changes nothing.")
         _IMPORTS[import_id] = status
         return status
 
@@ -156,7 +163,7 @@ class LiveCatalogue:
                 ingested += 1
 
         if unlinked:
-            status.errors.append(
+            status.warnings.append(
                 f"{unlinked} lines reference a source code not in the material master; "
                 f"kept for spend analysis but not linked to a record")
         status.status = "completed"

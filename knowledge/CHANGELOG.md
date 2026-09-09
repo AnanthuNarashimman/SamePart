@@ -18,6 +18,36 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Import reported success as failure
+**Who:** Aditya (with Claude) · **Found by:** Ananthu, whose upload "failed" when it had not
+
+Re-importing a file put one line per already-seen row into the `errors` list. A correct,
+idempotent, successful import therefore came back with nineteen errors and looked broken.
+
+`ImportStatus` now separates three things:
+
+- `errors` — things that went **wrong**. An empty list means the import succeeded
+- `warnings` — things worth knowing that are **not failures**, such as rows skipped as
+  already present
+- `rows_skipped` — a count, so the UI can say "19 already present" instead of listing them
+
+Re-importing the same file is safe and changes nothing. **The UI must render warnings
+differently from errors**, or this reads as a failure again.
+
+Additive change, so nothing on the frontend breaks.
+
+### Sample upload file for demos
+`samples/HPCL_sample_upload.csv`. Nineteen rows written in a fifth house style, deliberately
+colliding with data already loaded: one that matches the M16x80 cluster, one grade conflict,
+one with the grade missing, one A4 against an existing A2, and one carrying a manufacturer
+and part number. Upload as org `HPCL`, family `hex_bolt`.
+
+### Known gap: import does not trigger matching
+Ingestion extracts attributes but does not run the matcher, so nothing appears in the queue
+until `python -m samepart.cli match` is run by hand. Either the import endpoint should
+trigger it or the UI needs a button.
+
+
 ### Frontend integration guide added
 **Who:** Aditya (with Claude) · **For:** Ananthu and any agent working on the UI
 
