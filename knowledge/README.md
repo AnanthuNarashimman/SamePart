@@ -13,6 +13,9 @@ and so the claims we put on a slide are ones we can defend when a judge pushes b
 It explains the whole project and everything we found in plain language, with no jargon.
 Everything below goes deeper on one piece of it.
 
+**Before changing anything, read [CHANGELOG.md](CHANGELOG.md)** — it records what has
+already been tried, reversed, and why.
+
 ## Then, in this order
 
 | # | File | What it answers |
