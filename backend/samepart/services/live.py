@@ -14,10 +14,12 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 
 from samepart.api import schemas as s
-from samepart.db.models import ExtractedAttribute, Organisation, SourceRecord
+from samepart.db.models import (ExtractedAttribute, Organisation, ProcurementLine,
+                                SourceRecord)
 from samepart.db.session import session_scope
 from samepart.dictionary.loader import Dictionary
 from samepart.ingest.csv_loader import Row, load_csv
+from samepart.ingest.procurement_loader import load_procurement_csv
 from samepart.pipeline.extract import extract
 
 # Import status is held in memory. Ingestion is synchronous and fast at this scale; when it
@@ -100,6 +102,65 @@ class LiveCatalogue:
         status.status = "completed"
         status.rows_ingested = ingested
         status.attributes_extracted = attributes
+        _IMPORTS[import_id] = status
+        return status
+
+    def import_procurement(self, org_code: str, content: bytes,
+                           column_map: dict | None = None) -> s.ImportStatus:
+        """Ingest a CPSE purchase order extract and link each line to its material record."""
+        import_id = str(uuid.uuid4())[:8]
+        result = load_procurement_csv(content, self.dictionary.units, column_map)
+        status = s.ImportStatus(
+            import_id=import_id, org_code=org_code, status="running",
+            rows_read=result.rows_read, errors=list(result.errors[:50]),
+            started_at=datetime.now(timezone.utc))
+        if not result.rows:
+            status.status = "failed"
+            _IMPORTS[import_id] = status
+            return status
+
+        ingested = unlinked = 0
+        with session_scope() as db:
+            org = db.scalar(select(Organisation).where(Organisation.code == org_code))
+            if org is None:
+                status.status = "failed"
+                status.errors.append(f"unknown organisation {org_code}; import the catalogue first")
+                _IMPORTS[import_id] = status
+                return status
+
+            record_ids = {
+                code: rid for code, rid in db.execute(
+                    select(SourceRecord.source_code, SourceRecord.id)
+                    .where(SourceRecord.org_id == org.id)).all()
+            }
+            seen = set(db.execute(
+                select(ProcurementLine.po_number, ProcurementLine.line_no)
+                .where(ProcurementLine.org_id == org.id)).all())
+
+            for row in result.rows:
+                if (row.po_number, row.line_no) in seen:
+                    continue
+                seen.add((row.po_number, row.line_no))
+                rid = record_ids.get(row.source_code)
+                if rid is None:
+                    unlinked += 1
+                db.add(ProcurementLine(
+                    org_id=org.id, record_id=rid, source_code=row.source_code,
+                    po_number=row.po_number, line_no=row.line_no,
+                    po_date=datetime.combine(row.po_date, datetime.min.time()),
+                    vendor=row.vendor, vendor_part_number=row.vendor_part_number,
+                    plant=row.plant, quantity=row.quantity, uom=row.uom,
+                    base_quantity=row.base_quantity, base_uom=row.base_uom,
+                    unit_price=row.unit_price, unit_price_base=row.unit_price_base,
+                    line_value=row.line_value, currency=row.currency))
+                ingested += 1
+
+        if unlinked:
+            status.errors.append(
+                f"{unlinked} lines reference a source code not in the material master; "
+                f"kept for spend analysis but not linked to a record")
+        status.status = "completed"
+        status.rows_ingested = ingested
         _IMPORTS[import_id] = status
         return status
 

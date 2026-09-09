@@ -107,6 +107,54 @@ class ExtractedAttribute(Base):
     record: Mapped[SourceRecord] = relationship(back_populates="attributes")
 
 
+class ProcurementLine(Base):
+    """One purchase order line, as recorded by one CPSE.
+
+    The problem statement names historical procurement data as an INPUT to the analysis, not
+    only as a source of savings figures. It earns its place three times over:
+
+    - **Analytics.** Real spend and real price variance across CPSEs, rather than one price
+      column on a master record
+    - **Rationalisation.** A material code with no purchase order in three years is a dead
+      code. That list is legacy rationalisation, and it cannot be produced without this
+    - **Matching evidence.** The same vendor and vendor part number appearing in two CPSEs'
+      order history is strong identity evidence, independent of how either wrote the
+      description
+
+    Quantities and prices are normalised to base units at ingestion, exactly as master
+    records are, because one box of a hundred and a hundred each must be comparable before
+    any aggregation is valid.
+    """
+    __tablename__ = "procurement_line"
+    __table_args__ = (
+        UniqueConstraint("org_id", "po_number", "line_no", name="uq_po_line"),
+        Index("ix_po_source_code", "org_id", "source_code"),
+        Index("ix_po_date", "po_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organisation.id"))
+    record_id: Mapped[int | None] = mapped_column(ForeignKey("source_record.id"), default=None)
+    source_code: Mapped[str] = mapped_column(String(64))
+
+    po_number: Mapped[str] = mapped_column(String(64))
+    line_no: Mapped[int] = mapped_column(Integer, default=1)
+    po_date: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    vendor: Mapped[str | None] = mapped_column(String(160), default=None)
+    vendor_part_number: Mapped[str | None] = mapped_column(String(64), default=None)
+    plant: Mapped[str | None] = mapped_column(String(32), default=None)
+
+    quantity: Mapped[float | None] = mapped_column(Float, default=None)
+    uom: Mapped[str | None] = mapped_column(String(32), default=None)
+    base_quantity: Mapped[float | None] = mapped_column(Float, default=None)
+    base_uom: Mapped[str | None] = mapped_column(String(32), default=None)
+    unit_price: Mapped[float | None] = mapped_column(Float, default=None)
+    unit_price_base: Mapped[float | None] = mapped_column(Float, default=None)
+    line_value: Mapped[float | None] = mapped_column(Float, default=None)
+    currency: Mapped[str] = mapped_column(String(8), default="INR")
+
+
 class CandidateMatch(Base):
     """A pair the retrieval tier surfaced, plus whatever the cascade decided about it."""
     __tablename__ = "candidate_match"

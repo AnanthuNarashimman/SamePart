@@ -16,6 +16,7 @@ from samepart.db.models import ExtractedAttribute, Organisation, SourceRecord
 from samepart.db.session import init_db, session_scope
 from samepart.services.live import LiveCatalogue, LiveReview
 from samepart.synth.generate import ORGS, generate
+from samepart.synth import procurement as po_synth
 
 DATA = Path("data/generated")
 
@@ -36,8 +37,21 @@ def seed(reset: bool = True) -> None:
         note = f"  {len(status.errors)} warnings" if status.errors else ""
         print(f"  {code}: read {status.rows_read}, ingested {status.rows_ingested}, "
               f"{status.attributes_extracted} attributes{note}")
+    _seed_procurement(svc)
     stats()
     match()
+
+
+def _seed_procurement(svc) -> None:
+    import csv as _csv
+    cats = {code: list(_csv.DictReader((DATA / f"{code}.csv").open())) for code, _ in ORGS}
+    truth = {r["source_code"]: r["truth_identity"]
+             for r in _csv.DictReader((DATA / "labels.csv").open())}
+    info = po_synth.generate(DATA, cats, truth)
+    print(f"\ngenerated {info['total_lines']:,} purchase order lines")
+    for code, _ in ORGS:
+        st = svc.import_procurement(code, (DATA / f"{code}_procurement.csv").read_bytes())
+        print(f"  {code}: {st.rows_ingested:,} lines ingested")
 
 
 def match() -> None:

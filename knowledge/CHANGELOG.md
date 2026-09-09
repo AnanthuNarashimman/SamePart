@@ -18,6 +18,50 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Procurement history is now a first-class input
+**Who:** Aditya (with Claude) · **Why:** the PS names it — "material codes, descriptions,
+specifications, technical parameters **and historical procurement data**"
+
+New `procurement_line` table, loader and ingestion, seeded with 1,418 purchase order lines
+across four CPSEs over four years, Rs 29.0 crore of spend. Quantities and prices are
+normalised to base units at the boundary, exactly as master records are, because one box of
+a hundred and a hundred each must be comparable before any aggregation is valid.
+
+It earns its place three times, as predicted:
+
+**Capability 5, legacy rationalisation.** 124 of 654 material codes have no purchase order in
+four years. **19% of the master is dead weight.** That list cannot be produced without
+procurement history, and it is exactly what "legacy material code rationalisation" means.
+
+**Capability 6, analytics.** 142 canonical materials are bought by more than one CPSE, which
+is what demand aggregation needs to be real rather than hypothetical.
+
+**Capability 1, matching evidence.** 177 vendor part numbers appear against more than one
+CPSE material code. That is identity evidence the description alone cannot give, and it is
+independent of how either organisation worded anything.
+
+### Unplanned finding: price variance detects our own false merges
+Investigating implausible price spreads (625%, 685%, 3186%) showed they were not price
+variance at all. **All three were clusters where we had merged two genuinely different
+materials.**
+
+| | Median price spread | n |
+|---|---|---|
+| Correctly merged clusters | **1.40x** | 165 |
+| Falsely merged clusters | **2.34x** | 12 |
+
+12 of 181 canonical materials contain more than one true identity, which is 6.6%.
+
+This gives the system an **independent audit signal on its own merges**. Procurement history
+plays no part in making a merge, so a cluster whose price spread is far above the norm is a
+merge worth a second look, flagged by evidence the matcher never saw. That directly serves
+capability 7, governance, and the PS's user-validation requirement, because the system can
+nominate its own suspicious decisions rather than waiting to be caught.
+
+Also worth noting for the money slide: **1.40x is the credible spread number**, not the
+headline extremes. Quoting 3186% would be quoting our own bug.
+
+
 ### Human workload cut from 446 actions to 288, by policy rather than by tuning
 **Who:** Aditya (with Claude) · **Prompted by:** "is a person answering 207 records viable?"
 
