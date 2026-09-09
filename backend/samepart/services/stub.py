@@ -217,7 +217,24 @@ class StubAnalytics:
                              aggregation_opportunity=94656.0),
         ]
         return s.SavingsResult(total_opportunity=sum(c.aggregation_opportunity for c in clusters),
-                               clusters=clusters)
+                               total_spend=1_284_000.0, shared_materials=len(clusters),
+                               window="last 4 financial years", clusters=clusters)
+
+    def rationalisation(self, limit=100):
+        return s.RationalisationResult(
+            window="last 4 financial years", records=654, dead_codes=124,
+            dead_code_rate=0.19, duplicate_codes_removable=290,
+            items=[s.DeadCode(record_id=41, org_code="CPCL", source_code="CPCL-000041",
+                              raw_description="HEX BOLT M8X25  8.8  DIN 933  ZINC PLATED")])
+
+    def audit_flags(self, limit=50):
+        return s.AuditFlagResult(
+            median_spread_all=1.40, threshold=2.10, flagged=12,
+            items=[s.AuditFlag(canonical_id="SMP-000023",
+                               standardised_short="BOLT, HEX HEAD; M10X40; A2-70; ISO4014",
+                               reason="Unit price varies 7.9x across buyers, against a median of 1.4x.",
+                               price_spread=7.85, orgs=["IOCL", "NTPC", "BPCL"],
+                               source_codes=["IOCL-000022", "NTPC-000034"])])
 
 
 class StubFamilies:

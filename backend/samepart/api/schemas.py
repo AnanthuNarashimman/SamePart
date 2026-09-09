@@ -181,6 +181,14 @@ class CheckResult(BaseModel):
     candidates: list[MatchDetail] = Field(default_factory=list)
 
 
+class OrgDuplicateStat(BaseModel):
+    org_code: str
+    records: int
+    mapped_to_canonical: int
+    duplicate_rate: float
+    dead_codes: int
+
+
 class AnalyticsSummary(BaseModel):
     records: int
     canonical_materials: int
@@ -188,6 +196,63 @@ class AnalyticsSummary(BaseModel):
     conflicts_caught: int
     duplicate_rate: float
     queue_by_group: QueueCounts
+
+    # From procurement history
+    procurement_lines: int = 0
+    total_spend: float = 0.0
+    spend_window: str | None = None
+    dead_codes: int = Field(0, description="Material codes with no purchase order in the window")
+    dead_code_rate: float = 0.0
+    shared_materials: int = Field(0, description="Canonical materials bought by more than one CPSE")
+    currency: str = "INR"
+    by_org: list[OrgDuplicateStat] = Field(default_factory=list)
+
+
+class DeadCode(BaseModel):
+    record_id: int
+    org_code: str
+    source_code: str
+    raw_description: str
+    canonical_id: str | None = None
+    last_purchase: str | None = None
+
+
+class RationalisationResult(BaseModel):
+    """Legacy material code rationalisation, capability 5.
+
+    A code nobody has ordered in the window is a candidate for closure. This list cannot be
+    produced from material master data alone; it needs purchase history.
+    """
+    window: str
+    records: int
+    dead_codes: int
+    dead_code_rate: float
+    duplicate_codes_removable: int = Field(
+        0, description="Codes that are duplicates of another and could collapse into it")
+    items: list[DeadCode] = Field(default_factory=list)
+
+
+class AuditFlag(BaseModel):
+    canonical_id: str
+    standardised_short: str | None = None
+    reason: str
+    price_spread: float
+    orgs: list[str] = Field(default_factory=list)
+    source_codes: list[str] = Field(default_factory=list)
+
+
+class AuditFlagResult(BaseModel):
+    """Merges the system nominates for a second look.
+
+    Procurement history plays no part in making a merge, so a cluster whose spending pattern
+    is far outside the norm is flagged by evidence the matcher never saw. Measured on the
+    generated data, correctly merged clusters differ about 1.40x on unit price while
+    incorrectly merged ones differ about 2.34x.
+    """
+    median_spread_all: float
+    threshold: float
+    flagged: int
+    items: list[AuditFlag] = Field(default_factory=list)
 
 
 class SavingsCluster(BaseModel):
@@ -198,12 +263,26 @@ class SavingsCluster(BaseModel):
     price_max: float
     spread_pct: float
     total_quantity: float
+    total_spend: float = 0.0
+    po_lines: int = 0
     aggregation_opportunity: float = Field(description="Spend above the lowest observed unit price")
 
 
 class SavingsResult(BaseModel):
+    """Aggregation opportunity, with the untrustworthy merges taken out.
+
+    A cluster the audit check has flagged is a cluster we are not confident is one material.
+    Counting its price spread as a saving would be quoting our own error as a benefit, so
+    flagged clusters are excluded from the headline and reported separately.
+    """
     currency: str = "INR"
     total_opportunity: float
+    total_spend: float = 0.0
+    shared_materials: int = 0
+    window: str | None = None
+    excluded_flagged_clusters: int = 0
+    excluded_opportunity: float = Field(
+        0.0, description="Opportunity NOT claimed, because those merges are under audit")
     clusters: list[SavingsCluster]
 
 

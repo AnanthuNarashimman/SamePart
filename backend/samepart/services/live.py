@@ -791,3 +791,215 @@ class LiveQuestions:
                 resolved=resolved,
                 message=f"Recorded {', '.join(f'{k}={v}' for k, v in applied.items())} on "
                         f"{record.source_code}. {len(affected)} blocked pairs re-decided.")
+
+
+# ---------------------------------------------------------------------------
+# Analytics: what the harmonisation is actually worth
+# ---------------------------------------------------------------------------
+import statistics  # noqa: E402
+
+from samepart.db.models import ProcurementLine as PO  # noqa: E402
+
+WINDOW_LABEL = "last 4 financial years"
+
+
+class LiveAnalytics:
+    """Read-only aggregation over decisions already made and orders already placed.
+
+    Every price here is per base unit. That is the whole reason unit normalisation happens
+    at ingestion: a purchase of one box of a hundred and a purchase of a hundred each are
+    the same purchase, and comparing them unnormalised produces a hundredfold error in a
+    number a judge will read off a slide.
+    """
+
+    def __init__(self, dictionary: Dictionary) -> None:
+        self.dictionary = dictionary
+
+    # -- summary ------------------------------------------------------------
+    def summary(self) -> s.AnalyticsSummary:
+        with session_scope() as db:
+            records = db.scalar(select(func.count(SourceRecord.id))) or 0
+            canon = db.scalar(select(func.count(CanonicalMaterial.canonical_id))) or 0
+            mapped = db.scalar(select(func.count(ApprovedMapping.id))) or 0
+            conflicts = db.scalar(select(func.count(KnownConflict.id))) or 0
+            lines = db.scalar(select(func.count(PO.id))) or 0
+            spend = db.scalar(select(func.sum(PO.line_value))) or 0.0
+
+            counts = s.QueueCounts()
+            for verdict, n in db.execute(
+                select(CandidateMatch.verdict, func.count(CandidateMatch.id))
+                .where(CandidateMatch.review_state == "queued")
+                .group_by(CandidateMatch.verdict)
+            ).all():
+                setattr(counts, _GROUP_OF[verdict], n)
+
+            ordered = {c for (c,) in db.execute(select(PO.source_code).distinct())}
+            dead_by_org: dict[str, int] = {}
+            per_org: list[s.OrgDuplicateStat] = []
+            for org in db.scalars(select(Organisation).order_by(Organisation.code)):
+                codes = [c for (c,) in db.execute(
+                    select(SourceRecord.source_code).where(SourceRecord.org_id == org.id))]
+                org_mapped = db.scalar(
+                    select(func.count(ApprovedMapping.id))
+                    .join(SourceRecord, SourceRecord.id == ApprovedMapping.record_id)
+                    .where(SourceRecord.org_id == org.id)) or 0
+                dead = sum(1 for c in codes if c not in ordered)
+                dead_by_org[org.code] = dead
+                per_org.append(s.OrgDuplicateStat(
+                    org_code=org.code, records=len(codes), mapped_to_canonical=org_mapped,
+                    duplicate_rate=round(org_mapped / len(codes), 4) if codes else 0.0,
+                    dead_codes=dead))
+
+            shared = 0
+            for _, n in db.execute(
+                select(ApprovedMapping.canonical_id,
+                       func.count(func.distinct(SourceRecord.org_id)))
+                .join(SourceRecord, SourceRecord.id == ApprovedMapping.record_id)
+                .group_by(ApprovedMapping.canonical_id)).all():
+                if n > 1:
+                    shared += 1
+
+            dead = sum(dead_by_org.values())
+            # A source code that has merged into a canonical identity shared with another
+            # record is, by definition, a duplicate of something.
+            duplicates = max(mapped - canon, 0)
+            return s.AnalyticsSummary(
+                records=records, canonical_materials=canon, merged=mapped,
+                conflicts_caught=conflicts,
+                duplicate_rate=round(duplicates / records, 4) if records else 0.0,
+                queue_by_group=counts, procurement_lines=lines,
+                total_spend=round(spend, 2), spend_window=WINDOW_LABEL,
+                dead_codes=dead,
+                dead_code_rate=round(dead / records, 4) if records else 0.0,
+                shared_materials=shared, by_org=per_org)
+
+    # -- the money ----------------------------------------------------------
+    def _clusters(self, db):
+        """Per canonical material: which CPSEs buy it, at what unit prices, and how much."""
+        rows = db.execute(
+            select(ApprovedMapping.canonical_id, Organisation.code, SourceRecord.source_code,
+                   PO.unit_price_base, PO.base_quantity, PO.line_value)
+            .join(SourceRecord, SourceRecord.id == ApprovedMapping.record_id)
+            .join(Organisation, Organisation.id == SourceRecord.org_id)
+            .join(PO, PO.record_id == SourceRecord.id)
+            .where(PO.unit_price_base.is_not(None))).all()
+
+        out: dict[str, dict] = {}
+        for cid, org, code, price, qty, value in rows:
+            c = out.setdefault(cid, {"orgs": set(), "codes": set(), "prices": [],
+                                     "qty": 0.0, "spend": 0.0, "lines": 0})
+            c["orgs"].add(org)
+            c["codes"].add(code)
+            c["prices"].append(price)
+            c["qty"] += qty or 0.0
+            c["spend"] += value or 0.0
+            c["lines"] += 1
+        return out
+
+    def savings(self) -> s.SavingsResult:
+        # Money is only claimed on merges we are confident in. A flagged cluster may be two
+        # different materials, and its price gap would then be an artefact of our own error
+        # rather than a procurement saving. Excluded from the headline, reported separately.
+        flagged = {f.canonical_id for f in self.audit_flags(limit=10_000).items}
+
+        with session_scope() as db:
+            clusters = self._clusters(db)
+            names = dict(db.execute(
+                select(CanonicalMaterial.canonical_id,
+                       CanonicalMaterial.standardised_short)).all())
+
+            items: list[s.SavingsCluster] = []
+            excluded_n = 0
+            excluded_value = 0.0
+            for cid, c in clusters.items():
+                if len(c["orgs"]) < 2:
+                    continue          # aggregation needs more than one buyer
+                if cid in flagged:
+                    lo = min(c["prices"])
+                    excluded_n += 1
+                    excluded_value += max(c["spend"] - lo * c["qty"], 0.0)
+                    continue
+                lo, hi = min(c["prices"]), max(c["prices"])
+                # What the same volume would have cost at the best price anyone achieved.
+                opportunity = max(c["spend"] - lo * c["qty"], 0.0)
+                items.append(s.SavingsCluster(
+                    canonical_id=cid, standardised_short=names.get(cid) or cid,
+                    orgs=sorted(c["orgs"]), price_min=round(lo, 2), price_max=round(hi, 2),
+                    spread_pct=round((hi / lo - 1) * 100, 1) if lo else 0.0,
+                    total_quantity=round(c["qty"], 2), total_spend=round(c["spend"], 2),
+                    po_lines=c["lines"], aggregation_opportunity=round(opportunity, 2)))
+
+            items.sort(key=lambda i: -i.aggregation_opportunity)
+            return s.SavingsResult(
+                total_opportunity=round(sum(i.aggregation_opportunity for i in items), 2),
+                total_spend=round(sum(i.total_spend for i in items), 2),
+                shared_materials=len(items), window=WINDOW_LABEL,
+                excluded_flagged_clusters=excluded_n,
+                excluded_opportunity=round(excluded_value, 2),
+                clusters=items[:50])
+
+    # -- capability 5 -------------------------------------------------------
+    def rationalisation(self, limit: int = 100) -> s.RationalisationResult:
+        with session_scope() as db:
+            last_po = dict(db.execute(
+                select(PO.source_code, func.max(PO.po_date)).group_by(PO.source_code)).all())
+            mapping = dict(db.execute(
+                select(ApprovedMapping.record_id, ApprovedMapping.canonical_id)).all())
+            canon_size: dict[str, int] = {}
+            for cid, n in db.execute(
+                select(ApprovedMapping.canonical_id, func.count(ApprovedMapping.id))
+                .group_by(ApprovedMapping.canonical_id)).all():
+                canon_size[cid] = n
+
+            records = list(db.scalars(select(SourceRecord)))
+            dead: list[s.DeadCode] = []
+            for r in records:
+                if r.source_code in last_po:
+                    continue
+                dead.append(s.DeadCode(
+                    record_id=r.id, org_code=r.org.code, source_code=r.source_code,
+                    raw_description=r.raw_description,
+                    canonical_id=mapping.get(r.id), last_purchase=None))
+
+            # Codes that are duplicates of another and could collapse into it.
+            removable = sum(max(n - 1, 0) for n in canon_size.values())
+            total = len(records)
+            return s.RationalisationResult(
+                window=WINDOW_LABEL, records=total, dead_codes=len(dead),
+                dead_code_rate=round(len(dead) / total, 4) if total else 0.0,
+                duplicate_codes_removable=removable,
+                items=sorted(dead, key=lambda d: (d.org_code, d.source_code))[:limit])
+
+    # -- the system flags its own suspicious merges -------------------------
+    def audit_flags(self, limit: int = 50) -> s.AuditFlagResult:
+        with session_scope() as db:
+            clusters = self._clusters(db)
+            names = dict(db.execute(
+                select(CanonicalMaterial.canonical_id,
+                       CanonicalMaterial.standardised_short)).all())
+
+            spreads = {cid: (max(c["prices"]) / min(c["prices"]))
+                       for cid, c in clusters.items()
+                       if len(c["prices"]) > 1 and min(c["prices"]) > 0}
+            if not spreads:
+                return s.AuditFlagResult(median_spread_all=0.0, threshold=0.0, flagged=0)
+
+            median = statistics.median(spreads.values())
+            threshold = round(median * 1.5, 3)
+
+            items = [
+                s.AuditFlag(
+                    canonical_id=cid,
+                    standardised_short=names.get(cid),
+                    reason=(f"Unit price varies {spread:.1f}x across buyers, against a median "
+                            f"of {median:.1f}x. Spend data played no part in this merge, so "
+                            f"the pattern is independent evidence it may be wrong."),
+                    price_spread=round(spread, 2),
+                    orgs=sorted(clusters[cid]["orgs"]),
+                    source_codes=sorted(clusters[cid]["codes"]))
+                for cid, spread in spreads.items() if spread > threshold
+            ]
+            items.sort(key=lambda i: -i.price_spread)
+            return s.AuditFlagResult(
+                median_spread_all=round(median, 3), threshold=threshold,
+                flagged=len(items), items=items[:limit])

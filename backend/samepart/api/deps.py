@@ -49,7 +49,9 @@ def check_service() -> CheckService:
 
 
 def analytics_service() -> AnalyticsService:
-    return stub.StubAnalytics()       # step 6
+    if mode() == "live":
+        return live.LiveAnalytics(dictionary())
+    return stub.StubAnalytics()
 
 
 def family_service() -> FamilyService:
@@ -58,4 +60,4 @@ def family_service() -> FamilyService:
 
 def live_services() -> list[str]:
     """Reported at /api/health so the frontend can see what is real yet."""
-    return ["catalogue", "review", "questions"] if mode() == "live" else []
+    return ["catalogue", "review", "questions", "analytics"] if mode() == "live" else []

@@ -18,6 +18,50 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-09
 
+### Capability 6 is live: dashboard analytics, on real spend
+**Who:** Aditya (with Claude) · **Flips:** `analytics_service`
+
+Four views, all computed from purchase orders rather than a price column.
+
+| Figure | Value |
+|---|---|
+| Records into canonical materials | 654 into 181 |
+| Duplicate rate | 44.3% (synthetic, by construction) |
+| Dead codes, unordered in four years | 124 (19.0%) |
+| Duplicate codes that could collapse | 290 |
+| Spend analysed | Rs 29.0 crore, 1,418 PO lines |
+| Materials bought by more than one CPSE | 180 |
+| **Aggregation opportunity claimed** | **Rs 3.91 crore on Rs 20.3 crore shared spend (19.3%)** |
+| Opportunity withheld, merges under audit | Rs 78.6 lakh across 6 clusters |
+
+New endpoints `/api/analytics/rationalisation` (capability 5) and
+`/api/analytics/audit-flags`. Nothing already in the contract changed shape, so nothing on
+the frontend breaks.
+
+### We do not claim money from merges we do not trust
+The top savings cluster was one of our own **false merges**. Its Rs 53 lakh of "opportunity"
+was two different materials priced differently, which is our error wearing a suit.
+
+Savings now excludes any cluster the audit check has flagged, and reports the withheld
+amount separately. **Rs 78.6 lakh is deliberately not claimed.**
+
+This matters more than the arithmetic. A judge who asks how two CPSEs could pay 32 times
+different for one bolt gets the answer "they could not, and that is why we excluded it,"
+instead of the answer "because our system made a mistake."
+
+### The false-merge detector, measured
+| | |
+|---|---|
+| Clusters flagged | 6 |
+| Genuinely wrong | 6 |
+| **Precision** | **100%** |
+| Recall | 50% (missed 6 of 12) |
+
+**It is a screening tool, not a proof.** A flagged cluster is worth a human look. An
+unflagged one is not proven correct. Say it that way; the recall number is half and
+pretending otherwise is the kind of claim that unravels under one question.
+
+
 ### Procurement history is now a first-class input
 **Who:** Aditya (with Claude) · **Why:** the PS names it — "material codes, descriptions,
 specifications, technical parameters **and historical procurement data**"
