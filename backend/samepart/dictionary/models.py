@@ -113,6 +113,11 @@ class AutoMerge(BaseModel):
     audit_sample_rate: float = 0.05
 
 
+class ClassificationAnchor(BaseModel):
+    system: str = "UNSPSC"
+    code: str = ""
+
+
 class Naming(BaseModel):
     noun: str
     modifier: str = ""
@@ -126,6 +131,7 @@ class Family(BaseModel):
     version: int = 1
     naming: Naming
     blocking: Blocking = Field(default_factory=Blocking)
+    classification: ClassificationAnchor = Field(default_factory=ClassificationAnchor)
     auto_merge: AutoMerge = Field(default_factory=AutoMerge)
     attributes: list[AttributeDef]
     gates: list[Gate] = Field(default_factory=list)

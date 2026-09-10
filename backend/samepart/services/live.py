@@ -621,6 +621,12 @@ class LiveReview:
         canonical.attributes = {"merged": merged, "conflicting": conflicts,
                                 "sources": [r.source_code for r in records]}
 
+        # Classification. The family's declared anchor wins outright: once extraction has
+        # decided this is a hex bolt, its class is known rather than inferred.
+        anchor = family.classification.code
+        if anchor:
+            canonical.classification_code = anchor
+
     def _event(self, db, m, req, action: str, payload: dict) -> None:
         db.add(DecisionEvent(
             pair_id=m.id, canonical_id=payload.get("canonical_id"), actor=req.reviewer,

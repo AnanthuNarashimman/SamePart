@@ -4,3 +4,6 @@ __pycache__/
 samepart.db
 .venv/
 data/generated/
+# UNSPSC codeset from the UN procurement portal is licensed PERSONAL USE ONLY and forbids
+# redistribution. Download it locally; never commit it.
+data/taxonomy/

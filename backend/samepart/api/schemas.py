@@ -404,6 +404,8 @@ class FamilySummary(BaseModel):
     attribute_count: int
     gate_count: int
     blocking_key: list[str] = Field(default_factory=list)
+    classification_code: str | None = None
+    classification_path: str | None = None
 
 
 class FamilyLoadResult(BaseModel):

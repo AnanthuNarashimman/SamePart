@@ -147,6 +147,14 @@ attributes:
     criticality: informational
     derive: "M{thread_diameter_mm:g}"
 
+# Where this family sits in the classification backbone. Declared, not inferred: once
+# extraction has decided a record is a hex bolt, its class is known. UNSPSC 31161600 is
+# Manufacturing Components and Supplies > Hardware > Bolts. The free codeset stops at class
+# level for fasteners, so there is no commodity code to reach.
+classification:
+  system: UNSPSC
+  code: "31161600"
+
 # Retrieval strategy, declared as data. Records whose primary key is fully extracted are
 # blocked on it exactly. Records that fail to parse fall back to text similarity over the
 # canonical form, which is the only place an embedding model is used.

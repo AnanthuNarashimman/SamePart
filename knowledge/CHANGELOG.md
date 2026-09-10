@@ -16,7 +16,65 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ---
 
-## 2026-09-09
+## 2026-09-10
+
+### Capability 2 second half: classification into a taxonomy
+**Who:** Aditya (with Claude) · **Closes:** "intelligent classification and categorization"
+
+Two tiers, and the first is not machine learning.
+
+**Declared anchor.** A family file states its class outright. `hex_bolt` declares UNSPSC
+`31161600`, which is Manufacturing Components and Supplies > Hardware > Bolts. Once
+extraction has decided a record is a hex bolt, its class is **known, not inferred**.
+Every canonical material is now classified this way.
+
+**Text inference** for anything the first tier cannot place. Rarity-weighted overlap against
+node titles, using each node's full ancestor context.
+
+### Three bugs found by testing rather than reading
+- **Top-down search was wrong.** A description shares no vocabulary with a segment title
+  like "Manufacturing Components and Supplies", so the walk died at level one and returned
+  nothing. Terminals are now scored directly and the path read off the code
+- **No stemming.** The taxonomy says "Bolts", a description says "BOLT". Nothing matched
+- **Scoring let unknown words in free.** A word absent from the taxonomy has an IDF of zero,
+  so it cost nothing, and a description of mostly part numbers scored a **perfect 1.0**
+  against a telephone splitter off the single word "plain". Now cosine-normalised with a
+  penalty for unknown terms
+
+### Two design decisions worth keeping
+**Classify the extracted noun phrase, not the raw description.** Raw text fails twice:
+"BLT HEX HD" contains no word the taxonomy knows, and in "PLAIN WASHER M16 STAINLESS" the
+material word outranks the item noun and lands it under steel alloys. Extraction already
+worked out what the thing is.
+
+**Scope the search to plausible segments.** Unscoped, "NUT HEXAGON" classifies under
+agricultural nut production. This is a real, well-known failure of general taxonomies on MRO
+text, and scoping is what production tools do. It is still wrong for "nut", which the
+declared anchor is the answer to.
+
+### On accuracy: what we can and cannot claim
+A held-out test over 232 class titles, reworded and shortened, gave 97.8% at segment, 97.0%
+at family and 94.8% at class.
+
+**Do not put those numbers on a slide.** The test is circular: the queries were built from
+the class titles themselves, so it measures titles matching titles. Published work
+(arXiv:2503.04728) reports roughly 90% coarse and 80% at depth on **real product
+descriptions**, which is a far harder task, and our figure is not comparable to it.
+
+What is honestly claimable today: classification is implemented, the declared anchor is exact
+and covers every record whose family is known, and the inference tier is a lexical baseline
+that has not been tested on real descriptions because we have no labelled ones. The model
+tier and reviewer confirmations as labels are what would make it a genuine trained artifact.
+
+### Codeset limitation, worth knowing
+The free UNSPSC extract has 58 segments, 452 families, 2,139 classes and 10,676 commodities,
+but **26% of classes carry no commodity detail and our entire fastener domain is in that
+26%**. Class level is the deepest reachable for bolts, screws, nuts and washers.
+
+The file is licensed **personal use only and forbids redistribution**, so it is gitignored
+and never committed. A national deployment needs a licensed or government-issued codeset.
+Because the taxonomy is loaded as data, swapping it is a file change.
+
 
 ### Column mapping detects itself
 **Who:** Aditya (with Claude) · **Asked for by:** Ananthu, who did not want to click every
