@@ -18,7 +18,7 @@ export function CascadeChart({ data }: { data: CascadeBreakdown }) {
 
       {/* A 2px surface gap between segments, per the mark spec, so adjacent fills stay legible
           without a stroke. */}
-      <div className="flex h-11 w-full gap-[2px] overflow-hidden rounded-lg">
+      <div className="flex h-12 w-full gap-[2px] overflow-hidden rounded-lg">
         {data.tiers.map((t, i) => (
           <div
             key={t.tier}
@@ -37,7 +37,7 @@ export function CascadeChart({ data }: { data: CascadeBreakdown }) {
 
       {/* Legend is always present for more than one series, and each entry is directly
           labelled with its own value so identity never rests on colour alone. */}
-      <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2">
+      <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
         {data.tiers.map((t, i) => (
           <li key={t.tier} className="flex items-baseline gap-2">
             <span

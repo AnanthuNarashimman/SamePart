@@ -63,16 +63,23 @@ export function Insights() {
         />
       </section>
 
-      {/* The two that carry the pitch, first and side by side. */}
-      <section className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
+      {/* Full width. It is one bar, so it wants width rather than height; pairing it beside
+          a tall card is what left half a screen of white space. */}
+      <section className="mb-5">
         {cascade.data ? <CascadeChart data={cascade.data} /> : <Placeholder q={cascade} />}
-        {spread.data ? <PriceSpreadChart data={spread.data} /> : <Placeholder q={spread} />}
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {questions.data ? <StoppingCurve data={questions.data} /> : <Placeholder q={questions} />}
+      {/* items-start so a short card never stretches to match a tall neighbour. */}
+      <section className="mb-5 grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        {spread.data ? <PriceSpreadChart data={spread.data} /> : <Placeholder q={spread} />}
+        <div className="flex flex-col gap-5">
+          {questions.data ? <StoppingCurve data={questions.data} /> : <Placeholder q={questions} />}
+          {ageing.data ? <StockAgeingChart data={ageing.data} /> : <Placeholder q={ageing} />}
+        </div>
+      </section>
+
+      <section>
         {summary.data ? <OrgComparison data={summary.data} /> : <Placeholder q={summary} />}
-        {ageing.data ? <StockAgeingChart data={ageing.data} /> : <Placeholder q={ageing} />}
       </section>
     </div>
   )

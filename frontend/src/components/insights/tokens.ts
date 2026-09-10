@@ -14,6 +14,19 @@
 // every chart using it carries direct labels or a legend. That is the mitigation, not an
 // oversight.
 
+/** Organisation identity. Fixed slot order, never cycled, and the SAME colour for a given
+ *  CPSE on every chart — that consistency is most of what makes panels read as one system.
+ *  Validated as a categorical set: worst adjacent pair ΔE 9.1 under protanopia, above the
+ *  floor of 8. The app's own green-and-orange failed this at 5.4, which is why these come
+ *  from the validated theme instead. */
+export const ORG_SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'] as const
+
+const orgIndex = new Map<string, number>()
+export function orgColour(code: string): string {
+  if (!orgIndex.has(code)) orgIndex.set(code, orgIndex.size)
+  return ORG_SLOTS[orgIndex.get(code)! % ORG_SLOTS.length]
+}
+
 /** Ordered magnitude. Light means less, dark means more. Never used for identity. */
 export const RAMP = ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#104281'] as const
 

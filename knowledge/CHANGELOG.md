@@ -53,6 +53,25 @@ obligating exactly that.
 **One shared token file** so five panels read as one system. The reasoning, including which
 palettes failed and why, is written into it rather than lost.
 
+### Two defects caught by looking at the rendered page
+The validator checks colour, not layout. Both of these needed eyes on the screen.
+
+**Colliding labels.** Every dot carried its CPSE code beside it, which collided the moment
+two buyers paid similar prices — and buyers paying similar prices is the normal case, not the
+edge case. It rendered as `I(●.B●NTPC`.
+
+The cause was my own over-correction. Having found that categorical colour failed CVD on the
+app's palette, I removed categorical colour everywhere, including from the one chart where
+identity genuinely is categorical. The fix was to validate a proper four-slot set rather than
+avoid the problem: slots 1-4 of the reference theme pass at **ΔE 9.1** worst adjacent pair
+under protanopia. Each CPSE now has one fixed colour used on every chart, with a single
+legend, and nothing is written beside a mark.
+
+**Half a screen of dead space.** The cascade is a single bar, so it wants width, not height;
+pairing it in a grid row beside the tall price-spread card stretched an empty card to match.
+It is now full width, and the remaining grids use `items-start` so a short card never
+stretches to meet a tall neighbour.
+
 ### What did not change
 Every number. This was a design pass, not a data one.
 
