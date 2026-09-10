@@ -1,0 +1,279 @@
+# Material family definition. This file is DATA, not code. Adding a family means adding a
+# file like this one; no pipeline change is required.
+#
+# Spiral wound gaskets are the second family this project carries, and the first one added
+# after the generator was made family-driven. Nothing in Python knows the word "gasket".
+family: gasket_spiral_wound
+label: Gasket, spiral wound
+version: 1
+
+naming:
+  noun: GASKET
+  modifier: SPIRAL WOUND
+  short_template: "{noun}, {modifier}; {nominal_size_mm}NB; CL{pressure_class}; {winding_material}/{filler}"
+  long_template: "{noun}, {modifier}; nominal bore {nominal_size_mm} MM; pressure class {pressure_class}; winding {winding_material}; filler {filler}; standard {standard}"
+
+# criticality drives the conflict gates:
+#   identity      - if these agree, it is the same item regardless of description
+#   critical      - disagreement means a different material, always
+#   major         - disagreement means different unless a substitution rule applies
+#   informational - disagreement never blocks a merge
+attributes:
+  - key: manufacturer
+    label: Manufacturer
+    type: string
+    criticality: identity
+    aliases: [make, brand, mfr, manufacturer name, oem]
+
+  - key: manufacturer_part_number
+    label: Manufacturer part number
+    type: string
+    criticality: identity
+    normalise: [upper, strip_non_alnum]
+    aliases: [mpn, part no, part number, cat no, catalogue no, mfr part no]
+
+  - key: nominal_size_mm
+    label: Nominal bore
+    type: number
+    unit: mm
+    dimension: length
+    criticality: critical
+    aliases: [nb, nominal bore, size, bore, dn]
+    patterns:
+      - '(?P<value>\d+(?:\.\d+)?)\s?NB\b'
+      - '\bNB\s*(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '(?P<value>\d+(?:\.\d+)?)\s?mm\s+NB'
+      - '\bDN\s*(?P<value>\d+(?:\.\d+)?)'
+
+  # A gasket rated for 150 will not hold at 600. Pressure class is the attribute a wrong
+  # merge here would get wrong, which is why it is critical rather than major.
+  - key: pressure_class
+    label: Pressure class
+    type: string
+    criticality: critical
+    values: ["150", "300", "600", "900", "1500"]
+    aliases: [class, cl, rating, pressure rating, lb, "#"]
+    patterns:
+      - '(?P<value>150|300|600|900|1500)\s?#'
+      - '\bCLASS\s+(?P<value>150|300|600|900|1500)\b'
+      - '\bCL\s?(?P<value>150|300|600|900|1500)\b'
+      - '(?P<value>150|300|600|900|1500)\s?LB\b'
+
+  - key: winding_material
+    label: Winding material
+    type: string
+    criticality: critical
+    values: [SS304, SS316, MONEL]
+    aliases: [winding, wind, metal, strip]
+    value_aliases:
+      "304 SS": SS304
+      "AISI 304": SS304
+      "SS 304": SS304
+      "UNS S30400": SS304
+      "316 SS": SS316
+      "AISI 316": SS316
+      "SS 316": SS316
+      "UNS S31600": SS316
+      "MONEL 400": MONEL
+      "ALLOY 400": MONEL
+
+  - key: filler
+    label: Filler material
+    type: string
+    criticality: critical
+    values: [GRAPHITE, PTFE, MICA, CERAMIC]
+    aliases: [filler, fill, soft filler]
+    value_aliases:
+      "FLEXIBLE GRAPHITE": GRAPHITE
+      "GRAF": GRAPHITE
+      "EXPANDED GRAPHITE": GRAPHITE
+      "TEFLON": PTFE
+      "P.T.F.E.": PTFE
+      "MICA GRAPHITE": MICA
+      "VERMICULITE": CERAMIC
+
+  # Rings change how the gasket seats but not what it is, so a difference is a substitution
+  # question rather than an identity question.
+  - key: outer_ring
+    label: Centring ring
+    type: string
+    criticality: major
+    values: [CS, SS304, NONE]
+    aliases: [outer ring, centring ring, centering ring, guide ring]
+    value_aliases:
+      "CARBON STEEL": CS
+      "CARBON STEEL RING": CS
+      "CS RING": CS
+      "NO OUTER RING": NONE
+      "WITHOUT OUTER RING": NONE
+
+  - key: standard
+    label: Governing specification
+    type: string
+    criticality: major
+    values: [ASMEB16.20, API601]
+    aliases: [standard, spec, specification, conforming to, as per]
+    value_aliases:
+      "ASME B16.20": ASMEB16.20
+      "B16.20": ASMEB16.20
+      "ANSI B16.20": ASMEB16.20
+      "API 601": API601
+
+  - key: designation
+    label: Short designation
+    type: derived
+    criticality: informational
+    derive: "{nominal_size_mm}NB-CL{pressure_class}"
+
+classification:
+  system: UNSPSC
+  # 31400000 "Gaskets", the family level. The licensed codeset carries no class for spiral
+  # wound specifically — the only child is 31401500 "Molded gaskets", which a spiral wound
+  # gasket is not. Anchoring one level up is correct; asserting a moulded-gasket code would
+  # be a classification we cannot defend.
+  code: "31400000"
+
+blocking:
+  primary_key: [nominal_size_mm, pressure_class]
+  fallback: canonical_text
+  fallback_top_k: 20
+
+auto_merge:
+  enabled: false
+  require_all_known: true
+  require_score: 1.0
+  forbid_gate_override: true
+  audit_sample_rate: 0.05
+
+gates:
+  - id: identity_match
+    when: all_present
+    attributes: [manufacturer, manufacturer_part_number]
+    rule: all_equal
+    action: force_same
+    message: "Same manufacturer and part number. Identity is established without inference."
+
+  - id: critical_conflict
+    when: both_present
+    attributes: [nominal_size_mm, pressure_class, winding_material, filler]
+    rule: any_not_equal
+    action: force_different
+    message: "A critical attribute differs. These are not the same gasket."
+
+  - id: missing_critical
+    when: either_missing
+    attributes: [nominal_size_mm, pressure_class, winding_material]
+    action: force_insufficient
+    message: "A critical attribute is unknown on at least one record. Cannot decide safely."
+
+  - id: major_conflict
+    when: both_present
+    attributes: [standard, outer_ring]
+    rule: any_not_equal
+    action: downgrade_to_alternative
+    message: "Specification or centring ring differs. Substitution may be acceptable but identities stay separate."
+
+substitution_groups:
+  - id: gasket_winding_stainless
+    attribute: winding_material
+    members: [SS304, SS316]
+    relation: possible_alternative
+    condition: >-
+      316 winding is required where chlorides or sour service are present. 304 is acceptable
+      for clean hydrocarbon and steam duty. Do not substitute 304 for 316 in sour service.
+
+  - id: gasket_standard
+    attribute: standard
+    members: [ASMEB16.20, API601]
+    relation: equivalent
+    condition: >-
+      API 601 was withdrawn and its content absorbed into ASME B16.20. Dimensionally
+      interchangeable for the classes and sizes both covered.
+
+  - id: gasket_filler_high_temp
+    attribute: filler
+    members: [GRAPHITE, MICA]
+    relation: possible_alternative
+    condition: >-
+      Mica is required above roughly 550 degrees Celsius where graphite oxidises. Graphite
+      must not substitute for mica in high-temperature flare or hot-gas service.
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# How to fabricate a plausible catalogue of this family.
+#
+# Sizes are the standard nominal bores, pressure classes are the ASME B16.5 series, and
+# winding and filler combinations are ones actually supplied. Generation invents wording,
+# never a value.
+synthesis:
+  identities: 150
+  part_number_prefix: SW
+  identity_keys: [nominal_size_mm, pressure_class, winding_material, filler, outer_ring]
+
+  pools:
+    nominal_size_mm: [15, 20, 25, 40, 50, 80, 100, 150, 200, 250, 300]
+    pressure_class: ["150", "300", "600", "900", "1500"]
+    winding_material: [SS304, SS316, MONEL]
+    filler: [GRAPHITE, PTFE, MICA, CERAMIC]
+    outer_ring: [CS, SS304, NONE]
+    standard: [ASMEB16.20, API601]
+
+  manufacturers:
+    - [FLX, "Flexitallic Seals (sim)"]
+    - [GRS, "Garnet Sealing Systems (sim)"]
+    - [KLG, "Kalinga Gasket Works (sim)"]
+    - [SLM, "Sealmark Industrial (sim)"]
+
+  words:
+    winding_material:
+      SS304: ["SS304", "SS 304", "304 SS", "AISI 304", "UNS S30400"]
+      SS316: ["SS316", "SS 316", "316 SS", "AISI 316", "UNS S31600"]
+      MONEL: ["MONEL", "MONEL 400", "ALLOY 400"]
+    filler:
+      GRAPHITE: ["GRAPHITE", "FLEXIBLE GRAPHITE", "EXPANDED GRAPHITE", "GRAF"]
+      PTFE:     ["PTFE", "TEFLON", "P.T.F.E."]
+      MICA:     ["MICA", "MICA GRAPHITE"]
+      CERAMIC:  ["CERAMIC", "VERMICULITE"]
+    outer_ring:
+      CS:    ["CS", "CARBON STEEL", "CS RING", "CARBON STEEL RING"]
+      SS304: ["SS304 RING", "SS 304 CENTRING RING"]
+      NONE:  ["NO OUTER RING", "WITHOUT OUTER RING"]
+    standard:
+      ASMEB16.20: ["ASME B16.20", "B16.20", "ANSI B16.20"]
+      API601:     ["API 601", "API601"]
+
+  # Surface forms deliberately absent from the value_aliases above, so extraction can fail
+  # the way it fails on a real master.
+  noise_rate: 0.07
+  unregistered:
+    winding_material:
+      SS304: ["SS-304L", "304/SS STRIP"]
+      SS316: ["SS-316L", "316/SS STRIP"]
+      MONEL: ["MNL-400", "MONEL ALY"]
+    filler:
+      GRAPHITE: ["GRPH", "GRAPH FILL"]
+      PTFE:     ["PTFE-V", "TFE"]
+      MICA:     ["MICA-V"]
+      CERAMIC:  ["CERM"]
+    standard:
+      ASMEB16.20: ["ASME-B1620", "B1620"]
+      API601:     ["API-601A"]
+
+  drop:
+    filler: 0.12
+    outer_ring: 0.30
+    standard: 0.15
+
+  templates:
+    terse_caps:        "GASKET SW {nominal_size_mm}NB {pressure_class}# | {winding_material} | {filler} | {outer_ring} | {standard}"
+    verbose_titlecase: "Gasket, Spiral Wound, {nominal_size_mm}mm NB, Class {pressure_class} | {winding_material} Winding | {filler} Filler | {outer_ring} | To {standard}"
+    abbreviated:       "GSKT SW {nominal_size_mm}NB CL{pressure_class} | {winding_material} | {filler} | {outer_ring} | {standard}"
+    attribute_list:    "GASKET SPIRAL WOUND; NB {nominal_size_mm}MM; CLASS {pressure_class} | {winding_material} | {filler} | {outer_ring} | {standard}"
+
+  price:
+    base: 120.0
+    per: {nominal_size_mm: 6.4}
+    add_when:
+      winding_material: {M: 900.0, S: 60.0}   # Monel commands a large premium over stainless
+      filler: {P: 40.0}                       # PTFE fill costs more than graphite
+
+  uom_choices: [EA, EA, EA, BOX-50, DOZ]

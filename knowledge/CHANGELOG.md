@@ -1550,6 +1550,60 @@ per-tier evaluation surfaced it.
 
 ---
 
+## 2026-09-10 — Four material families, and the generator finally stopped naming one
+
+**The claim was unprovable.** "Families are data, not code" has been the project's central
+design argument since the first dictionary was written, and the pipeline honours it — but
+`synth/generate.py` hardcoded bolts: an `Identity` dataclass with `diameter` and `length`
+fields and four literal `HEX BOLT` templates. Adding a family meant editing Python, so the
+claim could be asserted and not demonstrated.
+
+Everything the generator needs now lives in the family file under `synthesis:` — value pools,
+constraints, derived values, surface forms, house-style templates, drop rates, a price model
+and the manufacturer list. House styles moved to `dictionaries/house_styles.yaml`, because a
+CPSE writes *all* its materials in one style; the style belongs to the organisation, not the
+item.
+
+**Three new families, written in YAML only.** After the refactor, `gasket_spiral_wound`,
+`bearing_ball` and `valve_ball` required no Python at all. Each was chosen to stress something
+different: gaskets for composite critical attributes, bearings for designation-as-identity,
+ball valves for the attributes a text matcher ignores and a plant engineer does not (bore
+type, seat material, end connection).
+
+1,636 records across 4 CPSEs and 664 true identities, up from 640 records and 268.
+
+| family | records | precision | recall | B-cubed F1 | purity |
+|---|---|---|---|---|---|
+| valve_ball | 329 | 0.986 | 0.705 | 0.892 | 0.990 |
+| hex_bolt | 632 | 0.942 | 0.645 | 0.888 | 0.947 |
+| gasket_spiral_wound | 370 | 0.894 | 0.681 | 0.886 | 0.894 |
+| bearing_ball | 305 | 0.757 | 0.845 | 0.872 | 0.750 |
+
+**`unregistered` surface forms.** Each family declares wording deliberately absent from its
+own `value_aliases`, emitted at `noise_rate`. Without them the generator would only ever write
+wording the extractor already knows, extraction would score 100% by construction, and the
+benchmark could not fail. Attribute extraction now reads 78–94% of critical and major values
+depending on family, with the shortfall tracking the declared drop rates plus that noise.
+
+**UNSPSC codes were looked up, not guessed.** `31400000` Gaskets, `31171500` Bearings,
+`40141600` Valves, read out of the licensed codeset in `data/taxonomy/unspsc.xlsx`. Gaskets
+anchor at the family level deliberately: the codeset's only child is `31401500` "Molded
+gaskets", which a spiral wound gasket is not, and asserting it would be a classification we
+could not defend.
+
+**Benchmark re-frozen** for the larger dataset. Recall falls 0.82 → 0.70 because the newer
+families carry more omittable attributes, so more pairs correctly abstain; precision and
+cluster purity both improved (purity 0.870 → 0.908). A harder benchmark should cost recall,
+not safety. Both sets of numbers are recorded in `dictionaries/evaluation.yaml`.
+
+**Known weak spot, recorded rather than tuned away.** `bearing_ball` scores worst of the four
+(precision 0.757, purity 0.750): it has the fewest distinguishing attributes and its cage
+material is informational, so two bearings differing only in cage look identical to the gates.
+Also recorded: a designation-only bearing master ("6205ZZ") states its bore implicitly, and
+the schema cannot yet express the ISO 15 bore-code lookup that would read it.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

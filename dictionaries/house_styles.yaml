@@ -1,0 +1,43 @@
+# How each simulated organisation writes a description.
+#
+# A CPSE writes *all* its materials in one house style — the same abbreviations, the same
+# field order, the same capitalisation — because a house style comes from the people and the
+# system that entered the data, not from the item. That is exactly what makes the same
+# physical part unrecognisable across two material masters, and it is why the style lives here
+# rather than inside any one family.
+#
+# Each family supplies its own line per style, under `synthesis.templates`. This file says who
+# writes in which style and how the segments are joined.
+version: 1
+
+organisations:
+  - code: CPCL
+    name: Chennai Petroleum Corporation Limited (simulated)
+    style: terse_caps
+  - code: IOCL
+    name: Indian Oil Corporation Limited (simulated)
+    style: verbose_titlecase
+  - code: BPCL
+    name: Bharat Petroleum Corporation Limited (simulated)
+    style: abbreviated
+  - code: NTPC
+    name: NTPC Limited (simulated)
+    style: attribute_list
+
+styles:
+  terse_caps:
+    label: Terse capitals
+    separator: "  "
+    case: upper
+  verbose_titlecase:
+    label: Verbose title case
+    separator: "  "
+    case: title_values
+  abbreviated:
+    label: Heavily abbreviated
+    separator: "  "
+    case: upper
+  attribute_list:
+    label: Semicolon-delimited attribute list
+    separator: "  "
+    case: upper

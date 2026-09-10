@@ -28,16 +28,23 @@ def seed(reset: bool = True) -> None:
     info = generate(DATA)
     print(f"generated {info['records']} records across {len(info['per_org'])} organisations")
 
+    # One import per organisation per family. The generator writes ORG__family.csv, so this
+    # loop needs no list of families — it imports whatever was generated, which is what makes
+    # dropping in a new family YAML sufficient.
     svc = LiveCatalogue(dictionary())
     for code, name in ORGS:
         svc.create_org(code, name)
-        path = DATA / f"{code}.csv"
+    totals: dict[str, int] = {}
+    for path in sorted(DATA.glob("*__*.csv")):
+        org_code, family_name = path.stem.split("__", 1)
         status = svc.start_import(
-            s.ImportRequest(org_code=code, family="hex_bolt"),
+            s.ImportRequest(org_code=org_code, family=family_name),
             path.name, path.read_bytes(),
         )
+        totals[org_code] = totals.get(org_code, 0) + status.rows_ingested
         note = f"  {len(status.errors)} warnings" if status.errors else ""
-        print(f"  {code}: read {status.rows_read}, ingested {status.rows_ingested}, "
+        print(f"  {org_code} / {family_name}: read {status.rows_read}, "
+              f"ingested {status.rows_ingested}, "
               f"{status.attributes_extracted} attributes{note}")
     _seed_procurement(svc)
     _label_ground_truth()
@@ -79,7 +86,10 @@ def _label_ground_truth() -> None:
 
 def _seed_procurement(svc) -> None:
     import csv as _csv
-    cats = {code: list(_csv.DictReader((DATA / f"{code}.csv").open())) for code, _ in ORGS}
+    cats: dict[str, list[dict]] = {}
+    for path in sorted(DATA.glob("*__*.csv")):
+        org_code = path.stem.split("__", 1)[0]
+        cats.setdefault(org_code, []).extend(_csv.DictReader(path.open()))
     truth = {r["source_code"]: r["truth_identity"]
              for r in _csv.DictReader((DATA / "labels.csv").open())}
     info = po_synth.generate(DATA, cats, truth)
@@ -90,9 +100,22 @@ def _seed_procurement(svc) -> None:
 
 
 def match() -> None:
-    """Retrieve candidates and run the cascade over every pair."""
-    info = LiveReview(dictionary()).build_matches()
-    print(f"\nmatching: {info['records']} records -> {info['candidate_pairs']:,} candidate pairs "
+    """Retrieve candidates and run the cascade over every pair, family by family.
+
+    Blocking keys, gates and comparison rules all come from the family definition, so pairs
+    are only ever formed within a family. Running per family is not an optimisation — a bolt
+    and a gasket have no attributes in common to compare.
+    """
+    d = dictionary()
+    with session_scope() as db:
+        present = sorted({r.family for r in db.scalars(select(SourceRecord))})
+    for name in present or ["hex_bolt"]:
+        print(f"\n── {name}")
+        _report_match(LiveReview(d).build_matches(family_name=name))
+
+
+def _report_match(info: dict) -> None:
+    print(f"matching: {info['records']} records -> {info['candidate_pairs']:,} candidate pairs "
           f"({info['reduction_ratio']:.2%} of comparisons eliminated)")
     print(f"  blocked on primary key: {info['blocked']}   fell back to text: {info['fallback']}")
     print(f"  written {info['written']}, left alone because already decided {info['already_decided']}")
@@ -232,8 +255,13 @@ def evaluate() -> None:
 
     with session_scope() as db:
         report = run_evaluation(db)
+        families = sorted({r.family for r in db.scalars(select(SourceRecord))})
+        per_family = ({name: run_evaluation(db, family=name) for name in families}
+                      if len(families) > 1 else {})
 
     _print_report(report)
+    if per_family:
+        _print_by_family(per_family)
 
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -320,6 +348,27 @@ def _print_report(report) -> None:
 
     for n in report.notes:
         print(f"\n  ! {n}")
+
+
+def _print_by_family(reports: dict) -> None:
+    """One line per family.
+
+    This is the proof that families are data: the same pipeline, the same gates engine and the
+    same harness, run over four material families none of which is named anywhere in Python.
+    Where a family scores worse it is because its attributes are harder to read, not because
+    anything was written for it.
+    """
+    print("\nBY FAMILY")
+    head = f"    {'family':<22}{'records':>8}{'P':>8}{'R':>8}{'F1':>8}{'B3 F1':>8}{'purity':>8}{'no model':>10}"
+    print(head)
+    print("    " + "-" * (len(head) - 4))
+    for name, r in sorted(reports.items()):
+        pw = r.decision.get("pairwise", {})
+        print(f"    {name:<22}{r.records:>8}"
+              f"{pw.get('precision', 0):>8.3f}{pw.get('recall', 0):>8.3f}{pw.get('f1', 0):>8.3f}"
+              f"{r.outcome.get('bcubed', {}).get('f1', 0):>8.3f}"
+              f"{r.outcome.get('cluster_purity', 0):>8.3f}"
+              f"{r.tiers.get('share_without_a_model', 0):>10.3f}")
 
 
 def _check_thresholds(report) -> int:

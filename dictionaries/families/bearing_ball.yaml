@@ -1,0 +1,245 @@
+# Material family definition. This file is DATA, not code.
+#
+# Deep groove ball bearings are the family that stresses designation-as-identity: unlike a
+# bolt, a bearing carries a short code (6205-2RS) that is itself the specification, published
+# to ISO 15 and used by every manufacturer. That makes it the closest thing in a material
+# master to a manufacturer part number that is not proprietary, and a good test of whether
+# the identity tier reasons about the right thing.
+family: bearing_ball
+label: Bearing, deep groove ball
+version: 1
+
+naming:
+  noun: BEARING
+  modifier: DEEP GROOVE BALL
+  short_template: "{noun}, {modifier}; {designation}; {clearance}"
+  long_template: "{noun}, {modifier}; designation {designation}; bore {bore_mm} MM; series {series}; closure {seal_type}; clearance {clearance}"
+
+attributes:
+  - key: manufacturer
+    label: Manufacturer
+    type: string
+    criticality: identity
+    aliases: [make, brand, mfr, manufacturer name, oem]
+
+  - key: manufacturer_part_number
+    label: Manufacturer part number
+    type: string
+    criticality: identity
+    normalise: [upper, strip_non_alnum]
+    aliases: [mpn, part no, part number, cat no, catalogue no, mfr part no]
+
+  - key: bore_mm
+    label: Bore diameter
+    type: number
+    unit: mm
+    dimension: length
+    criticality: critical
+    aliases: [bore, id, inner dia, shaft dia]
+    patterns:
+      - '\bBORE\s+(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '\bID\s+(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '(?P<value>\d+(?:\.\d+)?)\s?mm\s+bore'
+
+  # 62xx is medium duty, 63xx heavy. A 6205 and a 6305 share a 25mm bore and are not
+  # interchangeable, which is exactly the trap a size-only matcher falls into.
+  - key: series
+    label: Dimension series
+    type: string
+    criticality: critical
+    values: ["60", "62", "63"]
+    aliases: [series, dimension series, duty]
+    patterns:
+      - '\b(?P<value>60|62|63)\d{2}\b'
+      - '\bSERIES\s+(?P<value>60|62|63)\b'
+
+  - key: seal_type
+    label: Closure
+    type: string
+    criticality: critical
+    values: [OPEN, ZZ, 2RS]
+    aliases: [closure, seal, shield, seals]
+    value_aliases:
+      "2Z": ZZ
+      "ZZ SHIELDED": ZZ
+      "METAL SHIELDED": ZZ
+      "DOUBLE SHIELDED": ZZ
+      "2RS1": 2RS
+      "RUBBER SEALED": 2RS
+      "DOUBLE SEALED": 2RS
+      "NO SEAL": OPEN
+      "UNSEALED": OPEN
+
+  - key: clearance
+    label: Internal clearance
+    type: string
+    criticality: major
+    values: [CN, C3, C4]
+    aliases: [clearance, internal clearance, fit]
+    value_aliases:
+      "NORMAL CLEARANCE": CN
+      "STD CLEARANCE": CN
+      "C-3": C3
+      "C-4": C4
+
+  - key: cage
+    label: Cage material
+    type: string
+    criticality: informational
+    values: [STEEL, BRASS, POLYAMIDE]
+    aliases: [cage, retainer]
+    value_aliases:
+      "PRESSED STEEL": STEEL
+      "STEEL CAGE": STEEL
+      "BRASS CAGE": BRASS
+      "MACHINED BRASS": BRASS
+      "NYLON": POLYAMIDE
+      "PA66": POLYAMIDE
+
+  - key: designation
+    label: ISO designation
+    type: derived
+    criticality: informational
+    derive: "{series}{bore_code}{seal_type}"
+
+classification:
+  system: UNSPSC
+  # 31171500 "Bearings". The codeset also carries 31171504 "Ball bearings" as a commodity;
+  # the class is the right anchor here for the same reason hex_bolt anchors at a class.
+  code: "31171500"
+
+blocking:
+  primary_key: [bore_mm, series]
+  fallback: canonical_text
+  fallback_top_k: 20
+
+auto_merge:
+  enabled: false
+  require_all_known: true
+  require_score: 1.0
+  forbid_gate_override: true
+  audit_sample_rate: 0.05
+
+gates:
+  - id: identity_match
+    when: all_present
+    attributes: [manufacturer, manufacturer_part_number]
+    rule: all_equal
+    action: force_same
+    message: "Same manufacturer and part number. Identity is established without inference."
+
+  - id: critical_conflict
+    when: both_present
+    attributes: [bore_mm, series, seal_type]
+    rule: any_not_equal
+    action: force_different
+    message: "A critical attribute differs. These are not the same bearing."
+
+  - id: missing_critical
+    when: either_missing
+    attributes: [bore_mm, series]
+    action: force_insufficient
+    message: "Bore or series is unknown on at least one record. Cannot decide safely."
+
+  - id: major_conflict
+    when: both_present
+    attributes: [clearance]
+    rule: any_not_equal
+    action: downgrade_to_alternative
+    message: "Internal clearance differs. Substitution depends on fit and thermal duty; identities stay separate."
+
+substitution_groups:
+  - id: bearing_clearance
+    attribute: clearance
+    members: [CN, C3]
+    relation: possible_alternative
+    condition: >-
+      C3 is required where the inner ring runs hot or is an interference fit on the shaft.
+      CN is correct for normal duty. Substituting CN for C3 on a hot shaft will preload the
+      bearing and fail it early; the relation is not symmetric.
+
+  - id: bearing_closure
+    attribute: seal_type
+    members: [ZZ, 2RS]
+    relation: possible_alternative
+    condition: >-
+      2RS contact seals exclude water and dust but add drag and limit speed. ZZ shields suit
+      higher speed and cleaner service. Do not substitute ZZ for 2RS in a wet or washdown
+      location.
+
+synthesis:
+  identities: 120
+  part_number_prefix: BB
+  identity_keys: [bore_mm, series, seal_type, clearance]
+
+  pools:
+    bore_mm: [10, 12, 15, 17, 20, 25, 30, 35, 40, 45, 50, 60]
+    series: ["60", "62", "63"]
+    seal_type: [OPEN, ZZ, 2RS]
+    clearance: [CN, C3, C4]
+    cage: [STEEL, BRASS, POLYAMIDE]
+
+  # The two-digit bore code in an ISO designation: 10mm is 00, 12 is 01, 15 is 02, 17 is 03,
+  # then bore/5 from 20mm up. Published in ISO 15, not invented.
+  derived:
+    bore_code:
+      from: bore_mm
+      map: {10: "00", 12: "01", 15: "02", 17: "03", 20: "04", 25: "05", 30: "06",
+            35: "07", 40: "08", 45: "09", 50: "10", 60: "12"}
+
+  manufacturers:
+    - [BRG, "Bearcat Rolling Elements (sim)"]
+    - [AXL, "Axleworks Bearings (sim)"]
+    - [RVN, "Ravenna Motion Components (sim)"]
+    - [TSK, "Tusker Bearing Industries (sim)"]
+
+  words:
+    seal_type:
+      OPEN: ["OPEN", "NO SEAL", "UNSEALED"]
+      ZZ:   ["ZZ", "2Z", "ZZ SHIELDED", "METAL SHIELDED", "DOUBLE SHIELDED"]
+      2RS:  ["2RS", "2RS1", "RUBBER SEALED", "DOUBLE SEALED"]
+    clearance:
+      CN: ["CN", "NORMAL CLEARANCE", "STD CLEARANCE"]
+      C3: ["C3", "C-3"]
+      C4: ["C4", "C-4"]
+    cage:
+      STEEL:     ["STEEL CAGE", "PRESSED STEEL"]
+      BRASS:     ["BRASS CAGE", "MACHINED BRASS"]
+      POLYAMIDE: ["POLYAMIDE", "NYLON", "PA66"]
+
+  noise_rate: 0.07
+  unregistered:
+    seal_type:
+      ZZ:  ["Z-Z", "SHLD"]
+      2RS: ["2-RS", "RS2", "SEALED-2"]
+    clearance:
+      C3: ["CLR C3", "C3 CLR"]
+      C4: ["CLR C4"]
+    cage:
+      STEEL: ["STL CAGE"]
+      BRASS: ["BRS CAGE"]
+
+  drop:
+    clearance: 0.28
+    cage: 0.40
+    seal_type: 0.08
+
+  # Known limitation: a master that writes only the designation ("6205ZZ") states the bore
+  # implicitly, and our extractor cannot yet turn a two-digit bore code back into millimetres
+  # -- that needs a lookup, which the schema does not express. Every style therefore writes
+  # the bore as well. A designation-only catalogue would currently be routed to a person for
+  # the bore, which is the correct fallback but a weaker demonstration than reading it.
+  templates:
+    terse_caps:        "BALL BEARING {series}{bore_code} {bore_mm}MM BORE | {seal_type} | {clearance} | {cage}"
+    verbose_titlecase: "Bearing, Deep Groove Ball, {series}{bore_code}, Bore {bore_mm}mm | {seal_type} | Clearance {clearance} | {cage}"
+    abbreviated:       "BRG DGB {series}{bore_code} BORE {bore_mm}MM | {seal_type} | {clearance} | {cage}"
+    attribute_list:    "BEARING DEEP GROOVE BALL; SERIES {series}; BORE {bore_mm}MM | {seal_type} | {clearance} | {cage}"
+
+  price:
+    base: 90.0
+    per: {bore_mm: 14.0}
+    add_when:
+      seal_type: {"2": 45.0}       # sealed costs more than open or shielded
+      cage: {B: 220.0}             # machined brass is a large premium
+
+  uom_choices: [EA, EA, EA, BOX-50, DOZ]

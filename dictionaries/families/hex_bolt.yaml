@@ -232,3 +232,112 @@ substitution_groups:
     condition: >-
       DIN 931 was superseded by ISO 4014 for partially threaded hex bolts. Dimensionally
       interchangeable for standard sizes.
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# How to fabricate a plausible catalogue of this family.
+#
+# The pipeline never hardcoded a family; the generator did, which left "families are data"
+# unprovable. Everything the generator needs is here now, so a new family is one file.
+#
+# Every technical value below is real: ISO 261 / ISO 724 metric coarse diameters and pitches,
+# lengths from the standard series, property classes from ISO 3506 and ISO 898-1, and real
+# governing specifications. Generation invents wording, never a value.
+synthesis:
+  identities: 260
+  part_number_prefix: HB
+  identity_keys: [thread_diameter_mm, length_mm, grade, standard, finish]
+
+  pools:
+    thread_diameter_mm: [6, 8, 10, 12, 16, 20, 24]
+    length_mm: [16, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 120]
+    grade: ["A2-70", "A4-70", "8.8", "10.9", "12.9"]
+    standard: [ISO4014, ISO4017, DIN931, DIN933, IS1364]
+    finish: [PLAIN, ZINCPLATED, HOTDIPGALVANISED, PASSIVATED]
+    head_type: [HEX]
+
+  # A bolt shorter than twice its diameter is not a bolt anyone stocks.
+  constraints:
+    - key: length_mm
+      at_least_times: thread_diameter_mm
+      factor: 2
+
+  # ISO 261 / ISO 724 coarse series. Not invented, and not chosen at random: pitch follows
+  # from diameter, which is why it is derived rather than pooled.
+  derived:
+    thread_pitch_mm:
+      from: thread_diameter_mm
+      map: {6: 1.0, 8: 1.25, 10: 1.5, 12: 1.75, 16: 2.0, 20: 2.5, 24: 3.0}
+
+  manufacturers:
+    - [ANV, "Anvil Fastener Works (sim)"]
+    - [TRD, "Trident Bolt & Nut Co (sim)"]
+    - [KSL, "Kestrel Industrial Supply (sim)"]
+    - [MRD, "Meridian Precision Fixings (sim)"]
+    - [QRY, "Quarry Head Fasteners (sim)"]
+
+  # Surface forms the extractor is expected to read.
+  words:
+    grade:
+      "A2-70": ["A2-70", "A2 70", "SS304 A2-70", "AISI 304 A2-70", "STAINLESS A2-70"]
+      "A4-70": ["A4-70", "A4 70", "SS316 A4-70", "AISI 316 A4-70"]
+      "8.8":   ["8.8", "GR 8.8", "GRADE 8.8", "CLASS 8.8"]
+      "10.9":  ["10.9", "GR 10.9", "GRADE 10.9", "CLASS 10.9"]
+      "12.9":  ["12.9", "GR 12.9", "GRADE 12.9"]
+    standard:
+      ISO4014: ["ISO 4014", "ISO4014", "AS PER ISO 4014"]
+      ISO4017: ["ISO 4017", "ISO4017"]
+      DIN931:  ["DIN 931", "DIN931"]
+      DIN933:  ["DIN 933", "DIN933"]
+      IS1364:  ["IS 1364", "IS1364", "IS:1364"]
+    finish:
+      PLAIN:            ["PLAIN", "SELF COLOUR", "BLACK"]
+      ZINCPLATED:       ["ZINC PLATED", "ZP", "ELECTRO GALVANISED"]
+      HOTDIPGALVANISED: ["HOT DIP GALVANISED", "HDG", "GALVANISED"]
+      PASSIVATED:       ["PASSIVATED", "PICKLED AND PASSIVATED"]
+
+  # Surface forms deliberately absent from the attributes' value_aliases above.
+  #
+  # Without these the generator would only ever write wording the extractor already knows,
+  # extraction would score 100% by construction, and the benchmark would measure nothing.
+  # These make it possible to fail — a real material master is full of wording nobody
+  # anticipated, and the honest response to an unreadable value is `unknown`, not a guess.
+  noise_rate: 0.07
+  unregistered:
+    grade:
+      "8.8":   ["PC8.8", "8.8 CL", "PROP CL 8.8"]
+      "10.9":  ["PC10.9", "10.9 CL"]
+      "12.9":  ["PC12.9", "12.9 CL"]
+      "A2-70": ["SS-A2/70", "A2GRADE70"]
+      "A4-70": ["SS-A4/70", "A4GRADE70"]
+    standard:
+      ISO4014: ["ISO-4014-M", "STD ISO4014A"]
+      ISO4017: ["ISO-4017-M"]
+      DIN931:  ["DIN-931-B"]
+      DIN933:  ["DIN-933-B"]
+      IS1364:  ["IS1364PT3"]
+    finish:
+      PLAIN:            ["UNCOATED FIN", "NO COAT"]
+      ZINCPLATED:       ["ZN-PLT", "ZINCCOAT"]
+      HOTDIPGALVANISED: ["HD-GALV", "GALV-HOT"]
+      PASSIVATED:       ["PASSIV.", "PICKLED-PASS"]
+
+  # How often a CPSE simply does not record the fact.
+  drop:
+    grade: 0.10
+    standard: 0.12
+    finish: 0.25
+
+  # One line per house style. The organisation that writes it is set in house_styles.yaml.
+  templates:
+    terse_caps:        "HEX BOLT M{thread_diameter_mm}X{length_mm} | {grade} | {standard} | {finish}"
+    verbose_titlecase: "Bolt, Hexagon Head, M{thread_diameter_mm} x {length_mm}mm | {grade} | Conforming to {standard} | {finish}"
+    abbreviated:       "BLT HEX HD M{thread_diameter_mm}X{length_mm}MM | {grade} | {standard} | {finish}"
+    attribute_list:    "BOLT HEX HEAD; DIA {thread_diameter_mm}MM; LG {length_mm}MM | {grade} | {standard} | {finish}"
+
+  price:
+    base: 2.0
+    per: {thread_diameter_mm: 0.55, length_mm: 0.045}
+    add_when:
+      grade: {A: 6.0}          # stainless costs more than carbon steel
+
+  uom_choices: [EA, EA, EA, BOX-100, BOX-50, C, DOZ]

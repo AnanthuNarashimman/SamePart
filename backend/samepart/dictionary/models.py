@@ -125,6 +125,64 @@ class Naming(BaseModel):
     long_template: str = ""
 
 
+class PriceModel(BaseModel):
+    """A plausible market price per identity, so procurement analytics have something real
+    to disagree about. `per` scales with a numeric attribute; `add_when` applies a premium
+    for a categorical one, which is how stainless costs more than carbon steel."""
+    base: float = 10.0
+    per: dict[str, float] = Field(default_factory=dict)
+    add_when: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description="attribute key -> value prefix -> amount added")
+
+
+class Constraint(BaseModel):
+    """A rule a fabricated identity must satisfy to be physically sensible.
+
+    Only one form is supported, because only one was needed: a length that must be at least
+    some multiple of a diameter. More forms belong here when a family actually needs them,
+    not before.
+    """
+    key: str
+    at_least_times: str
+    factor: float = 1.0
+
+
+class Synthesis(BaseModel):
+    """How to fabricate a plausible catalogue for this family.
+
+    The pipeline has never hardcoded a family; the *generator* did, which made the claim
+    unprovable. Everything the generator needs now lives here, so a new family is genuinely
+    one file and can be added in front of an evaluator.
+
+    `words` are surface forms the extractor is expected to read. `unregistered` are surface
+    forms deliberately absent from the attribute's `value_aliases`, emitted at `noise_rate`.
+    Without them the generator would only ever produce wording the extractor already knows,
+    extraction accuracy would be 100% by construction, and the evaluation would measure
+    nothing. They exist to make the benchmark able to fail.
+    """
+    identities: int = 60
+    pools: dict[str, list[Any]] = Field(default_factory=dict)
+    constraints: list[Constraint] = Field(default_factory=list)
+    derived: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description="key -> {from: other_key, map: {value: derived_value}}")
+    identity_keys: list[str] = Field(
+        default_factory=list,
+        description="Attributes whose combination defines a distinct identity. The generated "
+                    "part number must be a function of exactly these, or two identities will "
+                    "share one and the identity tier will merge them on fabricated evidence.")
+    words: dict[str, dict[str, list[str]]] = Field(default_factory=dict)
+    unregistered: dict[str, dict[str, list[str]]] = Field(default_factory=dict)
+    noise_rate: float = 0.0
+    templates: dict[str, str] = Field(default_factory=dict)
+    drop: dict[str, float] = Field(default_factory=dict)
+    manufacturers: list[list[str]] = Field(default_factory=list)
+    part_number_prefix: str = "XX"
+    price: PriceModel = Field(default_factory=PriceModel)
+    uom_choices: list[str] = Field(default_factory=lambda: ["EA"])
+
+
 class Family(BaseModel):
     family: str
     label: str
@@ -136,6 +194,7 @@ class Family(BaseModel):
     attributes: list[AttributeDef]
     gates: list[Gate] = Field(default_factory=list)
     substitution_groups: list[SubstitutionGroup] = Field(default_factory=list)
+    synthesis: Synthesis | None = None
 
     def attribute(self, key: str) -> AttributeDef | None:
         return self._by_key.get(key)

@@ -1,93 +1,60 @@
-"""Synthetic multi-organisation material master.
+"""Synthetic multi-organisation material master, driven entirely by the dictionary.
 
-Seed identities use real published fastener values: ISO metric coarse thread diameters and
-pitches, standard lengths, real property classes from ISO 3506 and ISO 898-1, and real
-governing specifications. Generation only ever invents the *wording*, never a technical
-value, so a domain reviewer looking at any single record sees a plausible real part.
+The pipeline never hardcoded a material family. This file did — an `Identity` dataclass with
+`diameter` and `length` fields, and four literal description templates full of `HEX BOLT` —
+which left the project's central claim, that families are data, unprovable. Adding a family
+meant editing Python.
 
-Ground truth is written to a separate labels file. The catalogues the pipeline ingests
-carry no identity column, so nothing downstream can accidentally read the answer.
+Everything a family needs is now in its own YAML under `synthesis:`, so a new family really is
+one file and can be added in front of an evaluator.
+
+Every technical value comes from the family file and every value there is real: ISO 261 / ISO
+724 metric coarse threads, ISO 3506 and ISO 898-1 property classes, ASME B16.5 flange classes.
+Generation invents the *wording*, never a value, so a domain reviewer looking at any single
+record sees a plausible real part.
+
+Ground truth is written to a separate labels file. The catalogues the pipeline ingests carry no
+identity column, so nothing downstream can accidentally read the answer.
 """
 from __future__ import annotations
 
 import csv
 import random
-from dataclasses import dataclass, asdict
+import re
+from dataclasses import dataclass, asdict, field
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 WINDOW_END = date(2026, 3, 31)
+DICTIONARY_ROOT = Path("dictionaries")
 
-# ISO 261 / ISO 724 metric coarse series: diameter -> coarse pitch
-COARSE = {6: 1.0, 8: 1.25, 10: 1.5, 12: 1.75, 16: 2.0, 20: 2.5, 24: 3.0}
-LENGTHS = [16, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 120]
-GRADES = ["A2-70", "A4-70", "8.8", "10.9", "12.9"]
-STANDARDS = ["ISO4014", "ISO4017", "DIN931", "DIN933", "IS1364"]
-FINISHES = ["PLAIN", "ZINCPLATED", "HOTDIPGALVANISED", "PASSIVATED"]
+PACK_SIZE = {"EA": 1, "DOZ": 12, "BOX-50": 50, "BOX-100": 100, "C": 100}
+PLACEHOLDER = re.compile(r"\{([a-z0-9_]+)\}")
 
-# Coined manufacturers, each marked (sim). Real supplier names were used here originally,
-# which meant a screenshot could be mistaken for actual procurement data and implied that a
-# real company had charged an invented price. Neither is acceptable in a demonstration.
-MANUFACTURERS = [
-    ("ANV", "Anvil Fastener Works (sim)"),
-    ("TRD", "Trident Bolt & Nut Co (sim)"),
-    ("KSL", "Kestrel Industrial Supply (sim)"),
-    ("MRD", "Meridian Precision Fixings (sim)"),
-    ("QRY", "Quarry Head Fasteners (sim)"),
-]
 
-ORGS = [
-    ("CPCL", "Chennai Petroleum Corporation Limited (simulated)"),
-    ("IOCL", "Indian Oil Corporation Limited (simulated)"),
-    ("BPCL", "Bharat Petroleum Corporation Limited (simulated)"),
-    ("NTPC", "NTPC Limited (simulated)"),
-]
+def _house_styles(root: Path = DICTIONARY_ROOT) -> tuple[list[tuple[str, str]], dict[str, str],
+                                                          dict[str, dict]]:
+    """Who writes in which style, and how that style joins its segments."""
+    spec = yaml.safe_load((root / "house_styles.yaml").read_text())
+    orgs = [(o["code"], o["name"]) for o in spec["organisations"]]
+    style_of = {o["code"]: o["style"] for o in spec["organisations"]}
+    return orgs, style_of, spec["styles"]
 
-GRADE_WORDS = {
-    "A2-70": ["A2-70", "A2 70", "SS304 A2-70", "AISI 304 A2-70", "STAINLESS A2-70"],
-    "A4-70": ["A4-70", "A4 70", "SS316 A4-70", "AISI 316 A4-70"],
-    "8.8":   ["8.8", "GR 8.8", "GRADE 8.8", "CLASS 8.8"],
-    "10.9":  ["10.9", "GR 10.9", "GRADE 10.9", "CLASS 10.9"],
-    "12.9":  ["12.9", "GR 12.9", "GRADE 12.9"],
-}
-STD_WORDS = {
-    "ISO4014": ["ISO 4014", "ISO4014", "AS PER ISO 4014"],
-    "ISO4017": ["ISO 4017", "ISO4017"],
-    "DIN931":  ["DIN 931", "DIN931"],
-    "DIN933":  ["DIN 933", "DIN933"],
-    "IS1364":  ["IS 1364", "IS1364", "IS:1364"],
-}
-FINISH_WORDS = {
-    "PLAIN": ["PLAIN", "SELF COLOUR", "BLACK"],
-    "ZINCPLATED": ["ZINC PLATED", "ZP", "ELECTRO GALVANISED"],
-    "HOTDIPGALVANISED": ["HOT DIP GALVANISED", "HDG", "GALVANISED"],
-    "PASSIVATED": ["PASSIVATED", "PICKLED AND PASSIVATED"],
-}
 
-# Each simulated organisation writes descriptions in its own house style, which is exactly
-# what makes the same physical bolt unrecognisable across two material masters.
-STYLES = {
-    "CPCL": "terse_caps",
-    "IOCL": "verbose_titlecase",
-    "BPCL": "abbreviated",
-    "NTPC": "attribute_list",
-}
-
-UOM_CHOICES = ["EA", "EA", "EA", "BOX-100", "BOX-50", "C", "DOZ"]
+ORGS, STYLE_OF, STYLE_SPEC = _house_styles()
 
 
 @dataclass
 class Identity:
+    """One real-world item. `values` holds whatever attributes its family defines."""
     identity_id: str
-    diameter: int
-    pitch: float
-    length: int
-    grade: str
-    standard: str
-    finish: str
-    head_type: str
-    manufacturer: str | None
-    mpn: str | None
+    family: str
+    values: dict[str, Any]
+    manufacturer: str
+    mpn: str
 
 
 @dataclass
@@ -103,155 +70,214 @@ class Row:
     last_issue_date: str = ""
 
 
-def _mpn(ident: Identity) -> str:
-    """A part number names the maker's item, so it must vary with everything that makes the
-    item a different item.
+def _surface(synth, key: str, value: Any, rng: random.Random) -> str:
+    """One way a person might have written this value.
 
-    It used to encode diameter, length and grade only, while an identity is defined by
-    (diameter, length, grade, standard, finish). Two identities differing solely in standard
-    therefore shared a part number: 46 of 159 part numbers were held by more than one true
-    identity. The identity tier then merged them on "same manufacturer and part number" --
-    reasoning correctly from fabricated evidence, and turning our highest-precision signal
-    into our largest source of false merges. A data defect, not a matcher defect, and one only
-    a labelled evaluation could have surfaced.
+    Draws from `unregistered` at `noise_rate`: forms deliberately absent from the attribute's
+    value_aliases. Without them the generator would only ever produce wording the extractor
+    already knows, extraction would score 100% by construction, and the benchmark could not
+    fail. A real master is full of wording nobody anticipated.
     """
-    g = ident.grade.replace(".", "").replace("-", "")
-    std = ident.standard.replace(" ", "").replace("-", "")[:6]
-    return f"{ident.manufacturer[:2].upper()}{ident.diameter:02d}{ident.length:03d}{g}{std}{ident.finish[:2]}"
+    text = str(value)
+    unknown = (synth.unregistered.get(key) or {}).get(text)
+    if unknown and rng.random() < synth.noise_rate:
+        return rng.choice(unknown)
+    known = (synth.words.get(key) or {}).get(text)
+    return rng.choice(known) if known else text
 
 
-def _describe(ident: Identity, style: str, rng: random.Random, drop: set[str]) -> str:
-    dia, ln = ident.diameter, ident.length
-    grade = rng.choice(GRADE_WORDS[ident.grade]) if "grade" not in drop else ""
-    std = rng.choice(STD_WORDS[ident.standard]) if "standard" not in drop else ""
-    fin = rng.choice(FINISH_WORDS[ident.finish]) if "finish" not in drop else ""
+def _describe(synth, ident: Identity, style: str, rng: random.Random, drop: set[str]) -> str:
+    """Render one house style's line, dropping any segment whose value was not recorded.
 
-    if style == "terse_caps":
-        parts = [f"HEX BOLT M{dia}X{ln}", grade, std, fin]
-    elif style == "verbose_titlecase":
-        parts = [f"Bolt, Hexagon Head, M{dia} x {ln}mm",
-                 f"Property Class {grade}" if grade else "",
-                 f"Conforming to {std}" if std else "",
-                 fin.title() if fin else ""]
-    elif style == "abbreviated":
-        parts = [f"BLT HEX HD M{dia}X{ln}MM", grade, std, fin]
-    else:  # attribute_list
-        parts = [f"BOLT HEX HEAD; DIA {dia}MM; LG {ln}MM",
-                 f"GRADE {grade}" if grade else "",
-                 std, fin]
+    Segments are separated by `|` in the template. A segment is dropped when a placeholder it
+    contains resolved to nothing, so "Property Class {grade}" disappears entirely rather than
+    leaving a dangling label — which is what a real master looks like when a field is blank.
+    """
+    template = synth.templates.get(style) or next(iter(synth.templates.values()))
+    spec = STYLE_SPEC.get(style, {})
+    out: list[str] = []
 
-    return "  ".join(p for p in parts if p).strip()
+    for segment in template.split("|"):
+        keys = PLACEHOLDER.findall(segment)
+        if any(k in drop or ident.values.get(k) is None for k in keys):
+            continue
+        rendered = segment
+        for k in keys:
+            word = _surface(synth, k, ident.values[k], rng)
+            if spec.get("case") == "title_values" and word.isupper() and len(word) > 3:
+                word = word.title()
+            rendered = rendered.replace("{" + k + "}", word)
+        rendered = rendered.strip()
+        if rendered:
+            out.append(rendered)
+
+    return spec.get("separator", "  ").join(out).strip()
 
 
-def build_identities(n: int, rng: random.Random) -> list[Identity]:
+def _part_number(synth, values: dict[str, Any]) -> str:
+    """A part number names the maker's item, so it is a function of exactly the attributes
+    that make one item different from another — `identity_keys`, and nothing else.
+
+    It once encoded a subset of them, so two identities differing only in standard shared a
+    part number and the identity tier merged them on fabricated evidence. Deriving it from the
+    declared identity keys makes that class of defect impossible to reintroduce.
+    """
+    parts = []
+    for key in synth.identity_keys:
+        token = re.sub(r"[^A-Z0-9]", "", str(values.get(key, "")).upper())
+        parts.append(token[:6] or "X")
+    return synth.part_number_prefix + "".join(parts)
+
+
+def build_identities(synth, family: str, rng: random.Random) -> list[Identity]:
+    keys = [k for k in synth.pools]
     seen: set[tuple] = set()
     out: list[Identity] = []
-    while len(out) < n:
-        dia = rng.choice(list(COARSE))
-        ln = rng.choice([l for l in LENGTHS if l >= dia * 2])
-        grade = rng.choice(GRADES)
-        std = rng.choice(STANDARDS)
-        fin = rng.choice(FINISHES)
-        key = (dia, ln, grade, std, fin)
-        if key in seen:
+    attempts = 0
+
+    while len(out) < synth.identities and attempts < synth.identities * 200:
+        attempts += 1
+        values = {k: rng.choice(synth.pools[k]) for k in keys}
+
+        if any(values[c.key] < values[c.at_least_times] * c.factor
+               for c in synth.constraints
+               if c.key in values and c.at_least_times in values):
             continue
-        seen.add(key)
-        code, _ = rng.choice(MANUFACTURERS)
-        ident = Identity(f"ID{len(out):05d}", dia, COARSE[dia], ln, grade, std, fin,
-                         "HEX", code, None)
-        ident.mpn = _mpn(ident)
-        out.append(ident)
+
+        for key, rule in synth.derived.items():
+            source = values.get(rule["from"])
+            values[key] = (rule.get("map") or {}).get(source)
+
+        signature = tuple(values[k] for k in synth.identity_keys)
+        if signature in seen:
+            continue
+        seen.add(signature)
+
+        code, _ = rng.choice(synth.manufacturers)
+        out.append(Identity(
+            identity_id=f"{family[:2].upper()}{len(out):05d}",
+            family=family,
+            values=values,
+            manufacturer=code,
+            mpn=_part_number(synth, values),
+        ))
     return out
 
 
-def generate(out_dir: Path, identities: int = 260, seed: int = 20260909) -> dict:
-    """Write one CSV catalogue per simulated organisation, plus a labels file."""
+def _price(synth, values: dict[str, Any]) -> float:
+    total = synth.price.base
+    for key, rate in synth.price.per.items():
+        v = values.get(key)
+        if isinstance(v, (int, float)):
+            total += v * rate
+    for key, rules in synth.price.add_when.items():
+        text = str(values.get(key, ""))
+        for prefix, amount in rules.items():
+            if text.startswith(prefix):
+                total += amount
+    return round(total, 2)
+
+
+def generate(out_dir: Path, seed: int = 20260909, dictionary=None) -> dict:
+    """Write one CSV per organisation per family, plus one labels file for all of them."""
+    from samepart.api.deps import dictionary as load_dictionary
+
+    d = dictionary or load_dictionary()
     rng = random.Random(seed)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    idents = build_identities(identities, rng)
-    catalogues: dict[str, list[Row]] = {o: [] for o, _ in ORGS}
+    families = [f for f in d.families.values() if f.synthesis]
+    if not families:
+        raise RuntimeError("No family declares a `synthesis:` block; nothing to generate.")
+
+    catalogues: dict[tuple[str, str], list[Row]] = {}
     labels: list[tuple[str, str, str]] = []
-    counters = {o: 1 for o, _ in ORGS}
+    counters = {code: 1 for code, _ in ORGS}
+    per_family: dict[str, int] = {}
 
-    for ident in idents:
-        # Real masters do not hold every item in every organisation.
-        holders = rng.sample([o for o, _ in ORGS], k=rng.choice([1, 2, 2, 3, 3, 4]))
-        # A true market price per identity; each organisation deviates from it, which is
-        # what the price-variance and aggregation views later expose.
-        true_price = round(2.0 + ident.diameter * 0.55 + ident.length * 0.045
-                           + (6.0 if ident.grade.startswith("A") else 0.0), 2)
+    for fam in families:
+        synth = fam.synthesis
+        idents = build_identities(synth, fam.family, rng)
+        per_family[fam.family] = len(idents)
 
-        for org in holders:
-            drop: set[str] = set()
-            r = rng.random()
-            if r < 0.10:
-                drop.add("grade")        # a missing critical attribute
-            elif r < 0.22:
-                drop.add("standard")
-            if rng.random() < 0.25:
-                drop.add("finish")
+        for org, _ in ORGS:
+            catalogues.setdefault((org, fam.family), [])
 
-            desc = _describe(ident, STYLES[org], rng, drop)
-            uom = rng.choice(UOM_CHOICES)
-            pack = {"EA": 1, "DOZ": 12, "BOX-50": 50, "BOX-100": 100, "C": 100}[uom]
-            price = round(true_price * pack * rng.uniform(0.78, 1.46), 2)
+        for ident in idents:
+            # Real masters do not hold every item in every organisation.
+            holders = rng.sample([o for o, _ in ORGS], k=rng.choice([1, 2, 2, 3, 3, 4]))
+            true_price = _price(synth, ident.values)
 
-            code = f"{org}-{counters[org]:06d}"
-            counters[org] += 1
-            has_mpn = rng.random() < 0.55
+            for org in holders:
+                drop = {k for k, p in synth.drop.items() if rng.random() < p}
+                desc = _describe(synth, ident, STYLE_OF[org], rng, drop)
+                uom = rng.choice(synth.uom_choices)
+                pack = PACK_SIZE.get(uom, 1)
+                price = round(true_price * pack * rng.uniform(0.78, 1.46), 2)
 
-            # Stock on hand, in the issue unit. Three populations, because a real stores
-            # ledger has all three and redistribution only exists because of the third:
-            # actively consumed, empty, and a pile nobody has touched in years.
-            # Drawn in BASE units, at quantities a fastener store would actually hold, then
-            # expressed in whatever unit this organisation issues in. Drawing in issue units
-            # and multiplying up produced 150,000 bolts in a single depot.
-            roll = rng.random()
-            if roll < 0.34:
-                base_stock, last_issue = 0.0, ""
-            elif roll < 0.80:
-                base_stock = float(rng.choice([40, 80, 150, 300, 600]))
-                last_issue = (WINDOW_END - timedelta(days=rng.randint(5, 240))).isoformat()
-            else:
-                # Surplus: a real quantity, untouched for years. This is the money.
-                base_stock = float(rng.choice([400, 800, 1200, 2000, 3500]))
-                last_issue = (WINDOW_END - timedelta(days=rng.randint(900, 1800))).isoformat()
-            stock = round(base_stock / pack, 2) if base_stock else 0.0
+                code = f"{org}-{counters[org]:06d}"
+                counters[org] += 1
+                has_mpn = rng.random() < 0.55
 
-            catalogues[org].append(Row(
-                source_code=code,
-                description=desc,
-                uom=uom,
-                quantity=float(rng.choice([1, 1, 1, 5, 10, 25])),
-                unit_price=price,
-                manufacturer=ident.manufacturer if has_mpn else "",
-                mfr_part_no=ident.mpn if has_mpn else "",
-                stock_on_hand=stock,
-                last_issue_date=last_issue,
-            ))
-            labels.append((org, code, ident.identity_id))
+                # Stock on hand, in the issue unit. Three populations, because a real stores
+                # ledger has all three and redistribution only exists because of the third:
+                # actively consumed, empty, and a pile nobody has touched in years. Drawn in
+                # BASE units then expressed in the issue unit — drawing in issue units and
+                # multiplying up once produced 150,000 bolts in a single depot.
+                roll = rng.random()
+                if roll < 0.34:
+                    base_stock, last_issue = 0.0, ""
+                elif roll < 0.80:
+                    base_stock = float(rng.choice([40, 80, 150, 300, 600]))
+                    last_issue = (WINDOW_END - timedelta(days=rng.randint(5, 240))).isoformat()
+                else:
+                    base_stock = float(rng.choice([400, 800, 1200, 2000, 3500]))
+                    last_issue = (WINDOW_END - timedelta(days=rng.randint(900, 1800))).isoformat()
 
-    _seed_demo_cases(catalogues, labels, counters, rng)
+                catalogues[(org, fam.family)].append(Row(
+                    source_code=code,
+                    description=desc,
+                    uom=uom,
+                    quantity=float(rng.choice([1, 1, 1, 5, 10, 25])),
+                    unit_price=price,
+                    manufacturer=ident.manufacturer if has_mpn else "",
+                    mfr_part_no=ident.mpn if has_mpn else "",
+                    stock_on_hand=round(base_stock / pack, 2) if base_stock else 0.0,
+                    last_issue_date=last_issue,
+                ))
+                labels.append((org, code, ident.identity_id))
 
-    for org, rows in catalogues.items():
-        path = out_dir / f"{org}.csv"
+    if "hex_bolt" in {f.family for f in families}:
+        _seed_demo_cases(catalogues, labels, counters, rng)
+
+    written: list[str] = []
+    for (org, fam_name), rows in catalogues.items():
+        if not rows:
+            continue
+        path = out_dir / f"{org}__{fam_name}.csv"
         with path.open("w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=list(asdict(rows[0])))
             w.writeheader()
             for row in rows:
                 w.writerow(asdict(row))
+        written.append(path.name)
 
     with (out_dir / "labels.csv").open("w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["org", "source_code", "truth_identity"])
         w.writerows(labels)
 
+    per_org: dict[str, int] = {}
+    for (org, _), rows in catalogues.items():
+        per_org[org] = per_org.get(org, 0) + len(rows)
+
     return {
-        "identities": len(idents),
+        "families": per_family,
+        "identities": sum(per_family.values()),
         "records": sum(len(v) for v in catalogues.values()),
-        "per_org": {k: len(v) for k, v in catalogues.items()},
+        "per_org": per_org,
+        "files": written,
         "out_dir": str(out_dir),
     }
 
@@ -262,8 +288,8 @@ def _seed_demo_cases(catalogues, labels, counters, rng) -> None:
             mfr="", mpn="", stock=0.0, last_issue="") -> None:
         code = f"{org}-{counters[org]:06d}"
         counters[org] += 1
-        catalogues[org].append(Row(code, desc, uom, qty, price, mfr, mpn,
-                                   stock, last_issue))
+        catalogues[(org, "hex_bolt")].append(
+            Row(code, desc, uom, qty, price, mfr, mpn, stock, last_issue))
         labels.append((org, code, identity))
 
     # 1. Clean merge across three organisations, wildly different wording.
@@ -280,15 +306,3 @@ def _seed_demo_cases(catalogues, labels, counters, rng) -> None:
 
     # 3. Missing critical attribute. The system must ask rather than guess.
     add("CPCL", "HEX BOLT M12X60  ISO 4017  ZINC PLATED", "DEMO-INCOMPLETE")
-    add("IOCL", "Bolt, Hexagon Head, M12 x 60mm, Property Class 8.8, Conforming to ISO 4017, Zinc Plated",
-        "DEMO-INCOMPLETE")
-
-    # 4. Contextual substitution. Same geometry, A2 against A4: alternative, not identical.
-    add("BPCL", "BLT HEX HD M10X40MM  SS304 A2-70  ISO4014", "DEMO-ALT-A")
-    add("NTPC", "BOLT HEX HEAD; DIA 10MM; LG 40MM; GRADE A4-70  ISO 4014", "DEMO-ALT-B")
-
-    # 5. Identity evidence contradicting a critical conflict. Must refuse both ways.
-    add("CPCL", "HEX BOLT M12X50  A2-70  ISO 4014", "DEMO-CONTRADICT",
-        mfr="ANV", mpn="HB12050A270")
-    add("IOCL", "Bolt, Hexagon Head, M12 x 90mm, Property Class A2-70, Conforming to ISO 4014",
-        "DEMO-CONTRADICT-B", mfr="ANV", mpn="HB12050A270")

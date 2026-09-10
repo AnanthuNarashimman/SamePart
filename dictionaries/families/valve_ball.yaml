@@ -1,0 +1,276 @@
+# Material family definition. This file is DATA, not code.
+#
+# Ball valves are the family with the most attributes that a text matcher will happily ignore
+# and a plant engineer will not: bore type, seat material and end connection all decide
+# whether a valve can go in a line, and none of them are visible in the phrase "ball valve".
+family: valve_ball
+label: Valve, ball
+version: 1
+
+naming:
+  noun: VALVE
+  modifier: BALL
+  short_template: "{noun}, {modifier}; {nominal_size_mm}NB; CL{pressure_class}; {body_material}; {end_connection}"
+  long_template: "{noun}, {modifier}; nominal bore {nominal_size_mm} MM; class {pressure_class}; body {body_material}; seat {seat_material}; ends {end_connection}; bore {bore_type}"
+
+attributes:
+  - key: manufacturer
+    label: Manufacturer
+    type: string
+    criticality: identity
+    aliases: [make, brand, mfr, manufacturer name, oem]
+
+  - key: manufacturer_part_number
+    label: Manufacturer part number
+    type: string
+    criticality: identity
+    normalise: [upper, strip_non_alnum]
+    aliases: [mpn, part no, part number, cat no, catalogue no, mfr part no]
+
+  - key: nominal_size_mm
+    label: Nominal bore
+    type: number
+    unit: mm
+    dimension: length
+    criticality: critical
+    aliases: [nb, nominal bore, size, dn]
+    patterns:
+      - '(?P<value>\d+(?:\.\d+)?)\s?NB\b'
+      - '\bNB\s*(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '(?P<value>\d+(?:\.\d+)?)\s?mm\s+NB'
+      - '\bDN\s*(?P<value>\d+(?:\.\d+)?)'
+
+  - key: pressure_class
+    label: Pressure class
+    type: string
+    criticality: critical
+    values: ["150", "300", "600", "800", "1500"]
+    aliases: [class, cl, rating, pressure rating, lb]
+    patterns:
+      - '(?P<value>150|300|600|800|1500)\s?#'
+      - '\bCLASS\s+(?P<value>150|300|600|800|1500)\b'
+      - '\bCL\s?(?P<value>150|300|600|800|1500)\b'
+      - '(?P<value>150|300|600|800|1500)\s?LB\b'
+
+  - key: body_material
+    label: Body material
+    type: string
+    criticality: critical
+    values: [WCB, CF8M, LCB, DUPLEX]
+    aliases: [body, body matl, material, casting]
+    value_aliases:
+      "A216 WCB": WCB
+      "CARBON STEEL": WCB
+      "CS BODY": WCB
+      "A351 CF8M": CF8M
+      "SS316 BODY": CF8M
+      "STAINLESS": CF8M
+      "A352 LCB": LCB
+      "LOW TEMP CARBON": LCB
+      "F51": DUPLEX
+      "DUPLEX SS": DUPLEX
+
+  # Full bore passes a pig and drops less pressure; reduced bore is cheaper. Swapping one for
+  # the other is a hydraulic change, not a cosmetic one.
+  - key: bore_type
+    label: Bore type
+    type: string
+    criticality: critical
+    values: [FULL, REDUCED]
+    aliases: [bore, port, bore type, port size]
+    value_aliases:
+      "FULL BORE": FULL
+      "FULL PORT": FULL
+      "FB": FULL
+      "REDUCED BORE": REDUCED
+      "REDUCED PORT": REDUCED
+      "RB": REDUCED
+
+  - key: end_connection
+    label: End connection
+    type: string
+    criticality: critical
+    values: [FLANGED, SW, NPT, BW]
+    aliases: [ends, end conn, connection, ending]
+    value_aliases:
+      "FLANGED ENDS": FLANGED
+      "RF FLANGED": FLANGED
+      "SOCKET WELD": SW
+      "SOCKETWELD": SW
+      "SCREWED": NPT
+      "THREADED NPT": NPT
+      "BUTT WELD": BW
+      "BUTTWELD": BW
+
+  - key: seat_material
+    label: Seat material
+    type: string
+    criticality: major
+    values: [PTFE, RPTFE, PEEK, METAL]
+    aliases: [seat, seats, seat matl]
+    value_aliases:
+      "TEFLON SEAT": PTFE
+      "VIRGIN PTFE": PTFE
+      "REINFORCED PTFE": RPTFE
+      "RTFE": RPTFE
+      "METAL SEATED": METAL
+      "HARDFACED": METAL
+
+  - key: operation
+    label: Operation
+    type: string
+    criticality: informational
+    values: [LEVER, GEAR, ACTUATED]
+    aliases: [operator, operation, actuation]
+    value_aliases:
+      "HAND LEVER": LEVER
+      "LEVER OPERATED": LEVER
+      "GEAR OPERATED": GEAR
+      "GEARBOX": GEAR
+      "PNEUMATIC ACTUATOR": ACTUATED
+      "ACTUATOR": ACTUATED
+
+classification:
+  system: UNSPSC
+  # 40141600 "Valves". The licensed codeset carries no ball-valve class, so this anchors at
+  # the class that does exist rather than inventing a more specific one.
+  code: "40141600"
+
+blocking:
+  primary_key: [nominal_size_mm, pressure_class]
+  fallback: canonical_text
+  fallback_top_k: 20
+
+auto_merge:
+  enabled: false
+  require_all_known: true
+  require_score: 1.0
+  forbid_gate_override: true
+  audit_sample_rate: 0.05
+
+gates:
+  - id: identity_match
+    when: all_present
+    attributes: [manufacturer, manufacturer_part_number]
+    rule: all_equal
+    action: force_same
+    message: "Same manufacturer and part number. Identity is established without inference."
+
+  - id: critical_conflict
+    when: both_present
+    attributes: [nominal_size_mm, pressure_class, body_material, bore_type, end_connection]
+    rule: any_not_equal
+    action: force_different
+    message: "A critical attribute differs. These are not the same valve."
+
+  - id: missing_critical
+    when: either_missing
+    attributes: [nominal_size_mm, pressure_class, body_material, end_connection]
+    action: force_insufficient
+    message: "A critical attribute is unknown on at least one record. Cannot decide safely."
+
+  - id: major_conflict
+    when: both_present
+    attributes: [seat_material]
+    rule: any_not_equal
+    action: downgrade_to_alternative
+    message: "Seat material differs. Substitution depends on temperature and service; identities stay separate."
+
+substitution_groups:
+  - id: valve_seat_ptfe
+    attribute: seat_material
+    members: [PTFE, RPTFE]
+    relation: possible_alternative
+    condition: >-
+      Reinforced PTFE carries higher pressure and temperature than virgin PTFE. Virgin PTFE
+      must not substitute for reinforced in Class 600 and above, or above 150 degrees Celsius.
+
+  - id: valve_body_stainless
+    attribute: body_material
+    members: [CF8M, DUPLEX]
+    relation: possible_alternative
+    condition: >-
+      Duplex is required where chloride stress corrosion cracking is credible. CF8M is
+      acceptable in clean hydrocarbon service. Do not substitute CF8M for duplex in seawater
+      or high-chloride duty.
+
+synthesis:
+  identities: 130
+  part_number_prefix: BV
+  identity_keys: [nominal_size_mm, pressure_class, body_material, bore_type, end_connection]
+
+  pools:
+    nominal_size_mm: [15, 20, 25, 40, 50, 80, 100, 150, 200]
+    pressure_class: ["150", "300", "600", "800", "1500"]
+    body_material: [WCB, CF8M, LCB, DUPLEX]
+    bore_type: [FULL, REDUCED]
+    end_connection: [FLANGED, SW, NPT, BW]
+    seat_material: [PTFE, RPTFE, PEEK, METAL]
+    operation: [LEVER, GEAR, ACTUATED]
+
+  manufacturers:
+    - [VLC, "Vulcan Flow Control (sim)"]
+    - [ORB, "Orbit Valve Manufacturing (sim)"]
+    - [CSP, "Caspian Valves and Fittings (sim)"]
+    - [MRW, "Marwar Industrial Valves (sim)"]
+
+  words:
+    body_material:
+      WCB:    ["WCB", "A216 WCB", "CARBON STEEL", "CS BODY"]
+      CF8M:   ["CF8M", "A351 CF8M", "SS316 BODY", "STAINLESS"]
+      LCB:    ["LCB", "A352 LCB", "LOW TEMP CARBON"]
+      DUPLEX: ["DUPLEX", "DUPLEX SS", "F51"]
+    bore_type:
+      FULL:    ["FULL BORE", "FULL PORT", "FB"]
+      REDUCED: ["REDUCED BORE", "REDUCED PORT", "RB"]
+    end_connection:
+      FLANGED: ["FLANGED", "FLANGED ENDS", "RF FLANGED"]
+      SW:      ["SW", "SOCKET WELD", "SOCKETWELD"]
+      NPT:     ["NPT", "SCREWED", "THREADED NPT"]
+      BW:      ["BW", "BUTT WELD", "BUTTWELD"]
+    seat_material:
+      PTFE:  ["PTFE", "TEFLON SEAT", "VIRGIN PTFE"]
+      RPTFE: ["RPTFE", "REINFORCED PTFE", "RTFE"]
+      PEEK:  ["PEEK"]
+      METAL: ["METAL SEATED", "HARDFACED"]
+    operation:
+      LEVER:    ["LEVER", "HAND LEVER", "LEVER OPERATED"]
+      GEAR:     ["GEAR OPERATED", "GEARBOX"]
+      ACTUATED: ["ACTUATOR", "PNEUMATIC ACTUATOR"]
+
+  noise_rate: 0.07
+  unregistered:
+    body_material:
+      WCB:    ["WCB-A216", "CS-BDY"]
+      CF8M:   ["CF-8M", "SS316-BDY"]
+      DUPLEX: ["DPLX", "UNS S31803"]
+    bore_type:
+      FULL:    ["F/BORE", "FULLB"]
+      REDUCED: ["R/BORE", "REDB"]
+    end_connection:
+      FLANGED: ["FLG", "FLGD"]
+      SW:      ["S/W"]
+      BW:      ["B/W"]
+    seat_material:
+      RPTFE: ["R-PTFE", "PTFE-R"]
+      METAL: ["MTL SEAT"]
+
+  drop:
+    seat_material: 0.22
+    operation: 0.35
+    bore_type: 0.10
+
+  templates:
+    terse_caps:        "BALL VALVE {nominal_size_mm}NB {pressure_class}# | {body_material} | {bore_type} | {end_connection} | {seat_material} | {operation}"
+    verbose_titlecase: "Valve, Ball, {nominal_size_mm}mm NB, Class {pressure_class} | {body_material} Body | {bore_type} | {end_connection} Ends | {seat_material} Seats | {operation}"
+    abbreviated:       "BV {nominal_size_mm}NB CL{pressure_class} | {body_material} | {bore_type} | {end_connection} | {seat_material} | {operation}"
+    attribute_list:    "VALVE BALL; NB {nominal_size_mm}MM; CLASS {pressure_class} | {body_material} | {bore_type} | {end_connection} | {seat_material} | {operation}"
+
+  price:
+    base: 1800.0
+    per: {nominal_size_mm: 145.0}
+    add_when:
+      body_material: {D: 9000.0, C: 2600.0}   # duplex, then stainless
+      seat_material: {M: 3200.0, P: 400.0}    # metal seats, then PEEK
+
+  uom_choices: [EA, EA, EA]
