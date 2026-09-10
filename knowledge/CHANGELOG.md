@@ -18,6 +18,31 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Fictional vendors and sites, so a screenshot cannot be misread
+**Who:** Aditya (with Claude)
+
+The generator used **real supplier and installation names** alongside real CPSE names:
+Sundram Fasteners, TVS Srichakra, Unbrako, Manali Refinery, Vindhyachal. Every price in this
+project is invented, so attaching one to a named real company is a misrepresentation, and a
+screenshot of the dashboard could reasonably have been taken for actual procurement data.
+
+Replaced with coined names, each carrying a `(sim)` marker so it is unmistakable at a glance:
+
+```
+vendors : Anvil Fastener Works (sim), Trident Bolt & Nut Co (sim),
+          Kestrel Industrial Supply (sim), Meridian Precision Fixings (sim),
+          Quarry Head Fasteners (sim), Ironbark Industrial Traders (sim)
+sites   : Refinery Unit 1-3 (sim), Power Station A-C (sim)
+```
+
+CPSE names stay as they are, because the problem statement names those organisations and they
+already carry "(simulated)".
+
+Swept the generated data, the sample upload and the generators: **no real company or
+installation name remains.** Nothing else changed; the pipeline, the counts and the demo are
+identical.
+
+
 ### Tool ready for the one real labelled dataset that exists
 **Who:** Aditya (with Claude)
 

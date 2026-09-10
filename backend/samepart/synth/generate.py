@@ -22,12 +22,15 @@ GRADES = ["A2-70", "A4-70", "8.8", "10.9", "12.9"]
 STANDARDS = ["ISO4014", "ISO4017", "DIN931", "DIN933", "IS1364"]
 FINISHES = ["PLAIN", "ZINCPLATED", "HOTDIPGALVANISED", "PASSIVATED"]
 
+# Coined manufacturers, each marked (sim). Real supplier names were used here originally,
+# which meant a screenshot could be mistaken for actual procurement data and implied that a
+# real company had charged an invented price. Neither is acceptable in a demonstration.
 MANUFACTURERS = [
-    ("TVS", "TVS Srichakra Fasteners"),
-    ("SUN", "Sundram Fasteners"),
-    ("APL", "APL Apollo Fasteners"),
-    ("BOSCH", "Bosch Rexroth India"),
-    ("UNBR", "Unbrako"),
+    ("ANV", "Anvil Fastener Works (sim)"),
+    ("TRD", "Trident Bolt & Nut Co (sim)"),
+    ("KSL", "Kestrel Industrial Supply (sim)"),
+    ("MRD", "Meridian Precision Fixings (sim)"),
+    ("QRY", "Quarry Head Fasteners (sim)"),
 ]
 
 ORGS = [
@@ -246,6 +249,6 @@ def _seed_demo_cases(catalogues, labels, counters, rng) -> None:
 
     # 5. Identity evidence contradicting a critical conflict. Must refuse both ways.
     add("CPCL", "HEX BOLT M12X50  A2-70  ISO 4014", "DEMO-CONTRADICT",
-        mfr="SUN", mpn="HB12050A270")
+        mfr="ANV", mpn="HB12050A270")
     add("IOCL", "Bolt, Hexagon Head, M12 x 90mm, Property Class A2-70, Conforming to ISO 4014",
-        "DEMO-CONTRADICT-B", mfr="SUN", mpn="HB12050A270")
+        "DEMO-CONTRADICT-B", mfr="ANV", mpn="HB12050A270")

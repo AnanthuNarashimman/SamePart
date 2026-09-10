@@ -20,19 +20,23 @@ from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
+# Coined vendors, marked (sim). See the note in generate.py: every price here is invented,
+# so attaching one to a real supplier's name would be a misrepresentation.
 VENDORS = [
-    ("Sundram Fasteners Ltd", "SUN"),
-    ("TVS Srichakra Fasteners", "TVS"),
-    ("Unbrako India Pvt Ltd", "UNB"),
-    ("Precision Fasteners Ltd", "PFL"),
-    ("Kalpataru Industrial Supply", "KIS"),
-    ("Gujarat Bolt & Nut Co", "GBN"),
+    ("Anvil Fastener Works (sim)", "ANV"),
+    ("Trident Bolt & Nut Co (sim)", "TRD"),
+    ("Kestrel Industrial Supply (sim)", "KSL"),
+    ("Meridian Precision Fixings (sim)", "MRD"),
+    ("Quarry Head Fasteners (sim)", "QRY"),
+    ("Ironbark Industrial Traders (sim)", "IBK"),
 ]
+# Generic sites rather than named real installations. A reader can tell at a glance that
+# these are placeholders, which is the point.
 PLANTS = {
-    "CPCL": ["Manali Refinery", "Cauvery Basin Refinery"],
-    "IOCL": ["Panipat Refinery", "Paradip Refinery", "Mathura Refinery"],
-    "BPCL": ["Kochi Refinery", "Mumbai Refinery"],
-    "NTPC": ["Vindhyachal STPS", "Korba STPS", "Ramagundam STPS"],
+    "CPCL": ["Refinery Unit 1 (sim)", "Refinery Unit 2 (sim)"],
+    "IOCL": ["Refinery Unit 1 (sim)", "Refinery Unit 2 (sim)", "Refinery Unit 3 (sim)"],
+    "BPCL": ["Refinery Unit 1 (sim)", "Refinery Unit 2 (sim)"],
+    "NTPC": ["Power Station A (sim)", "Power Station B (sim)", "Power Station C (sim)"],
 }
 UOMS = ["EA", "EA", "EA", "BOX-100", "C", "DOZ"]
 PACK = {"EA": 1, "DOZ": 12, "BOX-50": 50, "BOX-100": 100, "C": 100}
