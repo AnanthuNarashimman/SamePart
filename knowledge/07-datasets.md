@@ -87,6 +87,42 @@ heterogeneity than flat retail listing pairs.
   item-instance level
 - Kaggle/Zenodo "parts" datasets are uniformly **computer vision**, not text
 
+## How to actually get the DLA slice (added 10 September 2026)
+
+**The download is manual.** `dla.mil` returns 403 to anything automated (Akamai), and the
+archive APIs were unreachable from our environment. A person with a browser gets it; a script
+does not.
+
+Two files are enough:
+
+| File | Size | What it gives |
+|---|---|---|
+| `REFERENCE.zip` | 181MB | `V_FLIS_PART.CSV` — item number to manufacturer part number and manufacturer code |
+| `IDENTIFICATION.zip` | 392MB | `P_FLIS_NSN.CSV` — supply class and item name; `V_FLIS_STANDARDIZATION.CSV` — declared equivalences |
+
+The 313MB company-name archive is optional polish.
+
+**Never load 16.4 million rows.** The tool streams both zips without extracting them and
+keeps only threaded-fastener supply classes (5305 screws, 5306 bolts, 5307 studs, 5310 nuts
+and washers), then only items carrying **two or more** part numbers, because an item with one
+part number contains no pair to get right or wrong.
+
+```
+python -m samepart.cli flis <REFERENCE.zip> <IDENTIFICATION.zip> [max_items]
+```
+
+Output lands in `data/flis/` as per-organisation catalogues in our own import format, with
+the item number written to a **separate labels file** so the pipeline cannot read the answer.
+A `provenance.json` ships alongside carrying the source, the licence and the caveat, so the
+numbers cannot travel without them.
+
+Rough cost: three minutes to download, about five to slice.
+
+**Say what it is.** US military catalogue data, so it proves the matching method rather than
+the Indian procurement context, and the several codes per item are manufacturer part numbers
+rather than four organisations' internal material codes. Structurally the same problem,
+honestly described.
+
 ## The three-layer strategy to adopt
 
 | Layer | Data | What it licenses us to claim |

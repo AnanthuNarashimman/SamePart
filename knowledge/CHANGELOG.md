@@ -18,6 +18,46 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Tool ready for the one real labelled dataset that exists
+**Who:** Aditya (with Claude)
+
+`python -m samepart.cli flis <REFERENCE.zip> <IDENTIFICATION.zip>` slices the US defence
+logistics catalogue into a labelled evaluation set in our own import format.
+
+**The download is manual and cannot be automated.** `dla.mil` returns 403 to scripted
+requests and the archive APIs were unreachable from here. Verified, not assumed.
+
+The tool streams both zips without extracting them, filters to threaded-fastener supply
+classes, and keeps only items carrying two or more manufacturer part numbers, since an item
+with one part number contains no pair to get right or wrong. Truth labels go to a separate
+file so the pipeline cannot read the answer, and a `provenance.json` carrying the source,
+licence and caveat ships beside the data so the numbers cannot travel without them.
+
+This is the only public source with genuine "same item, different codes" ground truth. Every
+benchmark that has real labels is consumer electronics; every Indian source has real text but
+no labels.
+
+### Note on the current dataset, for the record
+Everything in `data/generated/` is produced by 375 lines in `backend/samepart/synth/`. There
+is **no real CPSE data in this project and never has been.**
+
+What is real inside it: the technical values. Thread diameters and pitches come from the ISO
+261 and ISO 724 metric coarse series, property classes from ISO 3506 and ISO 898-1, and the
+governing standards are genuine. Any single record is a bolt that exists.
+
+What is invented: the prices (`rng.uniform(6.0, 190.0)` per material, then a random
+0.82-1.34 multiplier per organisation), the descriptions, the house styles, and which
+organisation holds what.
+
+The only externally sourced file is the UNSPSC codeset, which is licensed personal-use-only
+and gitignored.
+
+**Outstanding:** the generator uses real company and plant names (Sundram Fasteners, Manali
+Refinery) alongside real CPSE names. A screenshot could be mistaken for actual procurement
+data, and implying a real supplier charged a fabricated price is a bad look. Organisation
+names carry "(simulated)"; vendors and plants do not.
+
+
 ### Automation turned OFF by default, and the repository moved
 **Who:** Aditya (with Claude)
 

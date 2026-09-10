@@ -139,6 +139,32 @@ def baseline() -> None:
     summarise()
 
 
+def flis() -> None:
+    """Slice the DLA catalogue into a real, labelled evaluation set.
+
+        python -m samepart.cli flis <REFERENCE.zip> <IDENTIFICATION.zip> [max_items]
+    """
+    from samepart.datasets.flis import build, to_catalogues
+
+    if len(sys.argv) < 4:
+        print(flis.__doc__); return
+    ref, ident = Path(sys.argv[2]), Path(sys.argv[3])
+    limit = int(sys.argv[4]) if len(sys.argv) > 4 else 4000
+    for path in (ref, ident):
+        if not path.exists():
+            print(f"  not found: {path}"); return
+
+    print("  reading (streamed, nothing loaded whole)...")
+    sliced = build(ref, ident, max_items=limit)
+    info = to_catalogues(sliced, Path("data/flis"))
+    print(f"  items with 2+ part numbers : {info['items']:,}")
+    print(f"  part numbers               : {info['part_numbers']:,}")
+    print(f"  TRUE duplicate pairs       : {info['true_pairs']:,}")
+    print(f"  most part numbers on one   : {info['max_parts_on_one_item']}")
+    print(f"  declared equivalences      : {info['equivalences']:,}")
+    print(f"  written to data/flis/       {info['organisations']}")
+
+
 def stats() -> None:
     with session_scope() as db:
         records = db.scalar(select(func.count(SourceRecord.id))) or 0
@@ -160,4 +186,4 @@ def stats() -> None:
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
     {"seed": seed, "stats": stats, "match": match, "summary": summarise,
-     "enrich": enrich, "baseline": baseline}[cmd]()
+     "enrich": enrich, "baseline": baseline, "flis": flis}[cmd]()
