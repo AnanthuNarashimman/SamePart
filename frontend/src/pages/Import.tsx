@@ -80,11 +80,14 @@ export function Import() {
             {orgs.isLoading || orgs.isError ? (
               <QueryState isLoading={orgs.isLoading} isError={orgs.isError} error={orgs.error} />
             ) : (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              // Wrapping, and each control given a floor. Adding the family select to a row
+              // built for two pushed the file input past the edge of the card, where it
+              // rendered as three squashed words hanging outside the border.
+              <div className="flex flex-wrap items-center gap-3">
                 <select
                   value={effectiveOrgCode}
                   onChange={(e) => setOrgCode(e.target.value)}
-                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
+                  className="min-w-0 max-w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
                 >
                   {orgs.data?.map((org) => (
                     <option key={org.code} value={org.code}>{org.name} ({org.code})</option>
@@ -95,14 +98,14 @@ export function Import() {
                   value={effectiveFamily}
                   onChange={(e) => setFamily(e.target.value)}
                   aria-label="Material family"
-                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
+                  className="min-w-0 max-w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
                 >
                   {families.data?.map((f) => (
                     <option key={f.family} value={f.family}>{f.label}</option>
                   ))}
                 </select>
 
-                <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-stone-300 px-4 py-2 text-center text-sm text-stone-500 hover:border-primary-300 hover:text-primary-600">
+                <label className="min-w-[14rem] flex-1 cursor-pointer whitespace-nowrap rounded-lg border border-dashed border-stone-300 px-4 py-2 text-center text-sm text-stone-500 hover:border-primary-300 hover:text-primary-600">
                   {file?.name ?? 'Choose CSV file'}
                   <input
                     type="file"

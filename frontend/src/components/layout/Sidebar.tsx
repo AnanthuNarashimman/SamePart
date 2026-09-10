@@ -133,11 +133,13 @@ export function Sidebar() {
         {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
       </div>
 
-      {/* The middle scrolls; the tour footer below it does not. On a short window the
-          sidebar used to simply run off the bottom of the screen, taking the Start tour
-          button with it and leaving no way to reach it — mt-auto cannot help once the
-          content is taller than the column. */}
-      <div className="scroll-clean -mx-1 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-1">
+      {/* Only the organisation card scrolls. The navigation does not.
+          Making the whole middle scrollable fixed the unreachable Start tour button and
+          introduced a worse fault: on a short window the last two nav items scrolled out of
+          sight, so two entire pages of the product looked as though they did not exist. A nav
+          that can hide its own destinations is not navigation. The card above it is the part
+          that can afford to be scrolled past. */}
+      <div className="scroll-clean -mx-1 flex min-h-0 flex-1 shrink flex-col gap-6 overflow-y-auto px-1">
       {/* Company context card — which CPSE this session is acting as */}
       {collapsed ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
@@ -187,8 +189,9 @@ export function Sidebar() {
           )}
         </div>
       )}
+      </div>
 
-      <nav className="flex flex-col gap-2">
+      <nav className="flex shrink-0 flex-col gap-2">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.n}
@@ -228,7 +231,6 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      </div>
 
       <div className="flex shrink-0 flex-col gap-3">
         {collapsed ? (
