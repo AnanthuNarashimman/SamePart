@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from samepart.config import settings
+from samepart.model.egress import EgressBlocked, guard
 
 
 @dataclass
@@ -51,6 +52,7 @@ class AzureModel:
 
         self.name = settings.azure_chat_deployment or "azure"
         self.available = True
+        self._host = (settings.azure_endpoint or "azure").replace("https://", "").rstrip("/")
         self._client = AzureOpenAI(
             azure_endpoint=settings.azure_endpoint,
             api_key=settings.azure_api_key,
@@ -59,6 +61,15 @@ class AzureModel:
 
     def json(self, system: str, user: str, max_tokens: int = 1200) -> ModelReply:
         started = time.time()
+
+        # Nothing reaches the network before the guard has seen it. A blocked call still
+        # leaves a full record of what would have gone.
+        try:
+            guard(self._host, "model inference", f"{system}\n\n{user}")
+        except EgressBlocked as blocked:
+            return ModelReply({}, False, error=str(blocked),
+                              latency_ms=int((time.time() - started) * 1000))
+
         try:
             resp = self._client.chat.completions.create(
                 model=settings.azure_chat_deployment,
@@ -86,4 +97,16 @@ class AzureModel:
 
 
 def get_model() -> Model:
+    """Local first, always.
+
+    A local model needs no egress at all, so where one is configured it is preferred over a
+    hosted endpoint regardless of what else is available. That ordering is the policy: the
+    hosted path is the fallback, not the default.
+    """
+    from samepart.model.local import LocalModel, local_configured
+
+    if local_configured():
+        model = LocalModel()
+        if model.available:
+            return model
     return AzureModel() if settings.has_azure else NullModel()

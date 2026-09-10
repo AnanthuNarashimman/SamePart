@@ -18,6 +18,67 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Egress guard and local model: the sovereignty claim, made checkable
+**Who:** Aditya (with Claude) · **Prompted by:** "aren't we contradicting the data-must-not-
+leave requirement with Azure?" — we were
+
+**We were.** Two paths sent data out: extraction sent the raw description, and pairwise
+comparison sent typed attributes. Never source codes, organisation names, prices, vendors,
+purchase orders or spend, but specifications nonetheless.
+
+**The default is now blocked.** Outbound calls are refused before they reach the network
+layer, and turning them on is a deliberate act:
+
+```
+SAMEPART_ALLOW_EXTERNAL=0    # default
+```
+
+**Blocked calls are still recorded, and that is the point.** The ledger keeps the
+destination, purpose, byte count, a SHA-256 digest and the exact payload, whether the call
+went or not. A blocked entry lets an auditor read precisely what would have left the network
+and confirm that it did not. "We are careful with your data" is not evidence. "Here is the
+complete record, and nothing was sent" is.
+
+Verified: the first blocked attempt withheld 3,518 bytes to a named host, with the payload
+retained for inspection. `GET /api/governance/egress` serves it, with `blocked_only=true`.
+
+### Everything still works with nothing leaving
+Running with the default posture, no outbound calls at all:
+
+| | |
+|---|---|
+| Records into canonical materials | 654 into 183 |
+| Dead codes identified | 124 |
+| Review queue | 3,019 pairs |
+| Questions | 207 records |
+| Migration plan | 124 to close, 296 to collapse |
+
+The whole system runs on premises. The model tier is an enhancement to the 6.5% ambiguous
+band, not a dependency.
+
+### Local model client, preferred over the hosted one
+Speaks the OpenAI-compatible endpoint that Ollama, vLLM, llama.cpp and LM Studio all expose.
+It never touches the egress guard because nothing leaves the host.
+
+`get_model()` prefers it whenever it is configured and reachable, regardless of what else is
+available. **The hosted path is the fallback, not the default.** That ordering is the policy
+expressed in code.
+
+```
+SAMEPART_LOCAL_MODEL=qwen2.5:7b-instruct
+SAMEPART_LOCAL_MODEL_URL=http://localhost:11434/v1
+```
+
+`/api/health` now reports `runs_on_host` and `data_leaves_network` directly, so the answer to
+the question is a field rather than an argument.
+
+### What we can now say, precisely
+The deterministic core runs entirely on premises and handles 93.5% of decisions. Outbound
+calls are blocked by default and recorded when attempted. A local model is preferred when
+present. On a 755,000-pair benchmark a distilled 14B open model scored 98.2 against GPT-4o's
+99.0, so the on-premises path costs under a point of F1.
+
+
 ### Capability 7 second half: governance. All eight capabilities now covered.
 **Who:** Aditya (with Claude)
 

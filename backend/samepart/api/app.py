@@ -47,8 +47,22 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", tags=["meta"])
     def health():
-        return {"status": "ok", "mode": mode(), "live_services": live_services(),
-                "note": "services not listed as live return fixtures in the same shape"}
+        from samepart.model.client import get_model
+        from samepart.model.egress import LEDGER, external_allowed
+
+        model = get_model()
+        on_host = getattr(model, "on_host", False)
+        return {
+            "status": "ok", "mode": mode(), "live_services": live_services(),
+            "model": {
+                "name": model.name, "available": model.available,
+                "runs_on_host": bool(on_host),
+                "data_leaves_network": bool(model.available and not on_host
+                                            and external_allowed()),
+            },
+            "egress": LEDGER.summary(),
+            "note": "services not listed as live return fixtures in the same shape",
+        }
 
     return app
 

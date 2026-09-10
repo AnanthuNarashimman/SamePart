@@ -24,6 +24,27 @@ def audit(cursor: str | None = None, limit: int = Query(50, ge=1, le=500),
     return svc.audit(cursor, limit, actor, action)
 
 
+@router.get("/governance/egress")
+def egress(limit: int = Query(50, ge=1, le=500), blocked_only: bool = False):
+    """Every outbound call the system attempted, sent or blocked, and what was in it.
+
+    A blocked entry is the useful one. It shows exactly what would have left the network and
+    confirms that it did not, which is the evidence a security review asks for.
+    """
+    from samepart.model.egress import LEDGER
+
+    entries = [e for e in reversed(LEDGER.entries) if not (blocked_only and e.allowed)]
+    return {
+        **LEDGER.summary(),
+        "entries": [
+            {"at": e.at, "destination": e.destination, "purpose": e.purpose,
+             "allowed": e.allowed, "bytes": e.bytes_out, "sha256_16": e.digest,
+             "note": e.note, "payload": e.payload}
+            for e in entries[:limit]
+        ],
+    }
+
+
 @router.post("/canonical/{canonical_id}/reverse", response_model=s.ReverseResult)
 def reverse(canonical_id: str, req: s.ReverseRequest,
             svc: GovernanceService = Depends(governance_service)):
