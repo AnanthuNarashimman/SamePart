@@ -55,6 +55,13 @@ def stock_ageing(idle_days: int = 365, svc: AnalyticsService = Depends(analytics
     return svc.stock_ageing(idle_days)
 
 
+@router.get("/graph", response_model=s.GraphView)
+def graph(limit: int = 14, min_orgs: int = 2,
+          svc: AnalyticsService = Depends(analytics_service)):
+    """Many identity clusters at once, with the raw source descriptions on each member."""
+    return svc.graph(limit, min_orgs)
+
+
 @router.get("/analytics/audit-flags", response_model=s.AuditFlagResult)
 def audit_flags(limit: int = 50, svc: AnalyticsService = Depends(analytics_service)):
     """Merges the system nominates for a second look, based on evidence it never used."""

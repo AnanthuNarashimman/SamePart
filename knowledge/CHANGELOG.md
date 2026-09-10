@@ -18,6 +18,47 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Relationship graph rebuilt: many clusters, real data, the raw text on show
+**Who:** Aditya (with Claude)
+
+**The old version stated the answer and hid the problem.** Five hardcoded nodes, one cluster,
+and every source node captioned *"merged — all attributes agree"*. Three boxes saying the same
+thing converging on a fourth demonstrates nothing about why this is hard.
+
+**113 nodes now, from live data, instead of 5 hardcoded.** 21 constellations of the 159 real
+identities, built from 437 CPSE codes, chosen by how many organisations they span.
+
+Two levels, because one cluster in isolation looks like a diagram of something obvious:
+
+- **The field.** Each constellation is one national identity: a dark centre with a dot per
+  CPSE code that resolved to it, coloured by organisation, hollow where a record is linked as
+  a substitute rather than merged. No text at this size; the shape is the message
+- **One cluster, opened.** The **raw descriptions**, in full, exactly as each organisation
+  wrote them, resolving to one standardised description and one national code
+
+That second panel is the entire problem statement in one screen:
+
+```
+IOCL  Bolt, Hexagon Head, M20 x 40mm  Property Class CLASS 8.8...
+CPCL  HEX BOLT M20X40  CLASS 8.8  ISO 4014  HOT DIP GALVANISED
+BPCL  BLT HEX HD M20X40MM  8.8  ISO4014  GALVANISED
+NTPC  BOLT HEX HEAD; DIA 20MM; LG 40MM  GRADE CLASS 8.8...
+                        ↓
+      BOLT, HEX HEAD; M20X40; 8.8; ISO4014
+      IN-31161600-0000049-4
+```
+
+Nothing needs narrating. A reader sees four strings no comparison would reconcile, and one
+code.
+
+**New endpoint `GET /api/graph`**, returning clusters with their members, the raw text, and
+the substitution conditions on linked records. Organisation colours are the same fixed slots
+used on the insights charts, so a CPSE is one colour everywhere.
+
+`@xyflow/react` is no longer imported. It stays in `package.json` for now; drop it if nothing
+else picks it up.
+
+
 ### Insights charts redesigned: the palette was chosen by computation
 **Who:** Aditya (with Claude) · **Prompted by:** "these do not look impactful at all"
 

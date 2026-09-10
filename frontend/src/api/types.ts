@@ -184,6 +184,32 @@ export interface RationalisationResult {
   items: DeadCode[]
 }
 
+export interface GraphMember {
+  record_id: number
+  org_code: string
+  source_code: string
+  raw_description: string
+  relation: 'merged' | 'alternative'
+  reason: string
+  condition: string | null
+}
+
+export interface GraphCluster {
+  canonical_id: string
+  national_code: string | null
+  standardised_short: string | null
+  orgs: string[]
+  members: GraphMember[]
+  alternatives: GraphMember[]
+}
+
+export interface GraphView {
+  total_clusters: number
+  total_records: number
+  shown: number
+  clusters: GraphCluster[]
+}
+
 export interface CascadeTier {
   tier: string
   label: string

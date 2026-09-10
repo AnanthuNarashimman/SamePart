@@ -616,6 +616,38 @@ class StockAgeing(BaseModel):
     buckets: list[AgeBucket] = Field(default_factory=list)
 
 
+class GraphMember(BaseModel):
+    record_id: int
+    org_code: str
+    source_code: str
+    raw_description: str
+    relation: str = Field(description="merged | alternative")
+    reason: str = ""
+    condition: str | None = None
+
+
+class GraphCluster(BaseModel):
+    canonical_id: str
+    national_code: str | None = None
+    standardised_short: str | None = None
+    orgs: list[str] = Field(default_factory=list)
+    members: list[GraphMember] = Field(default_factory=list)
+    alternatives: list[GraphMember] = Field(default_factory=list)
+
+
+class GraphView(BaseModel):
+    """Many clusters at once, not one.
+
+    A single cluster in isolation looks like a diagram of something obvious. A field of them
+    is the harmonisation itself: dozens of separate identities, each pulling records in from
+    organisations that had no way of knowing they were describing the same thing.
+    """
+    total_clusters: int
+    total_records: int
+    shown: int
+    clusters: list[GraphCluster] = Field(default_factory=list)
+
+
 class FamilySummary(BaseModel):
     family: str
     label: str

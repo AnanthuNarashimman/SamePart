@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../lib/apiClient'
 import type {
   AnalyticsSummary,
+  GraphView,
   CascadeBreakdown,
   PriceSpreadReport,
   StockAgeing,
@@ -71,5 +72,13 @@ export function useStockAgeing(idleDays = 365) {
     queryKey: ['analytics', 'stock-ageing', idleDays],
     queryFn: async () =>
       (await apiClient.get<StockAgeing>('/analytics/stock-ageing', { params: { idle_days: idleDays } })).data,
+  })
+}
+
+export function useGraph(limit = 14, minOrgs = 2) {
+  return useQuery({
+    queryKey: ['graph', limit, minOrgs],
+    queryFn: async () =>
+      (await apiClient.get<GraphView>('/graph', { params: { limit, min_orgs: minOrgs } })).data,
   })
 }
