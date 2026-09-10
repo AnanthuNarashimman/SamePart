@@ -93,7 +93,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`relative flex h-screen shrink-0 flex-col gap-6 overflow-hidden border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 py-5 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)] transition-[width] duration-300 ease-in-out ${
+      className={`relative flex h-screen shrink-0 flex-col gap-6 border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 py-5 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)] transition-[width] duration-300 ease-in-out ${
         collapsed ? 'w-20 px-3' : 'w-72 px-5'
       }`}
     >
@@ -116,8 +116,20 @@ export function Sidebar() {
         </svg>
       </button>
 
-      <div className={`flex items-center gap-2 px-1 pt-1 ${collapsed ? 'justify-center' : ''}`}>
-        <img src="/logo.png" alt="Meridian" className="h-14 w-14 shrink-0 object-contain" />
+      <div
+        // Full-bleed through the column's padding so the rule divides the whole sidebar.
+        // The negative margin has to match the padding exactly and the padding has to match
+        // the column's, or the rule overhangs the edge and the mark stops lining up with the
+        // nav beneath it — which is why this picks one pair rather than layering two.
+        className={`flex items-center gap-2 border-b border-stone-900/10 pt-1 pb-4 ${
+          collapsed ? '-mx-3 justify-center px-3' : '-mx-5 px-5'
+        }`}
+      >
+        <img
+          src="/logo.png"
+          alt="Meridian"
+          className={`shrink-0 object-contain ${collapsed ? 'h-11 w-11' : 'h-14 w-14'}`}
+        />
         {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
       </div>
 
@@ -195,7 +207,7 @@ export function Sidebar() {
             {({ isActive }) => (
               <>
                 {collapsed ? (
-                  <Icon name={item.icon} />
+                  <Icon name={item.icon} className="h-[22px] w-[22px]" />
                 ) : (
                   <>
                     <span className="flex items-center gap-3">
