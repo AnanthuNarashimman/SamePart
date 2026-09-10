@@ -25,18 +25,18 @@ export function DecisionBar({ match, onDecide, onGoToQuestion, isPending = false
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-stone-100 bg-white px-5 py-4 shadow-sm">
-      <p className="text-xs text-stone-400">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-100 bg-white px-5 py-4 shadow-sm">
+      <p className="min-w-0 flex-1 text-xs text-stone-400">
         {needsInput
           ? 'This pair cannot be approved yet — a critical attribute is unknown on at least one side.'
           : 'Review the comparison above, then record a decision.'}
       </p>
-      <div className="flex gap-2">
+      <div className="flex shrink-0 gap-2">
         {needsInput ? (
           <button
             type="button"
             onClick={onGoToQuestion}
-            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+            className="whitespace-nowrap rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
           >
             Answer the question
           </button>
@@ -45,7 +45,7 @@ export function DecisionBar({ match, onDecide, onGoToQuestion, isPending = false
             type="button"
             disabled={isPending}
             onClick={() => onDecide('approve')}
-            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="whitespace-nowrap rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Approve
           </button>
@@ -54,7 +54,7 @@ export function DecisionBar({ match, onDecide, onGoToQuestion, isPending = false
           type="button"
           disabled={isPending}
           onClick={() => onDecide('reject')}
-          className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="whitespace-nowrap rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Reject
         </button>
@@ -62,7 +62,7 @@ export function DecisionBar({ match, onDecide, onGoToQuestion, isPending = false
           type="button"
           disabled={isPending}
           onClick={() => onDecide('request_info')}
-          className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="whitespace-nowrap rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Request info
         </button>

@@ -23,17 +23,9 @@ export function Dashboard() {
             Operational summary across all connected CPSEs
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            placeholder="Quick search"
-            className="w-56 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600 placeholder:text-stone-300 focus:outline-none"
-            disabled
-          />
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white">
-            R
-          </span>
-        </div>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white">
+          S
+        </span>
       </header>
 
       {!summary.data ? (
@@ -85,5 +77,5 @@ export function Dashboard() {
 }
 
 function Card({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">{children}</div>
+  return <div className="h-80 rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">{children}</div>
 }

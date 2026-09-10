@@ -1,82 +1,165 @@
 // Static, curated node graph of one demo cluster — read-only, no new backend logic.
 // Deprioritised per knowledge/08-ranked-additions.md ("pretty, says little a judge cares
-// about"); kept minimal and built last, underneath the Dashboard as optional polish.
+// about"); kept as optional polish underneath the Dashboard. Rendered with @xyflow/react
+// (React Flow) instead of a hand-rolled SVG so it actually pans/zooms and reads as a real
+// graph — pan, zoom, minimap, fit-view — even though the underlying data stays curated.
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  Handle,
+  Position,
+  ReactFlow,
+  type Edge,
+  type EdgeProps,
+  type Node,
+  type NodeProps,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import { useMemo } from 'react'
 
-const NODES = [
-  { id: 'SMP-000002', label: 'SMP-000002', x: 260, y: 160, kind: 'canonical' },
-  { id: 'BPCL-000118', label: 'BPCL-000118', x: 80, y: 60, kind: 'source', org: 'BPCL' },
-  { id: 'CPCL-000041', label: 'CPCL-000041', x: 80, y: 260, kind: 'source', org: 'CPCL' },
-  { id: 'IOCL-000233', label: 'IOCL-000233', x: 440, y: 60, kind: 'alt', org: 'IOCL' },
-  { id: 'NTPC-000015', label: 'NTPC-000015', x: 440, y: 260, kind: 'source', org: 'NTPC' },
+type NodeKind = 'canonical' | 'source' | 'alt'
+
+interface DemoNodeData extends Record<string, unknown> {
+  code: string
+  org: string
+  kind: NodeKind
+  detail: string
+}
+
+const RAW_NODES: { id: string; x: number; y: number; kind: NodeKind; org: string; detail: string }[] = [
+  { id: 'SMP-000002', x: 380, y: 200, kind: 'canonical', org: 'canonical', detail: 'BOLT, HEX HEAD; M10X120; A2-70; DIN931' },
+  { id: 'BPCL-000118', x: 60, y: 40, kind: 'source', org: 'BPCL', detail: 'Merged — all attributes agree' },
+  { id: 'CPCL-000041', x: 60, y: 200, kind: 'source', org: 'CPCL', detail: 'Merged — all attributes agree' },
+  { id: 'NTPC-000015', x: 60, y: 360, kind: 'source', org: 'NTPC', detail: 'Merged — all attributes agree' },
+  { id: 'IOCL-000233', x: 700, y: 200, kind: 'alt', org: 'IOCL', detail: 'Possible alternative — grade differs (A4-70)' },
 ]
 
-const EDGES: { from: string; to: string; kind: 'merged' | 'alternative' }[] = [
+const RAW_EDGES: { from: string; to: string; kind: 'merged' | 'alternative' }[] = [
   { from: 'BPCL-000118', to: 'SMP-000002', kind: 'merged' },
   { from: 'CPCL-000041', to: 'SMP-000002', kind: 'merged' },
   { from: 'NTPC-000015', to: 'SMP-000002', kind: 'merged' },
   { from: 'IOCL-000233', to: 'SMP-000002', kind: 'alternative' },
 ]
 
-const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n]))
+const KIND_STYLE: Record<NodeKind, { ring: string; bg: string; text: string; dot: string }> = {
+  canonical: { ring: 'border-orange-500', bg: 'bg-orange-500', text: 'text-white', dot: 'bg-white' },
+  source: { ring: 'border-emerald-300', bg: 'bg-white', text: 'text-stone-800', dot: 'bg-emerald-500' },
+  alt: { ring: 'border-amber-300', bg: 'bg-amber-50', text: 'text-stone-800', dot: 'bg-amber-500' },
+}
+
+function DemoNode({ data }: NodeProps<Node<DemoNodeData>>) {
+  const style = KIND_STYLE[data.kind]
+  const isCanonical = data.kind === 'canonical'
+
+  return (
+    <div
+      className={`flex flex-col items-center gap-1 rounded-2xl border-2 px-4 py-3 shadow-sm ${style.ring} ${style.bg} ${style.text}`}
+      style={{ minWidth: isCanonical ? 200 : 160 }}
+    >
+      <Handle type="target" position={Position.Left} className="!bg-stone-300" />
+      <Handle type="source" position={Position.Right} className="!bg-stone-300" />
+      <div className="flex items-center gap-1.5">
+        <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+        <span className="font-mono text-xs font-semibold">{data.code}</span>
+      </div>
+      {!isCanonical && <span className="text-[10px] uppercase tracking-wide opacity-60">{data.org}</span>}
+      <p className={`max-w-[13rem] text-center text-[10px] leading-snug ${isCanonical ? 'text-white/80' : 'text-stone-500'}`}>
+        {data.detail}
+      </p>
+    </div>
+  )
+}
+
+const nodeTypes = { demo: DemoNode }
+
+interface DemoEdgeData extends Record<string, unknown> {
+  kind: 'merged' | 'alternative'
+}
+
+function DemoEdge({ sourceX, sourceY, targetX, targetY, data }: EdgeProps<Edge<DemoEdgeData>>) {
+  const merged = data?.kind !== 'alternative'
+  const midX = (sourceX + targetX) / 2
+  const path = `M ${sourceX},${sourceY} C ${midX},${sourceY} ${midX},${targetY} ${targetX},${targetY}`
+  return (
+    <path
+      d={path}
+      fill="none"
+      stroke={merged ? '#34d399' : '#f59e0b'}
+      strokeWidth={2.5}
+      strokeDasharray={merged ? undefined : '7 5'}
+      markerEnd="url(#demo-arrow)"
+    />
+  )
+}
+
+const edgeTypes = { demo: DemoEdge }
 
 export function RelationshipGraph() {
+  const nodes = useMemo<Node<DemoNodeData>[]>(
+    () =>
+      RAW_NODES.map((n) => ({
+        id: n.id,
+        type: 'demo',
+        position: { x: n.x, y: n.y },
+        data: { code: n.id, org: n.org, kind: n.kind, detail: n.detail },
+        draggable: true,
+      })),
+    [],
+  )
+
+  const edges = useMemo<Edge<DemoEdgeData>[]>(
+    () =>
+      RAW_EDGES.map((e) => ({
+        id: `${e.from}-${e.to}`,
+        source: e.from,
+        target: e.to,
+        type: 'demo',
+        data: { kind: e.kind },
+      })),
+    [],
+  )
+
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-50 p-8">
-      <header className="mb-6">
+    <div className="flex flex-1 flex-col overflow-hidden bg-stone-50 p-8">
+      <header className="mb-6 shrink-0">
         <h1 className="text-xl font-semibold text-stone-900">Relationship graph</h1>
         <p className="text-sm text-stone-400">
-          One curated cluster — how four source records resolve to a single canonical material
+          One curated cluster — how four source records resolve to a single canonical material.
+          Drag nodes, scroll to zoom, or use the controls in the corner.
         </p>
       </header>
 
-      <div className="rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
-        <svg viewBox="0 0 520 320" className="mx-auto w-full max-w-2xl">
-          {EDGES.map((e) => {
-            const a = nodeById[e.from]
-            const b = nodeById[e.to]
-            return (
-              <line
-                key={`${e.from}-${e.to}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={e.kind === 'merged' ? '#34d399' : '#fbbf24'}
-                strokeWidth={2}
-                strokeDasharray={e.kind === 'alternative' ? '6 4' : undefined}
-              />
-            )
-          })}
-          {NODES.map((n) => (
-            <g key={n.id}>
-              <circle
-                cx={n.x}
-                cy={n.y}
-                r={n.kind === 'canonical' ? 30 : 22}
-                fill={n.kind === 'canonical' ? '#f97316' : n.kind === 'alt' ? '#fef3c7' : '#ffffff'}
-                stroke={n.kind === 'canonical' ? '#ea580c' : '#d6d3d1'}
-                strokeWidth={2}
-              />
-              <text
-                x={n.x}
-                y={n.y + (n.kind === 'canonical' ? 44 : 36)}
-                textAnchor="middle"
-                className="fill-stone-600 text-[10px] font-medium"
-              >
-                {n.label}
-              </text>
-            </g>
-          ))}
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
+        <svg width="0" height="0">
+          <defs>
+            <marker id="demo-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#a8a29e" />
+            </marker>
+          </defs>
         </svg>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.25 }}
+          proOptions={{ hideAttribution: true }}
+          nodesConnectable={false}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e7e5e4" />
+          <Controls showInteractive={false} position="top-right" className="!rounded-xl !border !border-stone-100 !shadow-sm" />
+        </ReactFlow>
 
-        <div className="mt-6 flex justify-center gap-6 text-xs text-stone-500">
+        <div className="absolute bottom-4 left-4 flex flex-wrap gap-4 rounded-xl bg-white/90 px-4 py-2 text-xs text-stone-500 shadow-sm backdrop-blur">
           <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded bg-emerald-400" /> merged into canonical</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded bg-amber-400" /> possible alternative</span>
-          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-orange-500" /> canonical material</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded border border-dashed border-amber-500" /> possible alternative</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-orange-500" /> canonical material</span>
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-stone-400">
+      <p className="mt-4 shrink-0 text-xs text-stone-400">
         Curated demo cluster, not a live traversal of the full canonical graph — see
         knowledge/08-ranked-additions.md.
       </p>

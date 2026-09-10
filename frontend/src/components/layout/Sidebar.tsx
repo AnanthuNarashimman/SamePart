@@ -102,9 +102,6 @@ export function Sidebar() {
             Run duplicate check
           </NavLink>
         </div>
-        <p className="px-1 text-[11px] text-white/60">
-          © 2026 SamePart · SIH26099 · simulated demo data
-        </p>
       </div>
     </aside>
   )

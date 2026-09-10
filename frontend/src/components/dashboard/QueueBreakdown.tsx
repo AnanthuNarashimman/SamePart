@@ -11,13 +11,13 @@ export function QueueBreakdown({ counts }: { counts: QueueCounts }) {
   const total = counts.needs_input + counts.possible_alternative + counts.same_material + counts.different
 
   return (
-    <div className="rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
+    <div className="flex h-80 flex-col rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-stone-900">Reconciliation queue</h2>
         <span className="text-xs text-stone-400">{total} pending pairs</span>
       </div>
 
-      <div className="mb-4 flex h-2 overflow-hidden rounded-full bg-stone-100">
+      <div className="mb-4 flex h-2 shrink-0 overflow-hidden rounded-full bg-stone-100">
         {GROUPS.map((g) => (
           <div
             key={g.key}
@@ -27,18 +27,39 @@ export function QueueBreakdown({ counts }: { counts: QueueCounts }) {
         ))}
       </div>
 
-      <ul className="flex flex-col gap-3">
+      <ul className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
         {GROUPS.map((g) => (
-          <li key={g.key} className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2 text-stone-600">
-              <span className={`h-2 w-2 rounded-full ${g.dot}`} />
-              {g.label}
-              <span className="hidden text-xs text-stone-300 sm:inline">· {g.hint}</span>
-            </span>
-            <span className="font-semibold text-stone-900">{counts[g.key]}</span>
+          <li key={g.key} className="flex items-start justify-between gap-3 text-sm">
+            <div className="min-w-0">
+              <span className="flex items-center gap-2 font-medium text-stone-700">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${g.dot}`} />
+                {g.label}
+              </span>
+              <span className="mt-0.5 flex items-start gap-1 text-xs text-stone-400">
+                <InfoIcon />
+                {g.hint}
+              </span>
+            </div>
+            <span className="shrink-0 font-semibold text-stone-900">{counts[g.key]}</span>
           </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+function InfoIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="mt-0.5 h-3 w-3 shrink-0 text-stone-300"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M8 7.25v3.5" strokeLinecap="round" />
+      <circle cx="8" cy="5.2" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
   )
 }
