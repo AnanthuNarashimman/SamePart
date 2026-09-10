@@ -32,6 +32,36 @@
   --color-khaki-600: #b8ad3e;
   --color-khaki-700: #a89f34;
   --color-khaki-800: #7d7626;
+
+  /* shadcn base tokens, added ALONGSIDE the palette above rather than over it. The names do
+     not collide: the lemon-melon ramps are --color-brand-*, --color-primary-*, --color-khaki-*,
+     and these are the semantic slots shadcn components reference (bg-card, border-border,
+     text-muted-foreground). Both resolve, and nothing above changed. Stone-based, to match
+     the neutrals already in use across the app. */
+  --color-background: #ffffff;
+  --color-foreground: #1c1917;
+  --color-card: #ffffff;
+  --color-card-foreground: #1c1917;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1c1917;
+  --color-primary: #1c1917;
+  --color-primary-foreground: #fafaf9;
+  --color-secondary: #f5f5f4;
+  --color-secondary-foreground: #1c1917;
+  --color-muted: #f5f5f4;
+  --color-muted-foreground: #78716c;
+  --color-accent: #f5f5f4;
+  --color-accent-foreground: #1c1917;
+  --color-destructive: #d03b3b;
+  --color-destructive-foreground: #fafaf9;
+  --color-border: #e7e5e4;
+  --color-input: #e7e5e4;
+  --color-ring: #a8a29e;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
 }
 
 html,

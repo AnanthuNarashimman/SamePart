@@ -18,6 +18,42 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### shadcn/ui installed, and the graph page rebuilt on it
+**Who:** Aditya (with Claude)
+
+Hand-rolled cards and dividers only get so far. The page now uses shadcn `Card`, `Badge` and
+`Separator`, which carry the surface, the header rhythm and the rules, so the page's own code
+is about the graph rather than about padding.
+
+**Ananthu's palette is untouched.** The lemon-melon ramps are `--color-brand-*`,
+`--color-primary-*` and `--color-khaki-*`; shadcn's semantic slots are `--color-card`,
+`--color-border`, `--color-muted-foreground` and so on. Different names, both resolve, nothing
+above was overwritten. Verified: 23 of his tokens still present, index.css unchanged above the
+block that was appended.
+
+### Four setup defects fixed on the way, all pre-existing
+`init` failed four times before it worked, each on something real:
+
+- **No path alias.** Neither `tsconfig` nor `vite.config.ts` defined `@/*`, so shadcn could
+  not resolve where to put anything. Added to both
+- **`baseUrl` is deprecated in TypeScript 6** and now errors. Removed; `paths` resolves
+  relative to the tsconfig without it
+- **The peer conflict again**, this time blocking shadcn's own installer. Added a project
+  `.npmrc` with `legacy-peer-deps=true` and a comment saying why, so `npm install` stops
+  failing on a clean checkout for everyone
+- **`cn`, `clsx`, `tailwind-merge`, `class-variance-authority` and `radix-ui` were all
+  missing.** Installed
+
+Anyone cloning this repo could not previously run `npm install` without a flag. That is fixed
+at the project level rather than in someone's shell history.
+
+### The graph itself
+One canvas, 28 clusters, 148 nodes, placed on a golden-angle spiral and sized by how many
+codes resolved into each identity. Hover isolates; everything else recedes to 16% rather than
+disappearing. Clicking opens the raw descriptions beside a panel explaining why nothing in
+them matches, which is the point.
+
+
 ### Relationship graph rebuilt: many clusters, real data, the raw text on show
 **Who:** Aditya (with Claude)
 
