@@ -18,6 +18,53 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### The model tier, first half: extraction. And it abstains.
+**Who:** Aditya (with Claude) · **Closes:** the "no NLP anywhere" exposure
+
+Model access sits behind one interface, so swapping the hosted deployment for an open-weight
+model inside a CPSE's own network is configuration, not a rewrite. With nothing configured
+the pipeline degrades to the deterministic path, which is also why an API outage cannot
+break the demo.
+
+Extraction runs **only on attributes the patterns left unknown**, so cost tracks difficulty
+rather than volume.
+
+**The result that matters most in this project so far.**
+
+Our generated blanks are unrecoverable by construction: the generator removed the value from
+the description entirely. A model that fills them is hallucinating. Across 30 records and
+**122 attributes with no answer present, the model abstained 122 times. Zero inventions.**
+
+And where the answer *is* present but the patterns cannot read it, it recovers:
+
+| Text | Patterns read | Model read |
+|---|---|---|
+| `NOM 20 LEN 80 10.9 AS PER ISO 4014` | nothing | diameter 20, length 80 |
+| `BLT HX HD DIA.24/LG.70 GR 12.9 HDG` | nothing | diameter 24, length 70, head HEX |
+
+**Two guards make this trustworthy rather than plausible.** The prompt states that an unknown
+is useful and a guess is dangerous, because a fabricated property class on a pressure-joint
+bolt is a safety problem. And every value must quote the exact substring that proves it,
+checked against the source before anything is written, so a confident invention cannot enter
+through this door.
+
+### Why it does not run inline
+A call takes about two seconds, so enriching 654 records would add twenty minutes to an
+import that currently finishes in under one. It runs as its own pass over only the records
+that have blanks: `python -m samepart.cli enrich [n]`.
+
+Anything it fills is stored with method `llm` and its evidence, so a reviewer always sees
+that a machine inferred this rather than a pattern reading it outright.
+
+### Honest note on our own numbers
+Running enrichment over our data fills **nothing**, and that is the correct outcome, not a
+failure. The blanks in the generated catalogue genuinely have no answer in the text. On real
+material master records, which carry long text, classification characteristics and purchase
+history alongside the short description, the recovery cases above are the ones that would
+apply. **Do not claim the model reduces our 207 open blanks. On this data it cannot, and
+saying so is the point.**
+
+
 ### Capability 4: the Common National Material Code is no longer a counter
 **Who:** Aditya (with Claude)
 

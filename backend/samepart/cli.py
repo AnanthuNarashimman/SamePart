@@ -14,7 +14,7 @@ from samepart.api import schemas as s
 from samepart.api.deps import dictionary
 from samepart.db.models import ExtractedAttribute, Organisation, SourceRecord
 from samepart.db.session import init_db, session_scope
-from samepart.services.live import LiveCatalogue, LiveReview
+from samepart.services.live import LiveCatalogue, LiveReview, ModelEnrichment
 from samepart.synth.generate import ORGS, generate
 from samepart.synth import procurement as po_synth
 
@@ -86,6 +86,20 @@ def summarise() -> None:
     print(f"  waiting for a person:                {by_state.get('queued', 0)}")
 
 
+def enrich() -> None:
+    """Second-pass extraction with the model, for attributes patterns could not read."""
+    n = int(sys.argv[2]) if len(sys.argv) > 2 else 25
+    info = ModelEnrichment(dictionary()).enrich(limit=n)
+    if not info.get("available"):
+        print(f"  {info['note']}"); return
+    print(f"model {info['model']}: examined {info['records_examined']} records with blanks")
+    print(f"  attributes considered : {info['attributes_considered']}")
+    print(f"  filled                : {info['filled']}")
+    print(f"  abstained             : {info['abstained']}")
+    print(f"  rejected, no evidence : {info['rejected_no_evidence']}")
+    print(f"  records changed       : {info['records_changed']}   errors: {info['errors']}")
+
+
 def stats() -> None:
     with session_scope() as db:
         records = db.scalar(select(func.count(SourceRecord.id))) or 0
@@ -106,4 +120,5 @@ def stats() -> None:
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
-    {"seed": seed, "stats": stats, "match": match, "summary": summarise}[cmd]()
+    {"seed": seed, "stats": stats, "match": match, "summary": summarise,
+     "enrich": enrich}[cmd]()

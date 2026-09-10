@@ -633,6 +633,78 @@ class LiveReview:
             action=action, payload={**payload, "note": req.note, "verdict": m.verdict}))
 
 
+class ModelEnrichment:
+    """Second-pass extraction for attributes the patterns could not read.
+
+    Deliberately NOT inline with ingestion. A model call takes around two seconds, so
+    enriching 654 records would add twenty minutes to an import that currently takes under
+    one. It runs as its own pass, over only the records that have blanks, and only where the
+    text might plausibly contain the answer.
+
+    Anything it fills is stored with method `llm` and its quoted evidence, so a reviewer can
+    always see that a machine inferred this rather than a pattern reading it outright.
+    """
+
+    def __init__(self, dictionary: Dictionary) -> None:
+        self.dictionary = dictionary
+
+    def enrich(self, family_name: str = "hex_bolt", limit: int | None = None) -> dict:
+        from samepart.model.client import get_model
+        from samepart.model.extract import extract_missing
+        from samepart.pipeline.extract import extract as regex_extract
+
+        model = get_model()
+        if not model.available:
+            return {"model": model.name, "available": False,
+                    "note": "no model configured; nothing was changed"}
+
+        family = self.dictionary.family(family_name)
+        filled = abstained = rejected = considered = touched = 0
+        errors = 0
+
+        with session_scope() as db:
+            records = list(db.scalars(
+                select(SourceRecord).where(SourceRecord.family == family_name)
+                .options(selectinload(SourceRecord.attributes))))
+            targets = [r for r in records
+                       if any(a.status == "unknown" for a in r.attributes)]
+            if limit:
+                targets = targets[:limit]
+
+            for record in targets:
+                current = regex_extract(family, record.raw_description)
+                for a in record.attributes:
+                    if a.key in current and a.status != "unknown":
+                        continue
+                result = extract_missing(model, family, record.raw_description, current)
+                if result.error and not result.values:
+                    errors += 1
+                    continue
+                considered += result.filled + result.abstained + result.rejected
+                abstained += result.abstained
+                rejected += result.rejected
+                if not result.values:
+                    continue
+                touched += 1
+                by_key = {a.key: a for a in record.attributes}
+                for key, value in result.values.items():
+                    row = by_key.get(key)
+                    if row is None:
+                        continue
+                    if isinstance(value.value, (int, float)):
+                        row.value_number, row.value_text = float(value.value), None
+                    else:
+                        row.value_text, row.value_number = str(value.value), None
+                    row.status, row.method = "extracted", "llm"
+                    row.evidence, row.confidence = value.evidence, value.confidence
+                    filled += 1
+
+        return {"model": model.name, "available": True, "records_examined": len(targets),
+                "records_changed": touched, "attributes_considered": considered,
+                "filled": filled, "abstained": abstained,
+                "rejected_no_evidence": rejected, "errors": errors}
+
+
 # ---------------------------------------------------------------------------
 # Questions: the queue as a person actually experiences it
 # ---------------------------------------------------------------------------
