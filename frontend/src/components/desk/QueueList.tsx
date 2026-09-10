@@ -53,7 +53,7 @@ export function QueueList({ items, selectedId, onSelect }: QueueListProps) {
                       type="button"
                       onClick={() => onSelect(item.id)}
                       className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors ${
-                        selectedId === item.id ? 'bg-orange-50' : 'hover:bg-stone-50'
+                        selectedId === item.id ? 'bg-primary-50' : 'hover:bg-stone-50'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">

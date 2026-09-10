@@ -11,8 +11,8 @@ export const VERDICT_LABEL: Record<string, string> = {
 }
 
 export const VERDICT_TONE: Record<string, string> = {
-  same_material: 'bg-emerald-50 text-emerald-700',
-  possible_alternative: 'bg-amber-50 text-amber-700',
+  same_material: 'bg-brand-50 text-brand-700',
+  possible_alternative: 'bg-khaki-50 text-khaki-700',
   different: 'bg-stone-100 text-stone-500',
   insufficient_evidence: 'bg-rose-50 text-rose-700',
 }

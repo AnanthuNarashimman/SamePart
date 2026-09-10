@@ -57,7 +57,7 @@ export function Import() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-50 p-8">
+    <div className="flex-1 overflow-y-auto app-canvas p-8">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-stone-900">Import</h1>
         <p className="text-sm text-stone-400">
@@ -76,14 +76,14 @@ export function Import() {
                 <select
                   value={effectiveOrgCode}
                   onChange={(e) => setOrgCode(e.target.value)}
-                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-orange-300 focus:outline-none"
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
                 >
                   {orgs.data?.map((org) => (
                     <option key={org.code} value={org.code}>{org.name} ({org.code})</option>
                   ))}
                 </select>
 
-                <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-stone-300 px-4 py-2 text-center text-sm text-stone-500 hover:border-orange-300 hover:text-orange-600">
+                <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-stone-300 px-4 py-2 text-center text-sm text-stone-500 hover:border-primary-300 hover:text-primary-600">
                   {file?.name ?? 'Choose CSV file'}
                   <input
                     type="file"
@@ -117,7 +117,7 @@ export function Import() {
                 type="button"
                 disabled={startImport.isPending}
                 onClick={handleStartImport}
-                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
+                className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
               >
                 {startImport.isPending ? 'Starting…' : 'Start import'}
               </button>
@@ -125,7 +125,7 @@ export function Import() {
           )}
 
           {startImport.isSuccess && (
-            <div className="rounded-2xl bg-emerald-50 px-5 py-4 text-sm text-emerald-700">
+            <div className="rounded-2xl bg-brand-50 px-5 py-4 text-sm text-brand-700">
               {file?.name} queued for {effectiveOrgCode}. Regex/LLM attribute extraction runs
               next, then matching against the canonical set — check the panel on the right for
               live status.

@@ -2,9 +2,9 @@ import { useImportStatus } from '../../api/catalogue'
 
 const STATUS_TONE: Record<string, string> = {
   pending: 'bg-stone-100 text-stone-500',
-  running: 'bg-amber-50 text-amber-700',
-  done: 'bg-emerald-50 text-emerald-700',
-  complete: 'bg-emerald-50 text-emerald-700',
+  running: 'bg-khaki-50 text-khaki-700',
+  done: 'bg-brand-50 text-brand-700',
+  complete: 'bg-brand-50 text-brand-700',
   failed: 'bg-rose-50 text-rose-700',
 }
 

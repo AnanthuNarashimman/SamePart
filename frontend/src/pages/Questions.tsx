@@ -9,7 +9,7 @@ export function Questions() {
   const unresolvable = useUnresolvable()
 
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-50 p-8">
+    <div className="flex-1 overflow-y-auto app-canvas p-8">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-stone-900">Answer the questions</h1>
         <p className="text-sm text-stone-400">

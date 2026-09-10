@@ -52,8 +52,8 @@ export function MatchComparison({ match }: { match: MatchDetail }) {
             </div>
           ))}
           {match.substitution_conditions.map((c, i) => (
-            <div key={i} className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-500">Safe only if</p>
+            <div key={i} className="rounded-xl bg-khaki-50 p-3 text-sm text-khaki-800">
+              <p className="text-xs font-medium uppercase tracking-wide text-khaki-500">Safe only if</p>
               <p className="mt-1">{c}</p>
             </div>
           ))}

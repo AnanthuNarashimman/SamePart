@@ -16,9 +16,9 @@ export function Sidebar() {
   const activeOrg = orgs?.[0]
 
   return (
-    <aside className="flex h-screen w-72 shrink-0 flex-col gap-6 bg-gradient-to-b from-orange-600 to-orange-500 p-5 text-white">
+    <aside className="flex h-screen w-72 shrink-0 flex-col gap-6 border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 p-5 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)]">
       <div className="flex items-center gap-2 px-1 pt-1">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-orange-600">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">
           S
         </span>
         <span className="text-sm font-semibold tracking-wide">SamePart</span>
@@ -30,7 +30,7 @@ export function Sidebar() {
           <span className="text-[11px] font-medium uppercase tracking-wide text-stone-400">
             Acting as
           </span>
-          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+          <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-medium text-primary-700">
             Reviewer
           </span>
         </div>
@@ -68,8 +68,8 @@ export function Sidebar() {
             className={({ isActive }) =>
               `flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-amber-300 text-stone-900'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'bg-white/60 text-stone-600 hover:bg-white hover:text-stone-900'
               }`
             }
           >
@@ -78,7 +78,7 @@ export function Sidebar() {
                 {item.label}
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold ${
-                    isActive ? 'bg-white/70 text-stone-900' : 'bg-white/20 text-white'
+                    isActive ? 'bg-white/25 text-white' : 'bg-stone-900/10 text-stone-500'
                   }`}
                 >
                   {item.n}
@@ -90,14 +90,14 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-3">
-        <div className="rounded-2xl bg-white/10 p-4">
-          <p className="text-sm font-medium">Check before creating</p>
-          <p className="mb-3 text-xs text-white/70">
+        <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
+          <p className="text-sm font-medium text-stone-900">Check before creating</p>
+          <p className="mb-3 text-xs text-stone-500">
             Stop a new duplicate before a code is minted.
           </p>
           <NavLink
             to="/check"
-            className="block w-full rounded-lg bg-stone-900 py-2 text-center text-sm font-medium text-white hover:bg-stone-800"
+            className="block w-full rounded-lg bg-primary-500 py-2 text-center text-sm font-medium text-white hover:bg-primary-600"
           >
             Run duplicate check
           </NavLink>

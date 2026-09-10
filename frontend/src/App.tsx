@@ -9,7 +9,7 @@ import { RelationshipGraph } from './pages/RelationshipGraph'
 
 function App() {
   return (
-    <div className="flex h-screen w-screen bg-stone-50">
+    <div className="flex h-screen w-screen app-canvas">
       <Sidebar />
       <Routes>
         <Route path="/" element={<Dashboard />} />

@@ -35,7 +35,7 @@ export function ColumnMapper({ columns, mapping, onChange }: ColumnMapperProps) 
             <select
               value={mapping[col] ?? ''}
               onChange={(e) => onChange(col, e.target.value)}
-              className="w-56 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-orange-300 focus:outline-none"
+              className="w-56 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-primary-300 focus:outline-none"
             >
               <option value="">Ignore</option>
               {TARGET_FIELDS.map((f) => (

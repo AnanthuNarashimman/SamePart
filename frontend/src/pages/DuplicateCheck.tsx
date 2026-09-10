@@ -18,7 +18,7 @@ export function DuplicateCheck() {
   const effectiveOrgCode = orgCode ?? orgs.data?.[0]?.code ?? ''
 
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-50 p-8">
+    <div className="flex-1 overflow-y-auto app-canvas p-8">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-stone-900">Duplicate-prevention check</h1>
         <p className="text-sm text-stone-400">
@@ -36,7 +36,7 @@ export function DuplicateCheck() {
               <select
                 value={effectiveOrgCode}
                 onChange={(e) => setOrgCode(e.target.value)}
-                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-orange-300 focus:outline-none"
+                className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
               >
                 {orgs.data?.map((org) => (
                   <option key={org.code} value={org.code}>{org.code}</option>
@@ -51,14 +51,14 @@ export function DuplicateCheck() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. HEX BOLT M10 X 120 A2-70 DIN 931"
-              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-orange-300 focus:outline-none"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-primary-300 focus:outline-none"
             />
           </div>
           <button
             type="button"
             disabled={!description.trim() || !effectiveOrgCode || check.isPending}
             onClick={() => check.mutate({ description, org_code: effectiveOrgCode })}
-            className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
+            className="rounded-lg bg-primary-500 px-5 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
           >
             {check.isPending ? 'Checking…' : 'Check'}
           </button>
@@ -85,10 +85,10 @@ function CheckOutcome({
 }) {
   if (result.safe_to_create) {
     return (
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6 text-center">
-        <p className="text-lg font-semibold text-emerald-700">Safe to create</p>
-        <p className="mt-1 text-sm text-emerald-600">{result.message}</p>
-        <p className="mt-1 text-xs text-emerald-500">
+      <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-6 text-center">
+        <p className="text-lg font-semibold text-brand-700">Safe to create</p>
+        <p className="mt-1 text-sm text-brand-600">{result.message}</p>
+        <p className="mt-1 text-xs text-brand-500">
           No existing canonical material matches "{description}" — {orgCode} can mint a new code.
         </p>
       </div>

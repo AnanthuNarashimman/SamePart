@@ -36,7 +36,7 @@ export function DecisionBar({ match, onDecide, onGoToQuestion, isPending = false
           <button
             type="button"
             onClick={onGoToQuestion}
-            className="whitespace-nowrap rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+            className="whitespace-nowrap rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
           >
             Answer the question
           </button>
@@ -45,7 +45,7 @@ export function DecisionBar({ match, onDecide, onGoToQuestion, isPending = false
             type="button"
             disabled={isPending}
             onClick={() => onDecide('approve')}
-            className="whitespace-nowrap rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="whitespace-nowrap rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Approve
           </button>

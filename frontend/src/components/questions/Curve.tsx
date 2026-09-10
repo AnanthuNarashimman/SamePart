@@ -16,7 +16,7 @@ export function Curve({ curve }: { curve: CurvePoint[] }) {
           <div key={c.questions_answered} className="flex items-center gap-3 text-xs">
             <span className="w-20 shrink-0 text-stone-500">{c.questions_answered} answered</span>
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
-              <div className="h-full rounded-full bg-orange-500" style={{ width: pct(c.share_cleared) }} />
+              <div className="h-full rounded-full bg-primary-500" style={{ width: pct(c.share_cleared) }} />
             </div>
             <span className="w-28 shrink-0 text-right font-medium text-stone-700">
               {c.pairs_cleared} cleared ({pct(c.share_cleared)})

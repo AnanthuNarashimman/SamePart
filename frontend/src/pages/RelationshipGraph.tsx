@@ -43,9 +43,9 @@ const RAW_EDGES: { from: string; to: string; kind: 'merged' | 'alternative' }[] 
 ]
 
 const KIND_STYLE: Record<NodeKind, { ring: string; bg: string; text: string; dot: string }> = {
-  canonical: { ring: 'border-orange-500', bg: 'bg-orange-500', text: 'text-white', dot: 'bg-white' },
-  source: { ring: 'border-emerald-300', bg: 'bg-white', text: 'text-stone-800', dot: 'bg-emerald-500' },
-  alt: { ring: 'border-amber-300', bg: 'bg-amber-50', text: 'text-stone-800', dot: 'bg-amber-500' },
+  canonical: { ring: 'border-primary-500', bg: 'bg-primary-500', text: 'text-white', dot: 'bg-white' },
+  source: { ring: 'border-brand-300', bg: 'bg-white', text: 'text-stone-800', dot: 'bg-brand-500' },
+  alt: { ring: 'border-khaki-300', bg: 'bg-khaki-50', text: 'text-stone-800', dot: 'bg-khaki-500' },
 }
 
 function DemoNode({ data }: NodeProps<Node<DemoNodeData>>) {
@@ -121,7 +121,7 @@ export function RelationshipGraph() {
   )
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-stone-50 p-8">
+    <div className="flex flex-1 flex-col overflow-hidden app-canvas p-8">
       <header className="mb-6 shrink-0">
         <h1 className="text-xl font-semibold text-stone-900">Relationship graph</h1>
         <p className="text-sm text-stone-400">
@@ -153,9 +153,9 @@ export function RelationshipGraph() {
         </ReactFlow>
 
         <div className="absolute bottom-4 left-4 flex flex-wrap gap-4 rounded-xl bg-white/90 px-4 py-2 text-xs text-stone-500 shadow-sm backdrop-blur">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded bg-emerald-400" /> merged into canonical</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded border border-dashed border-amber-500" /> possible alternative</span>
-          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-orange-500" /> canonical material</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded bg-brand-400" /> merged into canonical</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded border border-dashed border-khaki-500" /> possible alternative</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-primary-500" /> canonical material</span>
         </div>
       </div>
 

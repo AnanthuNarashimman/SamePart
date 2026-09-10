@@ -2,8 +2,8 @@ import type { QueueCounts } from '../../api/types'
 
 const GROUPS: { key: keyof QueueCounts; label: string; hint: string; bar: string; dot: string }[] = [
   { key: 'needs_input', label: 'Needs input', hint: 'Insufficient evidence — asking a question', bar: 'bg-rose-400', dot: 'bg-rose-500' },
-  { key: 'possible_alternative', label: 'Possible alternatives', hint: 'Substitutes, identities stay separate', bar: 'bg-amber-300', dot: 'bg-amber-400' },
-  { key: 'same_material', label: 'Confirmed matches', hint: 'Ready for a quick approve pass', bar: 'bg-emerald-300', dot: 'bg-emerald-500' },
+  { key: 'possible_alternative', label: 'Possible alternatives', hint: 'Substitutes, identities stay separate', bar: 'bg-khaki-300', dot: 'bg-khaki-400' },
+  { key: 'same_material', label: 'Confirmed matches', hint: 'Ready for a quick approve pass', bar: 'bg-brand-300', dot: 'bg-brand-500' },
   { key: 'different', label: 'Confirmed different', hint: 'Low priority, informational', bar: 'bg-stone-200', dot: 'bg-stone-400' },
 ]
 

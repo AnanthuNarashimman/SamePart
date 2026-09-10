@@ -27,7 +27,7 @@ export function ReconciliationDesk() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-stone-50 p-8">
+    <div className="flex flex-1 flex-col overflow-hidden app-canvas p-8">
       <header className="mb-6 shrink-0">
         <h1 className="text-xl font-semibold text-stone-900">Reconciliation desk</h1>
         <p className="text-sm text-stone-400">
@@ -39,8 +39,8 @@ export function ReconciliationDesk() {
       {queue.data && (
         <section className="mb-6 grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
           <MiniStat label="Needs input" value={queue.data.counts.needs_input} tone="text-rose-600" />
-          <MiniStat label="Possible alternatives" value={queue.data.counts.possible_alternative} tone="text-amber-600" />
-          <MiniStat label="Confirmed matches" value={queue.data.counts.same_material} tone="text-emerald-600" />
+          <MiniStat label="Possible alternatives" value={queue.data.counts.possible_alternative} tone="text-khaki-600" />
+          <MiniStat label="Confirmed matches" value={queue.data.counts.same_material} tone="text-brand-600" />
           <MiniStat label="Confirmed different" value={queue.data.counts.different} tone="text-stone-500" />
         </section>
       )}

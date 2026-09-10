@@ -8,7 +8,7 @@ export function SavingsPanel({ savings }: { savings: SavingsResult }) {
     <div className="flex h-80 flex-col rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
       <div className="mb-1 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-stone-900">Demand aggregation opportunity</h2>
-        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700">
           base-unit normalised
         </span>
       </div>

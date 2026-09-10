@@ -15,7 +15,7 @@ export function Dashboard() {
   const auditFlags = useAuditFlags()
 
   return (
-    <div className="flex-1 overflow-y-auto bg-stone-50 p-8">
+    <div className="flex-1 overflow-y-auto app-canvas p-8">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-stone-900">Dashboard</h1>
@@ -23,7 +23,7 @@ export function Dashboard() {
             Operational summary across all connected CPSEs
           </p>
         </div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
           S
         </span>
       </header>

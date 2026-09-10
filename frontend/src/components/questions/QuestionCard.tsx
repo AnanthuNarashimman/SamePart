@@ -23,7 +23,7 @@ export function QuestionCard({ item, onAnswer, onUnresolvable, isSubmitting = fa
           <p className="text-sm font-semibold text-stone-900">{item.org_code} · {item.source_code}</p>
           <p className="text-xs text-stone-400">{item.raw_description}</p>
         </div>
-        <span className="rounded-full bg-orange-50 px-2 py-1 text-[11px] font-medium text-orange-700">
+        <span className="rounded-full bg-primary-50 px-2 py-1 text-[11px] font-medium text-primary-700">
           unblocks {item.pairs_blocked} pairs
         </span>
       </div>
@@ -43,7 +43,7 @@ export function QuestionCard({ item, onAnswer, onUnresolvable, isSubmitting = fa
                   onClick={() => setValues((v) => ({ ...v, [m.key]: cv.value }))}
                   className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                     values[m.key] === cv.value
-                      ? 'bg-orange-500 text-white'
+                      ? 'bg-primary-500 text-white'
                       : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                   }`}
                 >
@@ -56,7 +56,7 @@ export function QuestionCard({ item, onAnswer, onUnresolvable, isSubmitting = fa
               placeholder="or type a value"
               value={values[m.key] ?? ''}
               onChange={(e) => setValues((v) => ({ ...v, [m.key]: e.target.value }))}
-              className="w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:border-orange-300 focus:outline-none"
+              className="w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:border-primary-300 focus:outline-none"
             />
           </div>
         ))}
@@ -68,7 +68,7 @@ export function QuestionCard({ item, onAnswer, onUnresolvable, isSubmitting = fa
           placeholder="reason it's unresolvable (optional)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="mr-auto w-64 rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:border-orange-300 focus:outline-none"
+          className="mr-auto w-64 rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:border-primary-300 focus:outline-none"
         />
         <button
           type="button"
@@ -82,7 +82,7 @@ export function QuestionCard({ item, onAnswer, onUnresolvable, isSubmitting = fa
           type="button"
           disabled={!canSubmit || isSubmitting}
           onClick={() => onAnswer(item.record_id, values)}
-          className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-medium text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
+          className="rounded-lg bg-primary-500 px-4 py-2 text-xs font-medium text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
         >
           {isSubmitting ? 'Submitting…' : 'Submit answer'}
         </button>

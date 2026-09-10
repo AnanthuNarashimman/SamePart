@@ -3,7 +3,7 @@ import type { AttributeView } from '../../api/types'
 const CRITICALITY_DOT: Record<string, string> = {
   identity: 'bg-violet-400',
   critical: 'bg-rose-400',
-  major: 'bg-amber-400',
+  major: 'bg-khaki-400',
   minor: 'bg-stone-300',
 }
 
@@ -14,7 +14,7 @@ export function AttributeRow({ a, b }: { a: AttributeView; b: AttributeView }) {
   return (
     <div
       className={`grid grid-cols-[minmax(0,1fr)_11rem_11rem] items-start gap-3 rounded-lg px-2 py-2 text-sm ${
-        disagree ? 'bg-rose-50/60' : eitherUnknown ? 'bg-amber-50/50' : ''
+        disagree ? 'bg-rose-50/60' : eitherUnknown ? 'bg-khaki-50/50' : ''
       }`}
     >
       <div className="flex items-center gap-2 pt-0.5 text-stone-500">
