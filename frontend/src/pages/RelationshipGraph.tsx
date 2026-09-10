@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
 export function RelationshipGraph() {
-  const graph = useGraph(16)
+  const graph = useGraph(11)
   const [picked, setPicked] = useState<string | null>(null)
   const [lit, setLit] = useState<string | null>(null)
 

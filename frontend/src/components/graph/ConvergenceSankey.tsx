@@ -14,10 +14,10 @@ import { orgColourDark } from '../insights/tokens'
 // interchangeable under conditions" are different claims and should not share a shape.
 
 const W = 1000
-const LEFT_X = 96
-const BLOCK_W = 15
-const RIGHT_X = 620
-const PAD = 26
+const LEFT_X = 104
+const BLOCK_W = 13
+const RIGHT_X = 560
+const PAD = 22
 
 export function ConvergenceSankey({
   clusters,
@@ -36,11 +36,21 @@ export function ConvergenceSankey({
   const focus = hover ?? selected
 
   const model = useMemo(() => {
-    // Right column: one block per identity, height by how many codes collapsed into it.
-    const shown = clusters
+    // Order identities by the average lane of whatever feeds them — the barycentre heuristic
+    // every Sankey uses. Without it, sixteen destinations pulling from four lanes in an
+    // arbitrary order produces a tangle; with it the ribbons run broadly parallel and the
+    // picture reads as flow rather than as noise. This is the single biggest legibility win
+    // available, and it costs one sort.
+    const laneOf = Object.fromEntries(orgs.map((o, i) => [o, i]))
+    const shown = [...clusters].sort((a, b) => {
+      const bary = (c: GraphCluster) =>
+        c.members.reduce((sum, m) => sum + (laneOf[m.org_code] ?? 0), 0) /
+        Math.max(c.members.length, 1)
+      return bary(a) - bary(b) || b.members.length - a.members.length
+    })
     const totalRight = shown.reduce((a, c) => a + c.members.length, 0)
-    const rowGap = 6
-    const H = Math.max(520, totalRight * 13 + shown.length * rowGap + PAD * 2)
+    const rowGap = 9
+    const H = Math.max(430, totalRight * 11 + shown.length * rowGap + PAD * 2)
     const unit = (H - PAD * 2 - shown.length * rowGap) / Math.max(totalRight, 1)
 
     let ry = PAD
@@ -95,12 +105,14 @@ export function ConvergenceSankey({
         const c = orgColourDark(o)
         return (
           <g key={o}>
-            <rect x={LEFT_X} y={b.y} width={BLOCK_W} height={b.h} rx="3" fill={c} />
-            <text x={LEFT_X - 12} y={b.y + 14} textAnchor="end" fontSize="13" fontWeight="600"
-                  fill={c} fontFamily="ui-monospace, monospace">{o}</text>
-            <text x={LEFT_X - 12} y={b.y + 30} textAnchor="end" fontSize="11"
-                  fill="#78716c" fontFamily="ui-monospace, monospace">
-              {perOrgTotal[o] ?? model.contrib[o]} codes
+            <rect x={LEFT_X} y={b.y} width={BLOCK_W} height={b.h} rx="6" fill={c} />
+            {/* One line, centred on the block. Two stacked lines per lane was four extra
+                pieces of text competing with the flows. */}
+            <text x={LEFT_X - 14} y={b.y + b.h / 2 - 2} textAnchor="end" fontSize="13"
+                  fontWeight="600" fill={c} fontFamily="ui-monospace, monospace">{o}</text>
+            <text x={LEFT_X - 14} y={b.y + b.h / 2 + 12} textAnchor="end" fontSize="10"
+                  fill="#57534e" fontFamily="ui-monospace, monospace">
+              {perOrgTotal[o] ?? model.contrib[o]}
             </text>
           </g>
         )
@@ -108,15 +120,24 @@ export function ConvergenceSankey({
 
       {model.ribbons.map((r, i) => {
         const isFocus = focus === r.cluster.canonical_id
-        const mid = (LEFT_X + BLOCK_W + RIGHT_X) / 2
+        // Control points pulled apart rather than both at the midpoint. A symmetric S turns
+        // the whole span into curve, so with forty ribbons the middle becomes a mesh. Pushing
+        // the handles toward the ends gives each ribbon a long straight run through the
+        // centre, and forty near-parallel lines read as flow where forty crossing curves read
+        // as noise. Reordering the nodes barely helped here — nearly every identity draws
+        // from all four lanes, so their barycentres are all alike — but this does.
+        const span = RIGHT_X - (LEFT_X + BLOCK_W)
+        const c1 = LEFT_X + BLOCK_W + span * 0.18
+        const c2 = RIGHT_X - span * 0.18
         return (
           <path
             key={i}
-            d={`M ${LEFT_X + BLOCK_W} ${r.y0} C ${mid} ${r.y0}, ${mid} ${r.y1}, ${RIGHT_X} ${r.y1}`}
+            d={`M ${LEFT_X + BLOCK_W} ${r.y0} C ${c1} ${r.y0}, ${c2} ${r.y1}, ${RIGHT_X} ${r.y1}`}
             fill="none"
             stroke={orgColourDark(r.org)}
-            strokeWidth={Math.max(r.t, 2.5)}
-            strokeOpacity={focus ? (isFocus ? 0.92 : 0.07) : 0.42}
+            strokeWidth={Math.max(r.t, 3)}
+            strokeLinecap="round"
+            strokeOpacity={focus ? (isFocus ? 0.95 : 0.05) : 0.3}
             style={{ transition: 'stroke-opacity 160ms ease' }}
           />
         )
@@ -136,15 +157,14 @@ export function ConvergenceSankey({
              onClick={() => onSelect(cluster.canonical_id)}
              className="cursor-pointer">
             <title>{`${short} — ${cluster.members.length} codes from ${cluster.orgs.length} CPSEs`}</title>
-            <rect x={RIGHT_X} y={y} width={BLOCK_W} height={h} rx="3"
-                  fill={isFocus ? '#fafaf9' : '#a8a29e'} />
-            <text x={RIGHT_X + 26} y={y + h / 2 + 4} fontSize="12"
+            <rect x={RIGHT_X} y={y} width={BLOCK_W} height={h} rx="6"
+                  fill={isFocus ? '#fafaf9' : '#8c8781'} />
+            {/* The count sits inside the block, so the label column stays a single clean
+                line of text instead of two competing ones. */}
+            <text x={RIGHT_X + 24} y={y + h / 2 + 4} fontSize="11.5"
                   fill={isFocus ? '#fafaf9' : '#a8a29e'} fontFamily="ui-monospace, monospace">
-              {short}
-            </text>
-            <text x={W - 16} y={y + h / 2 + 4} textAnchor="end" fontSize="11"
-                  fill={isFocus ? '#e7e5e4' : '#57534e'} fontFamily="ui-monospace, monospace">
-              {cluster.members.length}→1
+              <tspan fill={isFocus ? '#fafaf9' : '#57534e'}>{cluster.members.length}×</tspan>
+              <tspan dx="7">{short}</tspan>
             </text>
 
             {/* Substitutes hang off the block on a dashed tie. They never flow into it. */}
