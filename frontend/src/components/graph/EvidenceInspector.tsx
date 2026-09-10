@@ -1,7 +1,6 @@
 import type { GraphCluster, GraphMember } from '../../api/types'
 import { orgColour } from '../insights/tokens'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
 // The proof view: original description on the left, extracted attributes across.
@@ -54,16 +53,11 @@ export function EvidenceInspector({
       .replace(' under head', '').replace('Property class or ', '')
       .replace('Governing specification', 'standard').replace('Surface ', '')
 
+  // No card and no title of its own. The section this sits in already carries both, and a
+  // component that repeats its parent's heading inside a second border reads as two panels
+  // saying the same thing.
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>The words barely match. The attributes do.</CardTitle>
-        <CardDescription>
-          {rows.length} codes from {cluster.orgs.length} CPSEs. Hover any value to light up the
-          exact words it was read from, in every row at once.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="px-5 py-4">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left">
             <thead>
@@ -160,7 +154,6 @@ export function EvidenceInspector({
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

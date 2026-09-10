@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { GraphCluster } from '../../api/types'
 import { orgColour } from '../insights/tokens'
 
@@ -67,9 +67,22 @@ export function ConsensusMatrix({
 
   const grid = {
     display: 'grid',
-    gridTemplateColumns: `minmax(0,1fr) repeat(${orgs.length}, 54px) ${anySubs ? '58px ' : ''}132px`,
+    gridTemplateColumns: `minmax(0,1fr) repeat(${orgs.length}, 54px) ${anySubs ? '58px ' : ''}150px`,
     alignItems: 'center',
   } as const
+
+  const listRef = useRef<HTMLUListElement>(null)
+  const onKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const buttons = Array.from(listRef.current?.querySelectorAll('button') ?? [])
+    const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+    const next = buttons[at + (e.key === 'ArrowDown' ? 1 : -1)]
+    if (next) {
+      next.focus()
+      next.click()
+    }
+  }
 
   const SortBtn = ({ k, children }: { k: Sort; children: React.ReactNode }) => (
     <button
@@ -106,7 +119,8 @@ export function ConsensusMatrix({
         </div>
       </div>
 
-      <ul className="max-h-[440px] overflow-y-auto scroll-clean">
+      <ul ref={listRef} onKeyDown={onKey}
+          className="max-h-[520px] divide-y divide-stone-100 overflow-y-auto scroll-clean">
         {rows.map((r) => {
           const isSel = selected === r.cluster.canonical_id
           return (
@@ -116,13 +130,19 @@ export function ConsensusMatrix({
                 style={grid}
                 onClick={() => onSelect(r.cluster.canonical_id)}
                 aria-pressed={isSel}
-                className={`w-full border-l-2 px-5 py-2 text-left transition-colors ${
+                className={`w-full border-l-[3px] px-5 py-3 text-left transition-colors
+                            focus-visible:outline focus-visible:outline-2
+                            focus-visible:-outline-offset-2 focus-visible:outline-stone-900 ${
                   isSel
-                    ? 'border-stone-900 bg-stone-50'
-                    : 'border-transparent hover:bg-stone-50/70'
+                    ? 'border-stone-900 bg-stone-900/[0.055]'
+                    : 'border-transparent hover:bg-stone-100/70'
                 }`}
               >
-                <span className="min-w-0 truncate pr-4 font-mono text-[12.5px] text-stone-800">
+                <span
+                  className={`min-w-0 truncate pr-4 font-mono text-[13px] ${
+                    isSel ? 'font-semibold text-stone-900' : 'font-medium text-stone-700'
+                  }`}
+                >
                   {r.short}
                 </span>
 
@@ -158,17 +178,32 @@ export function ConsensusMatrix({
                 )}
 
                 <span className="flex items-center justify-end gap-2.5">
-                  <span className="font-mono text-[11px] tabular-nums text-stone-400">
-                    {r.consensus}/{orgs.length}
-                  </span>
+                  {r.consensus === orgs.length ? (
+                    <span className="rounded-full bg-stone-900 px-1.5 py-0.5 font-mono text-[9.5px]
+                                     font-medium tracking-wide text-white">
+                      {orgs.length}-WAY
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-[3px]" aria-hidden>
+                      {orgs.map((_, i) => (
+                        <span key={i}
+                              className={`h-[7px] w-[7px] rounded-[1px] ${
+                                i < r.consensus ? 'bg-stone-500' : 'bg-stone-200'
+                              }`} />
+                      ))}
+                    </span>
+                  )}
+                  <span className="sr-only">{r.consensus} of {orgs.length} CPSEs agree</span>
                   {/* The bar is total codes collapsed — the compression this one row bought. */}
-                  <span className="relative h-2.5 w-14 overflow-hidden rounded-sm bg-stone-100">
+                  <span className="relative h-3 w-14 overflow-hidden rounded-sm bg-stone-150 bg-stone-100">
                     <span
-                      className="absolute inset-y-0 left-0 rounded-sm bg-stone-800"
+                      className={`absolute inset-y-0 left-0 rounded-sm ${
+                        isSel ? 'bg-stone-900' : 'bg-stone-700'
+                      }`}
                       style={{ width: `${(r.codes / maxCodes) * 100}%` }}
                     />
                   </span>
-                  <span className="w-5 text-right font-mono text-[12px] font-medium tabular-nums text-stone-900">
+                  <span className="w-5 text-right font-mono text-[13px] font-semibold tabular-nums text-stone-900">
                     {r.codes}
                   </span>
                 </span>
