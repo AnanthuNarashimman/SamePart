@@ -1,7 +1,8 @@
 """Developer commands.
 
-    python -m samepart.cli seed     generate catalogues and ingest them
-    python -m samepart.cli stats    what is currently in the database
+    python -m samepart.cli seed      generate catalogues and ingest them
+    python -m samepart.cli stats     what is currently in the database
+    python -m samepart.cli evaluate  score the matcher against the labels
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from sqlalchemy import func, select
 from samepart.api import schemas as s
 from samepart.api.deps import dictionary
 from samepart.db.models import ExtractedAttribute, Organisation, SourceRecord
+from samepart.evaluation import evaluate as run_evaluation
 from samepart.db.session import init_db, session_scope
 from samepart.services.live import LiveCatalogue, LiveReview, ModelEnrichment
 from samepart.synth.generate import ORGS, generate
@@ -38,11 +40,41 @@ def seed(reset: bool = True) -> None:
         print(f"  {code}: read {status.rows_read}, ingested {status.rows_ingested}, "
               f"{status.attributes_extracted} attributes{note}")
     _seed_procurement(svc)
+    _label_ground_truth()
     stats()
     # Imports already ran matching on the rows they brought in, so this only picks up
     # anything left over. The summary below reports the database, not this pass.
     match()
     summarise()
+
+
+def _label_ground_truth() -> None:
+    """Copy the generator's answer key onto the records it produced.
+
+    SourceRecord.truth_identity has existed since the schema was written and nothing has ever
+    populated it, so labels.csv was being used only to price the synthetic purchase orders.
+    Without this the evaluation harness has nothing to score against.
+
+    Labels are written to the database rather than read from the CSV at scoring time so that
+    an imported catalogue with no answer key simply has null truth and is skipped, instead of
+    silently scoring against the wrong file.
+    """
+    import csv as _csv
+
+    path = DATA / "labels.csv"
+    if not path.exists():
+        print("\n  ! labels.csv missing; records left unlabelled")
+        return
+
+    truth = {r["source_code"]: r["truth_identity"] for r in _csv.DictReader(path.open())}
+    with session_scope() as db:
+        n = 0
+        for record in db.scalars(select(SourceRecord)):
+            tid = truth.get(record.source_code)
+            if tid and record.truth_identity != tid:
+                record.truth_identity = tid
+                n += 1
+    print(f"\nlabelled {n:,} records with ground truth from labels.csv")
 
 
 def _seed_procurement(svc) -> None:
@@ -183,6 +215,151 @@ def flis() -> None:
     print(f"  written to data/flis/       {info['organisations']}")
 
 
+def evaluate() -> None:
+    """Score the matcher against the labels, and fail if a frozen threshold regressed.
+
+    `--check` compares every number against dictionaries/evaluation.yaml and exits non-zero
+    on any regression, so CI enforces the benchmark rather than a person remembering to look
+    at it. `--json PATH` writes the full report for a slide or a diff.
+    """
+    import json
+
+    args = sys.argv[2:]
+    check = "--check" in args
+    out_path = None
+    if "--json" in args:
+        out_path = Path(args[args.index("--json") + 1])
+
+    with session_scope() as db:
+        report = run_evaluation(db)
+
+    _print_report(report)
+
+    if out_path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(report.as_dict(), indent=2) + "\n")
+        print(f"\n  written to {out_path}")
+
+    if check:
+        sys.exit(_check_thresholds(report))
+
+
+def _print_report(report) -> None:
+    def block(title: str, rows: list[tuple[str, object]]) -> None:
+        print(f"\n{title}")
+        for label, value in rows:
+            if isinstance(value, float):
+                value = f"{value:.4f}" if value < 1 else f"{value:.2f}"
+            print(f"    {label:<34s} {value:>12}")
+
+    print(f"\n{report.records} records, {report.labelled} labelled, "
+          f"{report.true_pairs:,} truly-matching pairs among {report.comparisons:,} comparisons")
+
+    if not report.labelled:
+        for n in report.notes:
+            print(f"  ! {n}")
+        return
+
+    rt = report.retrieval
+    block("RETRIEVAL  did the pair ever get proposed", [
+        ("candidate pairs", f"{rt['candidate_pairs']:,}"),
+        ("pairs completeness", rt["pairs_completeness"]),
+        ("reduction ratio", rt["reduction_ratio"]),
+        ("true pairs never proposed", rt["true_pairs_missed"]),
+    ])
+
+    d, pw = report.decision, report.decision["pairwise"]
+    block("DECISION  given the pair, was the call right", [
+        ("pairwise precision", pw["precision"]),
+        ("pairwise recall", pw["recall"]),
+        ("pairwise F1", pw["f1"]),
+        ("false merges", d["false_merges"]),
+        ("  of which evidence conflicted", d["false_merges_with_conflicting_evidence"]),
+        ("  of which indistinguishable", d["indistinguishable_pairs"]),
+        ("false merge rate", d["false_merge_rate"]),
+        ("false separations", d["false_separations"]),
+        ("abstained", f"{d['abstained']} ({d['abstention_rate']:.1%})"),
+        ("routed as substitute", d["possible_alternative"]),
+    ])
+
+    hn = report.hard_negatives
+    block("HARD NEGATIVES  look alike, are not the same", [
+        ("pairs", f"{hn['pairs']:,}"),
+        ("wrongly merged", hn["wrongly_merged"]),
+        ("false merge rate", hn["false_merge_rate"]),
+        ("correctly separated", hn["correctly_separated"]),
+        ("sent to a person", hn["sent_to_a_person"]),
+    ])
+
+    o, bc = report.outcome, report.outcome["bcubed"]
+    block("OUTCOME  are the final clusters right", [
+        ("records mapped", o["records_mapped"]),
+        ("clusters formed", f"{o['clusters']} of {o['true_clusters']} true"),
+        ("B-cubed precision", bc["precision"]),
+        ("B-cubed recall", bc["recall"]),
+        ("B-cubed F1", bc["f1"]),
+        ("impure clusters", o["impure_clusters"]),
+        ("cluster purity", o["cluster_purity"]),
+    ])
+
+    if report.price_flag:
+        pf = report.price_flag
+        block("PRICE VARIANCE  an independent second opinion", [
+            ("flag threshold", f"{pf['threshold']}x"),
+            ("clusters scored", pf["clusters_scored"]),
+            ("flagged", pf["flagged"]),
+            ("precision", pf["precision"]),
+            ("recall", pf["recall"]),
+        ])
+
+    t = report.tiers
+    block("COST  which tier settled each pair", [
+        *[(name, n) for name, n in t["by_tier"].items()],
+        ("share without a model", t["share_without_a_model"]),
+    ])
+
+    for n in report.notes:
+        print(f"\n  ! {n}")
+
+
+def _check_thresholds(report) -> int:
+    """Compare against the frozen benchmark. Returns a process exit code."""
+    import yaml
+
+    path = Path("dictionaries/evaluation.yaml")
+    if not path.exists():
+        print(f"\n  ! {path} not found; nothing to check against.")
+        return 1
+
+    spec = yaml.safe_load(path.read_text()) or {}
+    flat = report.flat()
+    failures, missing = [], []
+
+    for name, rule in (spec.get("thresholds") or {}).items():
+        if name not in flat:
+            missing.append(name)
+            continue
+        actual = flat[name]
+        if "min" in rule and actual < rule["min"]:
+            failures.append((name, f"{actual} < min {rule['min']}", rule.get("why", "")))
+        if "max" in rule and actual > rule["max"]:
+            failures.append((name, f"{actual} > max {rule['max']}", rule.get("why", "")))
+
+    print(f"\nFROZEN BENCHMARK  {spec.get('frozen_on', 'undated')}")
+    if missing:
+        for m in missing:
+            print(f"    ?  {m} — not produced by this run")
+    if failures:
+        for name, detail, why in failures:
+            print(f"    FAIL  {name}: {detail}")
+            if why:
+                print(f"          {why}")
+        print(f"\n  {len(failures)} threshold(s) regressed.")
+        return 1
+    print(f"    all {len(spec.get('thresholds') or {})} thresholds hold.")
+    return 1 if missing else 0
+
+
 def stats() -> None:
     with session_scope() as db:
         records = db.scalar(select(func.count(SourceRecord.id))) or 0
@@ -204,4 +381,5 @@ def stats() -> None:
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
     {"seed": seed, "stats": stats, "match": match, "summary": summarise,
-     "enrich": enrich, "baseline": baseline, "flis": flis}[cmd]()
+     "enrich": enrich, "baseline": baseline, "flis": flis,
+     "evaluate": evaluate}[cmd]()

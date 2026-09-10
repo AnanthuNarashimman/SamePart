@@ -1,0 +1,87 @@
+# The frozen benchmark.
+#
+# Every number this project quotes should be reproducible by `cli evaluate`, and every one
+# that matters should fail a build if it regresses. These bounds are set from a measured run,
+# not chosen to be flattering, and each carries the reason it exists. Loosening one is a
+# decision that belongs in knowledge/CHANGELOG.md.
+#
+# Bounds sit a little outside the measured value so ordinary variation passes and a real
+# regression does not. They are floors and ceilings, not targets: beating them is expected.
+
+version: 1
+frozen_on: 2026-09-10
+dataset: 640 records, 4 simulated CPSEs, 1 family (hex_bolt), 268 true identities
+command: PYTHONPATH=backend SAMEPART_MODE=live SAMEPART_MODEL_MATCHING=1 python -m samepart.cli evaluate --check
+
+thresholds:
+  # ── Retrieval ────────────────────────────────────────────────────────────────────────
+  retrieval.pairs_completeness:
+    min: 0.99
+    why: >-
+      A true pair that blocking never proposes cannot be recovered downstream, so this is the
+      hard ceiling on everything else. Measured 1.00; anything below 1.00 means a real
+      duplicate is now invisible to the system.
+  retrieval.reduction_ratio:
+    min: 0.97
+    why: >-
+      Completeness is trivially buyable by comparing everything, so it is only meaningful
+      beside the share of comparisons avoided. Measured 0.9843.
+
+  # ── Decision ─────────────────────────────────────────────────────────────────────────
+  decision.pairwise.precision:
+    min: 0.87
+    why: Measured 0.9029.
+  decision.pairwise.recall:
+    min: 0.78
+    why: Measured 0.8245.
+  decision.pairwise.f1:
+    min: 0.83
+    why: Measured 0.8619.
+  decision.false_merges_with_conflicting_evidence:
+    max: 25
+    why: >-
+      The one that matters. A false merge puts the wrong part in a pipeline, and this counts
+      only pairs where some attribute was stated on both records and disagreed -- a real
+      matcher error, not a label artefact. Measured 14 of 515 same-material verdicts.
+  decision.false_separations:
+    max: 15
+    why: >-
+      Cheaper than a false merge -- it leaves a duplicate rather than creating a hazard -- so
+      the bound is looser on purpose. Measured 6.
+  decision.abstention_rate:
+    max: 0.25
+    why: >-
+      Abstaining is correct behaviour, but a matcher that abstains on everything is useless
+      while scoring perfectly on precision. This stops that. Measured 0.109.
+
+  # ── Hard negatives ───────────────────────────────────────────────────────────────────
+  hard_negatives.false_merge_rate:
+    max: 0.03
+    why: >-
+      Pairs alike enough to be proposed but genuinely different: the pairs a text matcher
+      merges. Performance here is the whole argument for typed attributes and conflict gates.
+      Measured 0.0189 across 2,646 such pairs.
+
+  # ── Outcome ──────────────────────────────────────────────────────────────────────────
+  outcome.bcubed.f1:
+    min: 0.87
+    why: Cluster-level quality, per-record rather than per-pair. Measured 0.9088.
+  outcome.cluster_purity:
+    min: 0.83
+    why: >-
+      Share of final clusters containing exactly one true identity. An impure cluster is one a
+      steward has to unpick by hand. Measured 0.8696.
+
+  # ── Cost ─────────────────────────────────────────────────────────────────────────────
+  tiers.share_without_a_model:
+    min: 0.90
+    why: >-
+      The architectural claim: the cheap deterministic tiers carry the overwhelming majority
+      and the model is reserved for the band they cannot settle. If this falls, the cascade
+      has stopped earning its keep. Measured 0.9436.
+
+# Reported, deliberately un-thresholded:
+#   decision.indistinguishable_pairs   labelled different, no attribute disagrees. Nothing
+#                                      could separate these, so they measure the labels, not
+#                                      the matcher. Measured 36. Watch it; do not gate on it.
+#   price_flag.*                       a screening signal on a small sample, not a claim.

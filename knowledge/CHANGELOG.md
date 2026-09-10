@@ -1503,6 +1503,53 @@ that queue too, holding a quarter back: 333 linked, 110 left for a reviewer.
 
 ---
 
+## 2026-09-10 — Evaluation harness, and the generator defect it found
+
+**`cli evaluate` exists.** Every number this project has quoted was computed once in
+conversation and then copied into prose. That is an anecdote with a decimal point, not a
+benchmark. The harness recomputes all of them from the database, and `--check` fails the
+process when a frozen threshold in `dictionaries/evaluation.yaml` regresses.
+
+It separates three things that entity-resolution projects habitually conflate: **retrieval**
+(did the pair ever get proposed), **decision** (given the pair, was the call right), and
+**outcome** (are the final clusters right). Recall is measured against every true pair, not
+only the ones retrieval surfaced, so blocking misses cannot hide. False merges and false
+separations are never averaged together — one puts the wrong part in a pipeline, the other
+leaves a duplicate.
+
+`SourceRecord.truth_identity` had existed since the schema was written and nothing had ever
+populated it; `labels.csv` was being used only to price synthetic purchase orders. `seed` now
+labels the records it generates.
+
+**What the first run found.** 65 false merges — a 12.3% false-merge rate, far worse than
+anything we had implied. Splitting them showed two unrelated causes:
+
+- **36 were indistinguishable**: labelled as different identities but with no attribute
+  stated on both records that disagreed. Two were byte-identical descriptions. Nothing could
+  separate those, so they measure the labels, not the matcher. Reported separately and
+  deliberately not thresholded.
+- **29 were genuine**, and 15 of those traced to one line in the generator. `_mpn()` built
+  part numbers from diameter, length and grade, while an identity is defined by (diameter,
+  length, grade, standard, finish). **46 of 159 part numbers were shared by more than one true
+  identity.** The identity tier then merged them on "same manufacturer and part number" —
+  reasoning correctly from fabricated evidence, which turned our highest-precision signal into
+  our largest source of false merges.
+
+Fixing the generator: pairwise precision 0.8771 → **0.9029**, genuine false merges 29 → **14**,
+hard-negative false-merge rate 0.0246 → **0.0189**, and the identity tier's inflated pair count
+corrected from 214 to 178.
+
+**Frozen at 2026-09-10** on 640 records / 268 true identities: pairs completeness 1.00,
+reduction ratio 0.9843, pairwise F1 0.8619, B-cubed F1 0.9088, cluster purity 0.8696,
+hard-negative false-merge rate 0.0189, share decided without a model 0.9436. Twelve thresholds,
+each carrying the reason it exists.
+
+**Standing lesson.** A matcher cannot be evaluated on data whose generator has not itself been
+audited. The defect was invisible for the entire life of the project and only a labelled,
+per-tier evaluation surfaced it.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

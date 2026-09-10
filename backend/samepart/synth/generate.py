@@ -104,8 +104,20 @@ class Row:
 
 
 def _mpn(ident: Identity) -> str:
+    """A part number names the maker's item, so it must vary with everything that makes the
+    item a different item.
+
+    It used to encode diameter, length and grade only, while an identity is defined by
+    (diameter, length, grade, standard, finish). Two identities differing solely in standard
+    therefore shared a part number: 46 of 159 part numbers were held by more than one true
+    identity. The identity tier then merged them on "same manufacturer and part number" --
+    reasoning correctly from fabricated evidence, and turning our highest-precision signal
+    into our largest source of false merges. A data defect, not a matcher defect, and one only
+    a labelled evaluation could have surfaced.
+    """
     g = ident.grade.replace(".", "").replace("-", "")
-    return f"HB{ident.diameter:02d}{ident.length:03d}{g}"
+    std = ident.standard.replace(" ", "").replace("-", "")[:6]
+    return f"{ident.manufacturer[:2].upper()}{ident.diameter:02d}{ident.length:03d}{g}{std}{ident.finish[:2]}"
 
 
 def _describe(ident: Identity, style: str, rng: random.Random, drop: set[str]) -> str:
