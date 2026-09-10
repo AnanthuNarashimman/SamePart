@@ -818,10 +818,20 @@ class LiveQuestions:
             items.sort(key=lambda q: -q.pairs_blocked)
 
             ordered = sorted(blanks.values(), key=lambda i: -len(i["pairs"]))
+            # The whole curve, not a handful of checkpoints. The loop already visits every
+            # answer, so the samples were free to take and expensive to omit: with checkpoints
+            # at 10/25/50/100 the first one past half the queue was 50 answers, which actually
+            # clears 74%, and the caption under the chart read "50 answers clear half the
+            # queue" — overstating the effort by roughly double. A dense curve also lets the
+            # chart use a real numeric axis, so the diminishing-returns bend is drawn to scale
+            # instead of being flattened by equal category spacing.
+            #
+            # Strided once the queue is long, so the payload stays bounded on a real catalogue.
+            stride = max(1, len(ordered) // 240)
             curve, seen = [], set()
             for n, info in enumerate(ordered, start=1):
                 seen |= info["pairs"]
-                if n in (10, 25, 50, 100, 200, len(ordered)):
+                if n % stride == 0 or n == len(ordered):
                     curve.append(s.CurvePoint(
                         questions_answered=n, pairs_cleared=len(seen),
                         share_cleared=round(len(seen) / deferred, 4) if deferred else 0.0))

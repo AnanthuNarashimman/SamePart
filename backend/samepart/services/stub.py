@@ -123,6 +123,22 @@ _GROUP = {
 }
 
 
+# The stub's curve is generated at every answer rather than at five checkpoints, for the same
+# reason the live one is: the chart draws it on a numeric axis and reads the true half-way
+# point off it, and a five-point sample put that point at 50 answers when it is really 26.
+# The shape is interpolated between the original hand-picked checkpoints, so the fixture still
+# tells the same story, just at a resolution the chart can actually use.
+def _stub_curve() -> list:
+    checkpoints = [(0, 0), (10, 130), (25, 221), (50, 348), (100, 508), (228, 675)]
+    points = []
+    for (n0, c0), (n1, c1) in zip(checkpoints, checkpoints[1:]):
+        for n in range(n0 + 1, n1 + 1):
+            cleared = round(c0 + (c1 - c0) * (n - n0) / (n1 - n0))
+            points.append(s.CurvePoint(questions_answered=n, pairs_cleared=cleared,
+                                       share_cleared=round(cleared / 689, 4)))
+    return points
+
+
 class StubCatalogue:
     def list_orgs(self):
         return [
@@ -307,8 +323,7 @@ class StubQuestions:
     def questions(self, cursor, limit):
         return s.QuestionPage(
             pairs_deferred=689, questions=228, records=207,
-            curve=[s.CurvePoint(questions_answered=n, pairs_cleared=c, share_cleared=c/689)
-                   for n, c in [(10,130),(25,221),(50,348),(100,508),(228,675)]],
+            curve=_stub_curve(),
             items=[
                 s.Question(
                     record_id=5, org_code="CPCL", source_code="CPCL-000210",

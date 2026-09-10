@@ -3,7 +3,7 @@ import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import type { StockAgeing } from '../../api/types'
-import { INK, RAMP, TOOLTIP, compact } from './tokens'
+import { INK, RAMP, TOOLTIP, axisUnit, count } from './tokens'
 import { chartMotion, usePrefersReducedMotion } from './motion'
 
 // Ordered buckets, so the ramp runs light to dark with age. Nothing here is categorical: the
@@ -25,6 +25,26 @@ export function StockAgeingChart({ data }: { data: StockAgeing }) {
   }))
   const idleUnits = rows.filter((r) => r.idle).reduce((a, r) => a + r.units, 0)
   const hovered = active === null ? null : rows[active]
+  const fmt = axisUnit(Math.max(...rows.map((r) => r.units), 1))
+
+  // A bucket can legitimately hold nothing, and a zero-height bar draws as absolutely nothing
+  // — which reads as a broken chart rather than as an empty bucket. The note has to live on
+  // the axis tick rather than on the bar, because a label attached to a bar of zero height
+  // does not render at all, which is the failure being fixed.
+  const BucketTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value?: string } }) => {
+    const label = String(payload?.value ?? '')
+    const empty = rows.find((r) => r.label === label)?.units === 0
+    return (
+      <g transform={`translate(${x ?? 0},${y ?? 0})`}>
+        <text x={0} y={12} textAnchor="middle" fontSize={10} fill={INK.label}>{label}</text>
+        {empty && (
+          <text x={0} y={25} textAnchor="middle" fontSize={9} fill={INK.muted} fontStyle="italic">
+            none on hand
+          </text>
+        )}
+      </g>
+    )
+  }
 
   return (
     <div className="flex flex-col rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
@@ -37,20 +57,34 @@ export function StockAgeingChart({ data }: { data: StockAgeing }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={rows}
-            margin={{ left: -6, right: 8, top: 16, bottom: 0 }}
+            margin={{ left: -4, right: 8, top: 18, bottom: 0 }}
             barSize={42}
+            // The band, not the bar. Recharts fires a bar's own mouse events only over the
+            // drawn rectangle, so the two shortest buckets here — a few pixels tall — showed a
+            // tooltip while the caption and the highlight stayed on the previous bucket. The
+            // chart-level index follows the category band the tooltip already uses, so all
+            // three now agree.
+            onMouseMove={(st) => {
+              const i = Number(st?.activeTooltipIndex)
+              setActive(Number.isInteger(i) && i >= 0 && i < rows.length ? i : null)
+            }}
             onMouseLeave={() => setActive(null)}
           >
             <CartesianGrid stroke={INK.grid} vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false}
-                   tick={{ fontSize: 10, fill: INK.label }} interval={0} />
-            <YAxis tickLine={false} axisLine={false} width={40}
-                   tick={{ fontSize: 11, fill: INK.axis }} tickFormatter={compact} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0}
+                   height={34} tick={<BucketTick />} />
+            <YAxis tickLine={false} axisLine={false} width={52}
+                   tick={{ fontSize: 11, fill: INK.axis }} tickFormatter={fmt} />
             <Tooltip
               cursor={{ fill: '#faf9f7' }}
               contentStyle={TOOLTIP}
+              // Recharts joins name and value with " : ", so an empty name left every tooltip
+              // opening with a stray colon.
+              separator=""
               formatter={(v, _n, p) => [
-                `${Number(v).toLocaleString('en-IN')} units · ${p?.payload?.records ?? 0} records`,
+                Number(v) === 0
+                  ? 'no stock in this bucket'
+                  : `${count(Number(v))} units · ${p?.payload?.records ?? 0} records`,
                 '',
               ]}
             />
@@ -58,7 +92,6 @@ export function StockAgeingChart({ data }: { data: StockAgeing }) {
               dataKey="units"
               radius={[5, 5, 0, 0]}
               {...chartMotion(reduced)}
-              onMouseEnter={(_entry: unknown, index: number) => setActive(index)}
             >
               {rows.map((r, i) => (
                 <Cell
@@ -67,26 +100,34 @@ export function StockAgeingChart({ data }: { data: StockAgeing }) {
                   fillOpacity={active === null || active === i ? 1 : 0.3}
                 />
               ))}
-              <LabelList dataKey="units" position="top" formatter={(v) => compact(Number(v))}
-                         style={{ fontSize: 10, fill: INK.muted }} />
+              <LabelList
+                dataKey="units" position="top" offset={6}
+                style={{ fontSize: 10, fill: INK.label }}
+                formatter={(v) => (Number(v) === 0 ? '' : fmt(Number(v)))}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
       <p className="mt-3 border-t border-stone-100 pt-3 text-xs text-stone-500">
         {hovered ? (
-          <>
-            <span className="font-medium text-stone-800">
-              {hovered.units.toLocaleString('en-IN')} units
-            </span>{' '}
-            across {hovered.records} records last moved {hovered.label.toLowerCase()} ago
-            {hovered.idle ? '. Redistribution candidates.' : '.'}
-          </>
+          hovered.units === 0 ? (
+            <>
+              Nothing on hand last moved{' '}
+              <span className="font-medium text-stone-800">{hovered.label.toLowerCase()}</span> ago.
+            </>
+          ) : (
+            <>
+              <span className="font-medium text-stone-800 tabular-nums">
+                {count(hovered.units)} units
+              </span>{' '}
+              across {hovered.records} records last moved {hovered.label.toLowerCase()} ago
+              {hovered.idle ? '. Redistribution candidates.' : '.'}
+            </>
+          )
         ) : (
           <>
-            <span className="font-medium text-stone-800">
-              {idleUnits.toLocaleString('en-IN')} units
-            </span>{' '}
+            <span className="font-medium text-stone-800 tabular-nums">{count(idleUnits)} units</span>{' '}
             have not moved in over a year. Those are the redistribution candidates.
           </>
         )}

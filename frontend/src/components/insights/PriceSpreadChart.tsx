@@ -5,7 +5,15 @@ import { HoverCard, useHoverCard } from './HoverCard'
 import { orgOpacity, useOrgFocus } from './OrgFocus'
 import { useReveal } from './motion'
 
-// One row per material, one dot per buyer, on a shared scale.
+// One row per material, one dot per buyer, on a shared logarithmic price scale.
+//
+// Logarithmic because the panel is about a ratio. On a linear scale a row's bar length is
+// (max - min), which has almost nothing to do with the spread printed beside it: measured on
+// this catalogue, a 1.51x spread on expensive bolts drew 33.8% of the width while a 6.7x
+// spread on cheap ones drew 31.3%. The picture contradicted the number. On a log scale the
+// length is proportional to log(max/min), so a 2x disagreement is the same length wherever it
+// sits on the scale and the bars finally rank the way the numbers do. No axis is drawn, so
+// nobody has to think about logarithms — the ends of each bar are labelled in rupees.
 //
 // The first attempt printed the CPSE code beside every dot, which collided the moment two
 // buyers paid similar prices — and buyers paying similar prices is the normal case. Identity
@@ -14,63 +22,83 @@ import { useReveal } from './motion'
 //
 // The legend is also the page's filter. Focusing one CPSE fades the other buyers here and on
 // every other panel at once, which turns "is this buyer consistently the expensive one" from
-// seven separate reads into a single glance down the column.
+// a dozen separate reads into a single glance down the column.
 export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
-  const items = data.items.slice(0, 7)
-  const ceiling = Math.max(...items.map((i) => i.price_max), 1)
+  // Every row, not just the widest. Slicing to the worst seven meant all seven were past the
+  // flag threshold, so the red "flagged" treatment marked every row on screen and therefore
+  // distinguished nothing. Showing the unflagged rows too is what gives the flag its meaning,
+  // and it also lets a reader see what a normal spread looks like.
+  const items = data.items
+  const prices = items.flatMap((i) => [i.price_min, i.price_max]).filter((p) => p > 0)
+  const lo = Math.log(Math.min(...prices))
+  const hi = Math.log(Math.max(...prices))
+  const span = hi - lo || 1
+  const at = (price: number) => ((Math.log(Math.max(price, 1e-6)) - lo) / span) * 100
+
   const orgs = Array.from(new Set(items.flatMap((i) => i.points.map((p) => p.org_code)))).sort()
   const shown = useReveal(80)
   const { focus, pinned, hover, toggle, clear } = useOrgFocus()
   const { anchor, show, hide } = useHoverCard()
+  const flaggedCount = items.filter((i) => i.flagged).length
 
   return (
     <div className="flex flex-col rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-sm font-semibold text-stone-900">What each CPSE paid</h2>
         {/* Legend once, at the top. Identity never rests on colour alone because the code is
-            written here beside its swatch. */}
+            written here beside its swatch. A pinned CPSE is filled rather than merely bright,
+            so a held filter never looks like the pointer happening to rest somewhere. */}
         <ul className="flex flex-wrap items-center gap-1">
-          {orgs.map((o) => (
-            <li key={o}>
-              <button
-                type="button"
-                aria-pressed={pinned && focus === o ? true : undefined}
-                className="flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors
-                           hover:bg-stone-50 focus-visible:outline focus-visible:outline-2
-                           focus-visible:outline-offset-1 focus-visible:outline-stone-900"
-                style={{
-                  opacity: orgOpacity(o, focus),
-                  background: pinned && focus === o ? '#f5f5f4' : undefined,
-                }}
-                onMouseEnter={() => hover(o)}
-                onMouseLeave={() => hover(null)}
-                onFocus={() => hover(o)}
-                onBlur={() => hover(null)}
-                onClick={() => toggle(o)}
-              >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: orgColour(o) }} />
-                <span className="font-mono text-[11px]" style={{ color: INK.label }}>{o}</span>
-              </button>
-            </li>
-          ))}
+          {orgs.map((o) => {
+            const held = pinned && focus === o
+            return (
+              <li key={o}>
+                <button
+                  type="button"
+                  aria-pressed={held}
+                  className="flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors
+                             hover:bg-stone-100 focus-visible:outline focus-visible:outline-2
+                             focus-visible:outline-offset-1 focus-visible:outline-stone-900"
+                  style={{
+                    opacity: orgOpacity(o, focus),
+                    background: held ? '#1c1917' : undefined,
+                  }}
+                  onMouseEnter={() => hover(o)}
+                  onMouseLeave={() => hover(null)}
+                  onFocus={() => hover(o)}
+                  onBlur={() => hover(null)}
+                  onClick={() => toggle(o)}
+                >
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: orgColour(o) }} />
+                  <span
+                    className="font-mono text-[11px]"
+                    style={{ color: held ? '#fff' : INK.label }}
+                  >
+                    {o}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
           {pinned && (
             <li>
               <button
                 type="button"
                 onClick={clear}
-                className="rounded-full px-2 py-1 text-[11px] text-stone-400 underline
-                           underline-offset-2 transition-colors hover:text-stone-700"
+                className="rounded-full px-2 py-1 text-[11px] text-stone-500 transition-colors
+                           hover:text-stone-900"
               >
-                all
+                show all ✕
               </button>
             </li>
           )}
         </ul>
       </div>
       <p className="mb-5 text-xs text-stone-400">
-        Per base unit, same canonical material. Median spread is {data.median_spread}×. Past{' '}
-        {data.flag_threshold}× the row is flagged, because a gap that wide more often means a
-        wrong merge than a bargain.
+        Per base unit, same canonical material, on a shared ratio scale — a wider bar is a wider
+        disagreement, whatever the part costs. Median spread is {data.median_spread}×;{' '}
+        {flaggedCount} of {items.length} are past {data.flag_threshold}× and marked, because a gap
+        that wide more often means a wrong merge than a bargain.
       </p>
 
       <ul className="flex flex-col gap-3.5">
@@ -81,7 +109,7 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
             style={{
               opacity: shown ? 1 : 0,
               transform: shown ? 'none' : 'translateY(6px)',
-              transitionDelay: shown ? `${row * 55}ms` : '0ms',
+              transitionDelay: shown ? `${Math.min(row, 8) * 45}ms` : '0ms',
             }}
           >
             <div className="mb-1 flex items-baseline justify-between gap-3">
@@ -103,16 +131,14 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
                 className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full
                            transition-[width] duration-700 ease-out motion-reduce:transition-none"
                 style={{
-                  left: `${(item.price_min / ceiling) * 100}%`,
-                  width: shown
-                    ? `${Math.max(((item.price_max - item.price_min) / ceiling) * 100, 0.6)}%`
-                    : '0%',
-                  background: item.flagged ? '#f6dcdc' : '#e7e5e4',
-                  transitionDelay: shown ? `${row * 55 + 120}ms` : '0ms',
+                  left: `${at(item.price_min)}%`,
+                  width: shown ? `${Math.max(at(item.price_max) - at(item.price_min), 0.6)}%` : '0%',
+                  background: item.flagged ? '#f3c9c9' : '#e7e5e4',
+                  transitionDelay: shown ? `${Math.min(row, 8) * 45 + 120}ms` : '0ms',
                 }}
               />
               {item.points.map((p, i) => {
-                const lit = focus === null || focus === p.org_code
+                const held = pinned && focus === p.org_code
                 return (
                   <button
                     key={p.org_code}
@@ -124,14 +150,16 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
                                focus-visible:outline-offset-2 focus-visible:outline-stone-900
                                motion-reduce:transition-none"
                     style={{
-                      left: `${Math.min((p.unit_price_base / ceiling) * 100, 99)}%`,
+                      left: `${Math.min(at(p.unit_price_base), 99.5)}%`,
                       background: orgColour(p.org_code),
                       opacity: shown ? orgOpacity(p.org_code, focus) : 0,
                       // Scaling up on focus rather than only fading keeps the focused buyer
-                      // findable even where two dots nearly overlap.
-                      scale: shown ? (focus === p.org_code ? '1.45' : '1') : '0.2',
-                      zIndex: lit ? 2 : 1,
-                      transitionDelay: shown ? `${row * 55 + 200 + i * 40}ms` : '0ms',
+                      // findable even where two dots nearly overlap. A held filter adds a dark
+                      // collar on top, so pinned and merely-hovered are told apart at a glance.
+                      scale: shown ? (focus === p.org_code ? '1.4' : '1') : '0.2',
+                      boxShadow: held ? '0 0 0 2px #1c1917' : undefined,
+                      zIndex: focus === p.org_code ? 2 : 1,
+                      transitionDelay: shown ? `${Math.min(row, 8) * 45 + 200 + i * 40}ms` : '0ms',
                     }}
                     onMouseEnter={(e) => {
                       hover(p.org_code)
@@ -158,7 +186,8 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
                 )
               })}
             </div>
-            <div className="flex justify-between font-mono text-[10px] tabular-nums" style={{ color: INK.muted }}>
+            <div className="flex justify-between font-mono text-[10px] tabular-nums"
+                 style={{ color: INK.muted }}>
               <span>{inr(item.price_min)}</span>
               <span>{inr(item.price_max)}</span>
             </div>

@@ -72,4 +72,30 @@ export const compact = (n: number) =>
       : n >= 1000 ? `${(n / 1000).toFixed(1)}k`
         : `${Math.round(n)}`
 
+/** One unit for a whole axis, picked from its largest value and then used for every tick and
+ *  every bar label on that axis.
+ *
+ *  `compact` above chooses a unit per value, which is right for prose and wrong for a scale:
+ *  the stock axis came out reading 1.8 L, 1.4 L, 90.0k, 45.0k, 0 — lakhs and thousands down
+ *  one ruler, so neighbouring gridlines could not be compared at a glance. Worse, it rounded
+ *  the 1,35,000 gridline to "1.4 L", misstating by 5,000 the very line a reader measures bars
+ *  against. Both faults come from deciding the unit per value, so the unit is decided once.
+ *
+ *  Lakhs only start at ten lakh, because below that thousands stay shorter and exact:
+ *  180k beats 1.8 L, and 45k beats 0.45 L. */
+export function axisUnit(max: number): (n: number) => string {
+  const [div, suffix] =
+    max >= 1e7 ? [1e7, ' cr']
+      : max >= 1e6 ? [1e5, ' L']
+        : max >= 1e3 ? [1e3, 'k']
+          : [1, '']
+  return (n: number) => {
+    if (n === 0) return '0'
+    const v = n / div
+    // Number() drops a trailing .0, so a round tick stays short while an odd one keeps the
+    // digit that tells it apart from its neighbour.
+    return `${Number(v.toFixed(Math.abs(v) >= 100 ? 0 : 1))}${suffix}`
+  }
+}
+
 export const count = (n: number) => n.toLocaleString('en-IN')

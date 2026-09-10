@@ -62,7 +62,11 @@ export const useOrgFocus = () => useContext(Ctx)
 
 /** Opacity for a mark belonging to `org`. Unfocused marks fade rather than vanish: the shape
  *  of the whole distribution has to survive, otherwise focusing destroys the context that
- *  makes the focused mark mean anything. */
+ *  makes the focused mark mean anything.
+ *
+ *  0.32, not the 0.16 this started at. At 0.16 a dot's fill fell close enough to the white
+ *  card that the white ring around it was all that read, so faded buyers looked like holes
+ *  punched in the row and the distribution did not survive after all. */
 export function orgOpacity(org: string, focus: string | null): number {
-  return focus === null || focus === org ? 1 : 0.16
+  return focus === null || focus === org ? 1 : 0.32
 }

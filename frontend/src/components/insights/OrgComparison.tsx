@@ -13,6 +13,31 @@ import { chartMotion, usePrefersReducedMotion } from './motion'
 // buyer in the price panel fades the other four columns here without a second interaction.
 // The axis labels are the controls: they are the only place on the page where every CPSE is
 // named, which makes them the natural handle for picking one.
+
+// Bars must be declared bottom-of-stack first, but a reader scans a stacked bar from the top
+// down, so legend and tooltip are given that order explicitly. Left to their defaults they
+// came out as Dead codes, Mapped, Still to review — an order matching neither the stack nor
+// each other.
+const SERIES = [
+  { key: 'mapped', name: 'Mapped', fill: RAMP[3] },
+  { key: 'pending', name: 'Still to review', fill: RAMP[0] },
+  { key: 'dead', name: 'Dead codes', fill: STATUS.critical },
+] as const
+const TOP_DOWN = [...SERIES].reverse()
+
+function StackLegend() {
+  return (
+    <ul className="flex items-center justify-center gap-4 pt-1.5">
+      {TOP_DOWN.map((s) => (
+        <li key={s.key} className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.fill }} />
+          <span className="text-[11px]" style={{ color: INK.label }}>{s.name}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function OrgComparison({ data }: { data: AnalyticsSummary }) {
   const reduced = usePrefersReducedMotion()
   const { focus, pinned, hover, toggle } = useOrgFocus()
@@ -37,10 +62,11 @@ export function OrgComparison({ data }: { data: AnalyticsSummary }) {
         onMouseLeave={() => hover(null)}
         onClick={() => toggle(org)}
       >
-        <rect x={-26} y={2} width={52} height={20} rx={10} fill={selected ? '#f5f5f4' : 'transparent'} />
+        <rect x={-26} y={2} width={52} height={20} rx={10}
+              fill={selected ? '#1c1917' : 'transparent'} />
         <text
           x={0} y={16} textAnchor="middle" fontSize={12}
-          fill={focus === null || focus === org ? INK.label : INK.muted}
+          fill={selected ? '#fff' : focus === null || focus === org ? INK.label : INK.muted}
           fontWeight={selected ? 600 : 400}
         >
           {org}
@@ -68,47 +94,44 @@ export function OrgComparison({ data }: { data: AnalyticsSummary }) {
             <XAxis dataKey="org" tickLine={false} axisLine={false} height={26} tick={<OrgTick />} />
             <YAxis tickLine={false} axisLine={false} width={40}
                    tick={{ fontSize: 11, fill: INK.axis }} />
-            <Tooltip contentStyle={TOOLTIP} cursor={{ fill: '#faf9f7' }} />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} iconType="square" iconSize={9} />
-            {(
-              [
-                { key: 'mapped', name: 'Mapped', fill: RAMP[3], radius: undefined },
-                { key: 'pending', name: 'Still to review', fill: RAMP[0], radius: undefined },
-                { key: 'dead', name: 'Dead codes', fill: STATUS.critical, radius: [5, 5, 0, 0] },
-              ] as const
-            ).map((series) => (
-              <Bar
-                key={series.key}
-                dataKey={series.key}
-                name={series.name}
-                stackId="a"
-                fill={series.fill}
-                radius={series.radius as never}
-                {...chartMotion(reduced)}
-                onMouseEnter={(item) => {
-                  // Recharts types the handler argument as a rectangle, but it carries the
-                  // row that produced the rectangle on `payload`.
-                  const org = (item as { payload?: { org?: string } })?.payload?.org
-                  if (org) hover(org)
-                }}
-              >
-                {rows.map((r) => (
-                  <Cell
-                    key={r.org}
-                    fill={series.fill}
-                    fillOpacity={orgOpacity(r.org, focus)}
-                    cursor="pointer"
-                    onClick={() => toggle(r.org)}
-                  />
-                ))}
-                {series.key === 'dead' && (
-                  // The contrast warning on the light ramp step obligates a visible label; this
-                  // is that label, and it also happens to be the number people look for.
-                  <LabelList dataKey="dead" position="top"
-                             style={{ fontSize: 10, fill: STATUS.critical, fontWeight: 500 }} />
-                )}
-              </Bar>
-            ))}
+            <Tooltip
+              contentStyle={TOOLTIP}
+              cursor={{ fill: '#faf9f7' }}
+              itemSorter={(item) => TOP_DOWN.findIndex((s) => s.key === String(item.dataKey))}
+            />
+            {/* Recharts 3 no longer accepts a payload prop on Legend, and its generated one
+                came out in an order matching neither the stack nor the tooltip. Rendering the
+                key directly is both shorter and deterministic. */}
+            <Legend verticalAlign="bottom" height={26} content={<StackLegend />} />
+
+            <Bar dataKey="mapped" name="Mapped" stackId="a" fill={RAMP[3]}
+                 {...chartMotion(reduced)}>
+              {rows.map((r) => (
+                <Cell key={r.org} fill={RAMP[3]} fillOpacity={orgOpacity(r.org, focus)}
+                      cursor="pointer" onClick={() => toggle(r.org)}
+                      onMouseEnter={() => hover(r.org)} />
+              ))}
+            </Bar>
+            <Bar dataKey="pending" name="Still to review" stackId="a" fill={RAMP[0]}
+                 {...chartMotion(reduced)}>
+              {rows.map((r) => (
+                <Cell key={r.org} fill={RAMP[0]} fillOpacity={orgOpacity(r.org, focus)}
+                      cursor="pointer" onClick={() => toggle(r.org)}
+                      onMouseEnter={() => hover(r.org)} />
+              ))}
+            </Bar>
+            <Bar dataKey="dead" name="Dead codes" stackId="a" fill={STATUS.critical}
+                 radius={[5, 5, 0, 0]} {...chartMotion(reduced)}>
+              {rows.map((r) => (
+                <Cell key={r.org} fill={STATUS.critical} fillOpacity={orgOpacity(r.org, focus)}
+                      cursor="pointer" onClick={() => toggle(r.org)}
+                      onMouseEnter={() => hover(r.org)} />
+              ))}
+              {/* The contrast warning on the light ramp step obligates a visible label; this
+                  is that label, and it also happens to be the number people look for. */}
+              <LabelList dataKey="dead" position="top"
+                         style={{ fontSize: 10, fill: STATUS.critical, fontWeight: 500 }} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
