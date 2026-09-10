@@ -136,7 +136,11 @@ export function ConvergenceSankey({
             fill="none"
             stroke={orgColourDark(r.org)}
             strokeWidth={Math.max(r.t, 3)}
-            strokeLinecap="round"
+            // Butt, not round. A round cap extends half the stroke width past each endpoint,
+            // so the widest ribbons — the ones carrying the most codes — overshot both the
+            // source block and the identity block by twenty pixels and appeared to leak out
+            // of the diagram. The thicker the ribbon, the worse it looked.
+            strokeLinecap="butt"
             strokeOpacity={focus ? (isFocus ? 0.95 : 0.05) : 0.3}
             style={{ transition: 'stroke-opacity 160ms ease' }}
           />

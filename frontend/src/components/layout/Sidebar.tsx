@@ -93,7 +93,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`relative flex h-screen shrink-0 flex-col gap-6 border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 py-5 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)] transition-[width] duration-300 ease-in-out ${
+      className={`relative flex h-screen shrink-0 flex-col gap-6 overflow-hidden border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 py-5 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)] transition-[width] duration-300 ease-in-out ${
         collapsed ? 'w-20 px-3' : 'w-72 px-5'
       }`}
     >
@@ -117,10 +117,15 @@ export function Sidebar() {
       </button>
 
       <div className={`flex items-center gap-2 px-1 pt-1 ${collapsed ? 'justify-center' : ''}`}>
-        <img src="/logo.png" alt="Meridian" className="h-10 w-10 shrink-0 object-contain" />
-        {!collapsed && <span className="text-sm font-semibold tracking-wide">Meridian</span>}
+        <img src="/logo.png" alt="Meridian" className="h-14 w-14 shrink-0 object-contain" />
+        {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
       </div>
 
+      {/* The middle scrolls; the tour footer below it does not. On a short window the
+          sidebar used to simply run off the bottom of the screen, taking the Start tour
+          button with it and leaving no way to reach it — mt-auto cannot help once the
+          content is taller than the column. */}
+      <div className="scroll-clean -mx-1 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-1">
       {/* Company context card — which CPSE this session is acting as */}
       {collapsed ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
@@ -211,8 +216,9 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      </div>
 
-      <div className="mt-auto flex flex-col gap-3">
+      <div className="flex shrink-0 flex-col gap-3">
         {collapsed ? (
           <button
             type="button"
