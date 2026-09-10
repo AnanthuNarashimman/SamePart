@@ -8,6 +8,7 @@ import { PriceSpreadChart } from '../components/insights/PriceSpreadChart'
 import { StockAgeingChart } from '../components/insights/StockAgeingChart'
 import { StoppingCurve } from '../components/insights/StoppingCurve'
 import { Hero } from '../components/insights/Hero'
+import { OrgFocusProvider } from '../components/insights/OrgFocus'
 import { compact } from '../components/insights/tokens'
 import { QueryState } from '../components/shared/QueryState'
 
@@ -28,6 +29,9 @@ export function Insights() {
   const redistribution = useRedistribution()
 
   return (
+    // One focus shared by every panel below: picking a CPSE in the price strips fades it in
+    // the master comparison too, which is the whole reason the colours were made consistent.
+    <OrgFocusProvider>
     <div className="flex-1 overflow-y-auto app-canvas p-8">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-stone-900">Insights</h1>
@@ -40,14 +44,17 @@ export function Insights() {
           nothing for the eye to land on; this is what makes the rest read as evidence. */}
       <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Hero
-          value={cascade.data ? `${(cascade.data.share_without_a_model * 100).toFixed(1)}%` : '—'}
+          value={cascade.data ? cascade.data.share_without_a_model * 100 : null}
+          format={(n) => `${n.toFixed(1)}%`}
           label="decided without a model"
           sub={cascade.data
             ? `${cascade.data.decided_without_a_model.toLocaleString('en-IN')} of ${cascade.data.total_pairs.toLocaleString('en-IN')} pairs settled by rules alone`
             : 'measuring'}
         />
         <Hero
-          value={redistribution.data ? `₹${compact(redistribution.data.total_avoided_spend)}` : '—'}
+          delayMs={90}
+          value={redistribution.data ? redistribution.data.total_avoided_spend : null}
+          format={(n) => `₹${compact(n)}`}
           label="of purchasing avoidable"
           sub={redistribution.data
             ? `${redistribution.data.opportunities} materials one CPSE holds unused while another buys them`
@@ -55,7 +62,9 @@ export function Insights() {
         />
         <Hero
           tone="alert"
-          value={summary.data ? summary.data.dead_codes.toLocaleString('en-IN') : '—'}
+          delayMs={180}
+          value={summary.data ? summary.data.dead_codes : null}
+          format={(n) => Math.round(n).toLocaleString('en-IN')}
           label="dead material codes"
           sub={summary.data
             ? `${(summary.data.dead_code_rate * 100).toFixed(0)}% of every record, with no purchase order in four years`
@@ -82,5 +91,6 @@ export function Insights() {
         {summary.data ? <OrgComparison data={summary.data} /> : <Placeholder q={summary} />}
       </section>
     </div>
+    </OrgFocusProvider>
   )
 }
