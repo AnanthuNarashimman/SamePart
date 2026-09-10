@@ -18,6 +18,54 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Capability 4: the Common National Material Code is no longer a counter
+**Who:** Aditya (with Claude)
+
+**From:** `SMP-000417`, a bare sequence with no structure, no validation and no owner.
+**To:** a structure following the precedent **India already participates in.**
+
+Under the NATO Codification System, which India joined on 10 June 2008 as a Tier-1 member
+with country code 72, a stock number is a classification prefix plus a permanent item
+identification number, and the rule that matters is that **the identification number never
+changes even when the item is reclassified.**
+
+We apply the same rule, and it forced a design correction. The first version put the
+classification inside the primary key, which meant reclassifying a material would change its
+key and drag every foreign key with it. That is precisely what the NSN design avoids. So:
+
+| | |
+|---|---|
+| **Stored identity, permanent** | `IN-0000417-6` |
+| **Printed national code** | `IN-31161600-0000417-3` |
+| After reclassification | `IN-31161500-0000417-4` |
+| Identity | **unchanged** |
+
+Everything keys on the identity. The full code is derived for printing and quoting.
+Reclassification becomes a metadata change rather than a migration, which is what lets a
+CPSE trust a code it has printed on a bin label and quoted in a purchase order.
+
+**Check digit.** Luhn, catching every single-digit slip and most transpositions. A mistyped
+code is rejected with what the digit should have been, rather than silently resolving to
+nothing. This matters for an identifier humans read aloud across organisations.
+
+**Governance is written down**, in `dictionaries/national_code.yaml`, because "who owns this
+identifier" is the first question a CPSE asks and the answer cannot be "whoever ran the
+import". Proposed authority is a national codification cell, with the honest note that the
+Directorate of Standardisation already performs exactly this function for defence materiel
+and extending an existing statutory body is a shorter route than creating one. Five rules
+are recorded, including that serials are never reused and a CPSE's own code is never altered.
+
+The format is declared as data, so changing the prefix, widths or check-digit policy is a
+file change.
+
+### Not a regression: the CLI was reporting the wrong thing
+After wiring imports to trigger matching, the seed output appeared to show auto-merges
+collapsing from 389 to 20. The database was fine at 408. Imports now do the matching for the
+rows they bring in, so the final pass finds almost nothing left and was reporting only its
+own remainder. Added `cli summary`, which reports the **state of the database** rather than
+the state of the last pass.
+
+
 ### Capability 2 second half: classification into a taxonomy
 **Who:** Aditya (with Claude) · **Closes:** "intelligent classification and categorization"
 

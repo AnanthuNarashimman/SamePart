@@ -39,7 +39,10 @@ def seed(reset: bool = True) -> None:
               f"{status.attributes_extracted} attributes{note}")
     _seed_procurement(svc)
     stats()
+    # Imports already ran matching on the rows they brought in, so this only picks up
+    # anything left over. The summary below reports the database, not this pass.
     match()
+    summarise()
 
 
 def _seed_procurement(svc) -> None:
@@ -67,6 +70,22 @@ def match() -> None:
           f"sampled for audit: {info['sampled_for_audit']}")
 
 
+def summarise() -> None:
+    """Report the state of the database, not the state of the last pass."""
+    from collections import Counter
+    from samepart.db.models import CandidateMatch, CanonicalMaterial
+    with session_scope() as db:
+        rows = [(m.verdict, m.review_state) for m in db.scalars(select(CandidateMatch))]
+        canon = db.scalar(select(func.count(CanonicalMaterial.canonical_id))) or 0
+    by_state = Counter(st for _, st in rows)
+    by_verdict = Counter(v for v, _ in rows)
+    print(f"\nafter matching: {len(rows):,} pairs, {canon} canonical materials")
+    for v, n in by_verdict.most_common():
+        print(f"    {v:<24s} {n:>5d}")
+    print(f"  auto-approved without asking anyone: {by_state.get('auto_approved', 0)}")
+    print(f"  waiting for a person:                {by_state.get('queued', 0)}")
+
+
 def stats() -> None:
     with session_scope() as db:
         records = db.scalar(select(func.count(SourceRecord.id))) or 0
@@ -87,4 +106,4 @@ def stats() -> None:
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
-    {"seed": seed, "stats": stats, "match": match}[cmd]()
+    {"seed": seed, "stats": stats, "match": match, "summary": summarise}[cmd]()

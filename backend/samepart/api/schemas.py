@@ -296,6 +296,8 @@ class AuditFlagResult(BaseModel):
 
 class SavingsCluster(BaseModel):
     canonical_id: str
+    national_code: str | None = Field(
+        None, description="Printable Common National Material Code, classification included")
     standardised_short: str
     orgs: list[str]
     price_min: float

@@ -1,0 +1,39 @@
+# The Common National Material Code.
+#
+# Structure follows the precedent India already participates in. Under the NATO Codification
+# System, of which India has been a Tier-1 member since 10 June 2008 with country code 72,
+# a stock number is a classification prefix plus a permanent item identification number, and
+# the crucial rule is that the identification number NEVER CHANGES even when the item is
+# reclassified. Identity and classification are separate facts.
+#
+# We apply the same rule. The classification segment is informational and may be restated.
+# The serial is the identity and is immutable once minted. That is what lets a CPSE trust
+# a mapping: reclassification is a metadata change, never a re-identification.
+version: 1
+
+format:
+  prefix: IN                 # national marker
+  separator: "-"
+  classification_digits: 8   # UNSPSC class at assignment; informational, restatable
+  serial_digits: 7           # permanent national item identification number, immutable
+  check_digit: true          # catches transcription errors in a code humans read aloud
+  example_identity: "IN-0000123-6"              # stored, permanent, everything keys on this
+  example_full: "IN-31161600-0000123-4"         # printed and quoted, derived from the above
+
+unclassified_placeholder: "00000000"
+
+# Who may mint a national code. Recorded here because "who owns this identifier" is the
+# first question a CPSE asks and the answer must not be "whoever ran the import".
+governance:
+  minting_authority: National Material Codification Cell (proposed)
+  precedent: >-
+    The Directorate of Standardisation, Ministry of Defence, already performs exactly this
+    function for defence materiel as NCB-India, and is the sole issuer of manufacturer codes
+    to Indian entities. Extending an existing statutory body is a shorter route than creating
+    one.
+  rules:
+    - A national code is minted only on an approved mapping, never on an import
+    - The serial is never reused, never reissued, and never changes
+    - Reclassification restates the classification segment and leaves the serial untouched
+    - A CPSE's own material code is never altered; the mapping is an additional record
+    - Retiring a code marks it superseded and retains it; codes are not deleted

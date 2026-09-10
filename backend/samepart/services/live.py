@@ -945,6 +945,9 @@ class LiveAnalytics:
             names = dict(db.execute(
                 select(CanonicalMaterial.canonical_id,
                        CanonicalMaterial.standardised_short)).all())
+            classes = dict(db.execute(
+                select(CanonicalMaterial.canonical_id,
+                       CanonicalMaterial.classification_code)).all())
 
             items: list[s.SavingsCluster] = []
             excluded_n = 0
@@ -961,7 +964,9 @@ class LiveAnalytics:
                 # What the same volume would have cost at the best price anyone achieved.
                 opportunity = max(c["spend"] - lo * c["qty"], 0.0)
                 items.append(s.SavingsCluster(
-                    canonical_id=cid, standardised_short=names.get(cid) or cid,
+                    canonical_id=cid,
+                    national_code=registry.national_code(cid, classes.get(cid)),
+                    standardised_short=names.get(cid) or cid,
                     orgs=sorted(c["orgs"]), price_min=round(lo, 2), price_max=round(hi, 2),
                     spread_pct=round((hi / lo - 1) * 100, 1) if lo else 0.0,
                     total_quantity=round(c["qty"], 2), total_spend=round(c["spend"], 2),
