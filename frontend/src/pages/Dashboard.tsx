@@ -25,9 +25,7 @@ export function Dashboard() {
             Operational summary across all connected CPSEs
           </p>
         </div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
-          M
-        </span>
+        <img src="/logo.png" alt="Meridian" className="h-16 w-16 shrink-0 object-contain" />
       </header>
 
       {!summary.data ? (

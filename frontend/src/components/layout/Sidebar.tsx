@@ -116,9 +116,7 @@ export function Sidebar() {
       </button>
 
       <div className={`flex items-center gap-2 px-1 pt-1 ${collapsed ? 'justify-center' : ''}`}>
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">
-          M
-        </span>
+        <img src="/logo.png" alt="Meridian" className="h-10 w-10 shrink-0 object-contain" />
         {!collapsed && <span className="text-sm font-semibold tracking-wide">Meridian</span>}
       </div>
 
