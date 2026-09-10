@@ -1461,6 +1461,23 @@ Other deployments available: `gpt-5.4`, `grok-4.3`, `gpt-5.6-sol`, `gpt-5.6-luna
 
 ---
 
+## 2026-09-10 — Sankey sized to the screen; MUI X Charts evaluated and rejected
+
+**Why the graph needed scrolling.** The convergence Sankey carried a fixed `viewBox` of
+`0 0 1000 715` on a full-width SVG. A browser scales that to preserve the aspect ratio, so the
+rendered height was `containerWidth x 0.715` — 858px in a 1200px column, 1,287px in an 1800px
+one. It also meant every label grew with the window, so 11px type was never 11px. The chart now
+measures its container and maps the viewBox 1:1 at a fixed 460px, which is exactly as tall on
+every screen.
+
+**MUI X `SankeyChart` was considered and not adopted.** It lives in `@mui/x-charts-pro`, MUI's
+commercial tier: it needs a paid licence key, and without one it renders a watermark over the
+chart and logs licence errors to the console — on a demo screen, in front of judges. The free
+`@mui/x-charts` has no Sankey at all. The hand-written one stays. If a library is ever wanted
+here, `d3-sankey` is MIT and is the layout engine MUI's own implementation wraps.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

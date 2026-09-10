@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GraphCluster } from '../../api/types'
 import { orgColourDark } from '../insights/tokens'
 
@@ -13,11 +13,20 @@ import { orgColourDark } from '../insights/tokens'
 // it hangs off to the side on a dashed tie, because "these are the same thing" and "these are
 // interchangeable under conditions" are different claims and should not share a shape.
 
-const W = 1000
+// The chart is drawn at true pixel size rather than scaled to fit.
+//
+// It used to carry a fixed viewBox of 0 0 1000 715 on a full-width SVG, which means the
+// browser scales it to preserve that 1.4:1 aspect: on an 1800px column the chart rendered
+// 1,287px tall and the page had to scroll to see the bottom of it. It also meant every label
+// grew with the window, so type was never the size it was set at. Measuring the container and
+// mapping the viewBox 1:1 fixes both — the chart is exactly H tall on every screen, and 11px
+// text is 11px.
+const HEIGHT = 460
 const LEFT_X = 104
 const BLOCK_W = 13
-const RIGHT_X = 560
-const PAD = 22
+const PAD = 20
+// Room on the right for the identity label and the substitute ties that hang off it.
+const LABEL_COL = 360
 
 export function ConvergenceSankey({
   clusters,
@@ -35,6 +44,18 @@ export function ConvergenceSankey({
   const [hover, setHover] = useState<string | null>(null)
   const focus = hover ?? selected
 
+  const wrap = useRef<HTMLDivElement>(null)
+  const [W, setW] = useState(1000)
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) =>
+      setW(Math.max(720, Math.round(entry.contentRect.width))))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const RIGHT_X = Math.max(320, W - LABEL_COL)
+
   const model = useMemo(() => {
     // Order identities by the average lane of whatever feeds them — the barycentre heuristic
     // every Sankey uses. Without it, sixteen destinations pulling from four lanes in an
@@ -49,8 +70,11 @@ export function ConvergenceSankey({
       return bary(a) - bary(b) || b.members.length - a.members.length
     })
     const totalRight = shown.reduce((a, c) => a + c.members.length, 0)
-    const rowGap = 9
-    const H = Math.max(430, totalRight * 11 + shown.length * rowGap + PAD * 2)
+    // Height is now fixed, so the per-code unit is whatever divides into it rather than the
+    // other way round. Every ribbon still scales with the codes it carries; the whole diagram
+    // just fits on screen.
+    const H = HEIGHT
+    const rowGap = 7
     const unit = (H - PAD * 2 - shown.length * rowGap) / Math.max(totalRight, 1)
 
     let ry = PAD
@@ -92,10 +116,11 @@ export function ConvergenceSankey({
       }
     }
     return { H, right, left, ribbons, contrib }
-  }, [clusters, orgs])
+  }, [clusters, orgs, RIGHT_X])
 
   return (
-    <svg viewBox={`0 0 ${W} ${model.H}`} className="w-full" role="img"
+    <div ref={wrap} className="w-full">
+    <svg viewBox={`0 0 ${W} ${model.H}`} width="100%" height={model.H} role="img"
          aria-label="CPSE material codes compressing into national identities">
       <rect x="0" y="0" width={W} height={model.H} fill="#161615" rx="14" />
 
@@ -189,5 +214,6 @@ export function ConvergenceSankey({
         )
       })}
     </svg>
+    </div>
   )
 }
