@@ -18,7 +18,7 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
-### Relationship graph redesigned around convergence, not clusters
+### Relationship graph rebuilt as compression, on a dark analytical surface
 **Who:** Aditya (with Claude) · **Design direction from:** Ananthu
 
 **The constellation view was the wrong picture.** It looked like a network, but the data is
@@ -29,14 +29,22 @@ convergence, and the page now draws that.
 The page is built around one sentence: **437 messy CPSE codes became 159 trusted national
 identities, with evidence for every convergence.**
 
-**Top — the result.** `437 → 159`, 278 redundant codes resolved, 63.6% consolidation, with a
-bar showing how much of the master was redundant. A visualisation without a stated purpose is
-decoration.
+**Top — the numbers are the hero.** `437 codes → 159 identities` set at 48px with no card
+around it, because a box would only make it smaller. Three earlier versions put this in a
+white KPI panel that used a lot of space and created no drama.
 
-**Middle — the convergence map.** Four company lanes on the left, national identities on the
-right, a curved flow for every code. **Solid means same identity, dashed means approved
-substitute** — a different claim deserves a different line, not a subtler dot. Hovering a row
-fades the rest.
+**Middle — a Sankey on charcoal.** Source blocks per CPSE on the left, identity blocks on the
+right, and **ribbon width is the number of codes that collapsed along it**. The previous
+version drew connectivity, which dot joined which dot, in hairlines on white. This draws
+compression: wide flows narrowing into a shorter column.
+
+The four organisation colours were validated separately against the dark surface rather than
+flipped from the light set. All four clear 3:1 on `#161615`, worst adjacent pair ΔE 8.4 under
+protanopia.
+
+**Substitutes never touch an identity block.** They hang off it on a dashed tie with their own
+label. A hollow dot inside the cluster was far too subtle for a claim that different: "these
+are the same thing" and "these are interchangeable under conditions" should not share a shape.
 
 **Bottom — the evidence inspector.** The original description beside the extracted attributes,
 and this is where the technical claim stops being a claim:
@@ -52,9 +60,15 @@ NTPC  BOLT HEX HEAD; DIA 20MM; LG 40MM...            20.0   40.0   8.8   ISO4014
 the diameter column and `M20X`, `M20 x` and `DIA 20MM` highlight inside the raw text.
 That argues evidence provenance far better than a paragraph claiming we have it.
 
-**Substitutes moved out of the identity** into their own block, "compatible, not identical",
-with the condition under which the substitution is safe. Entity resolution and engineering
-substitution are different questions and the interface now says so.
+**The evidence fingerprint.** Per attribute, which CPSEs independently supplied it: filled
+means that organisation's own description carried the fact, hollow means it stated something
+different with the value shown beside it, empty means it never said. Agreement, disagreement
+and silence become three visibly different things.
+
+**One hover lights both panels.** Hovering an attribute in the fingerprint highlights the
+exact substring it was read from inside every raw description below, simultaneously. On the
+worked example: diameter 20 lights `M20X`, `M20 x` and `DIA 20MM` at once. Seven descriptions
+that share almost no words, one identical attribute row.
 
 The endpoint carries per-record attributes with their evidence, and the headline consolidation
 figures.

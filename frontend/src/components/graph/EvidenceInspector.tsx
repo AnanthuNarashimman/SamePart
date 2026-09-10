@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { GraphCluster, GraphMember } from '../../api/types'
 import { orgColour } from '../insights/tokens'
 import { Badge } from '@/components/ui/badge'
@@ -36,11 +35,14 @@ function value(m: GraphMember, key: string) {
 export function EvidenceInspector({
   cluster,
   order,
+  lit,
+  onLight,
 }: {
   cluster: GraphCluster
   order: string[]
+  lit: string | null
+  onLight: (key: string | null) => void
 }) {
-  const [lit, setLit] = useState<string | null>(null)
   const rows = cluster.members
   const keys = order.filter(
     (k) => !(HIDDEN_WHEN_EMPTY.has(k) && rows.every((r) => value(r, k)?.value == null)),
@@ -102,8 +104,8 @@ export function EvidenceInspector({
                     return (
                       <td
                         key={k}
-                        onMouseEnter={() => setLit(k)}
-                        onMouseLeave={() => setLit(null)}
+                        onMouseEnter={() => onLight(k)}
+                        onMouseLeave={() => onLight(null)}
                         className={`cursor-default py-2.5 pr-3 font-mono text-[11px] transition-colors ${
                           lit === k ? 'bg-amber-50' : ''
                         } ${missing ? 'text-muted-foreground/50' : 'font-medium text-foreground'}`}
