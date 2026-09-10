@@ -18,6 +18,45 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Insights charts redesigned: the palette was chosen by computation
+**Who:** Aditya (with Claude) · **Prompted by:** "these do not look impactful at all"
+
+They didn't. Five charts of equal weight is a grid of widgets, not an argument.
+
+**Hierarchy first.** Three numbers now sit at the top, set large: **94.5% decided without a
+model**, **Rs 20.2 lakh of purchasing avoidable**, **122 dead material codes**. The charts
+beneath them read as evidence rather than as competing for attention.
+
+**The palette was computed, not chosen.** The app's own brand green and primary orange were
+tested first as a categorical set and **FAILED colourblind separation at ΔE 5.4 deuteranopia**
+against a target of 8. Green-against-orange is a textbook collision and eyeballing it would
+never have caught it.
+
+That failure prompted a better question: do these charts need categorical colour at all?
+**None of them do.** Every one is a sequential ramp, a status colour, or a single series. The
+problem was sidestepped rather than worked around.
+
+| Use | Palette | Result |
+|---|---|---|
+| Ordered magnitude | one-hue blue ramp, `#86b6ef` → `#104281` | all checks pass |
+| The model tier, and dead codes | reserved status colours, always labelled | pass, used alone |
+| Single-series charts | one blue, identity carried by direct labels | n/a |
+
+Red-against-green was tested for the per-CPSE chart and **also failed**, at ΔE 4.1. Dropped
+entirely: records share one ramp, and the one status colour marks the problem.
+
+**Marks follow the spec.** A 2px surface gap between stacked segments, a 2px white ring on
+overlapping dots, 4px rounded data-ends, 2px lines, recessive grid, and direct labels
+wherever the light end of the ramp sits below 3:1 contrast, which the validator flags as
+obligating exactly that.
+
+**One shared token file** so five panels read as one system. The reasoning, including which
+palettes failed and why, is written into it rather than lost.
+
+### What did not change
+Every number. This was a design pass, not a data one.
+
+
 ### Insights page: built, reverted, restored as its own route
 **Who:** Aditya (with Claude)
 

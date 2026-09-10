@@ -1,57 +1,63 @@
-import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import type { CascadeBreakdown } from '../../api/types'
+import { INK, RAMP, STATUS, count } from './tokens'
 
-// The strongest technical claim in the system, as one picture: almost every decision is
-// settled before anything reaches a model. Answers "where is the AI" and "does this scale"
-// at the same time.
+// One bar, not four. The question is "what share of the whole never needs a model", and a
+// single stacked bar answers that at a glance where four separate bars make you do the
+// arithmetic yourself.
 export function CascadeChart({ data }: { data: CascadeBreakdown }) {
-  const rows = data.tiers.map((t) => ({
-    label: t.label,
-    pairs: t.pairs,
-    share: t.share,
-    model: t.needs_a_model,
-  }))
+  const fill = (tier: string, i: number) =>
+    tier === 'model' ? STATUS.serious : RAMP[Math.min(i + 1, RAMP.length - 1)]
+
   return (
-    <div className="rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-stone-900">How each pair was decided</h2>
-        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700">
-          {(data.share_without_a_model * 100).toFixed(1)}% without a model
-        </span>
-      </div>
-      <p className="mb-4 text-xs text-stone-400">
-        {data.total_pairs.toLocaleString('en-IN')} candidate pairs, cheapest tier first. A pair only
-        reaches the model when the deterministic tiers cannot settle it.
+    <div className="rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
+      <h2 className="text-sm font-semibold text-stone-900">How each pair was decided</h2>
+      <p className="mb-5 text-xs text-stone-400">
+        {count(data.total_pairs)} candidate pairs, cheapest tier first. A pair only reaches the
+        model when the deterministic tiers cannot settle it.
       </p>
-      <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 56, top: 4, bottom: 4 }}>
-            <XAxis type="number" hide />
-            <YAxis
-              type="category"
-              dataKey="label"
-              width={170}
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 12, fill: '#57534e' }}
-            />
-            <Bar dataKey="pairs" radius={[0, 6, 6, 0]} barSize={26}>
-              {rows.map((r) => (
-                <Cell key={r.label} fill={r.model ? '#a8a29e' : '#84cc16'} />
-              ))}
-              <LabelList
-                dataKey="pairs"
-                position="right"
-                formatter={(v) => Number(v).toLocaleString('en-IN')}
-                style={{ fontSize: 11, fill: '#78716c' }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+
+      {/* A 2px surface gap between segments, per the mark spec, so adjacent fills stay legible
+          without a stroke. */}
+      <div className="flex h-11 w-full gap-[2px] overflow-hidden rounded-lg">
+        {data.tiers.map((t, i) => (
+          <div
+            key={t.tier}
+            className="group relative first:rounded-l-lg last:rounded-r-lg"
+            style={{ width: `${Math.max(t.share * 100, 1.5)}%`, background: fill(t.tier, i) }}
+            title={`${t.label}: ${count(t.pairs)} pairs, ${(t.share * 100).toFixed(1)}%`}
+          >
+            {t.share > 0.12 && (
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white">
+                {(t.share * 100).toFixed(0)}%
+              </span>
+            )}
+          </div>
+        ))}
       </div>
-      <p className="mt-2 text-[11px] text-stone-400">
-        Grey is the model tier. Everything green is deterministic: rules a domain engineer can read,
-        which run locally and cost nothing.
+
+      {/* Legend is always present for more than one series, and each entry is directly
+          labelled with its own value so identity never rests on colour alone. */}
+      <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2">
+        {data.tiers.map((t, i) => (
+          <li key={t.tier} className="flex items-baseline gap-2">
+            <span
+              className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm"
+              style={{ background: fill(t.tier, i) }}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs text-stone-700">{t.label}</span>
+              <span className="block font-mono text-[11px]" style={{ color: INK.muted }}>
+                {count(t.pairs)} pairs · {(t.share * 100).toFixed(1)}%
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-4 border-t border-stone-100 pt-3 text-[11px] leading-relaxed text-stone-400">
+        Everything in blue is deterministic: rules a domain engineer can read, running locally at
+        no cost. Only the amber slice involves inference, and it is the band the rules could not
+        settle.
       </p>
     </div>
   )
