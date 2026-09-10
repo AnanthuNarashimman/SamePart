@@ -1,4 +1,5 @@
 import { useAnswer, useQuestions, useUnresolvable } from '../api/questions'
+import { Pager, usePaged } from '../components/shared/Paginated'
 import { Curve } from '../components/questions/Curve'
 import { QuestionCard } from '../components/questions/QuestionCard'
 import { QueryState } from '../components/shared/QueryState'
@@ -7,6 +8,9 @@ export function Questions() {
   const questions = useQuestions({ limit: 100 })
   const answer = useAnswer()
   const unresolvable = useUnresolvable()
+  // Five at a time. A question card is tall and asks for a decision, so a page of them is a
+  // sitting of work rather than a wall to scroll past.
+  const paged = usePaged(questions.data?.items ?? [], 5)
 
   return (
     <div className="flex-1 overflow-y-auto app-canvas p-8">
@@ -40,7 +44,7 @@ export function Questions() {
                 No open questions
               </div>
             ) : (
-              questions.data.items.map((item) => (
+              paged.slice.map((item) => (
                 <QuestionCard
                   key={item.record_id}
                   item={item}
@@ -55,6 +59,12 @@ export function Questions() {
                 />
               ))
             )}
+
+            <Pager
+              page={paged.page} pages={paged.pages} from={paged.from} to={paged.to}
+              total={paged.total} unit="records to answer" onPage={paged.setPage}
+              className="rounded-2xl border border-stone-100 bg-white px-5 py-3 shadow-sm"
+            />
           </div>
         </>
       )}

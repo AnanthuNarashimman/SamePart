@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CascadeBreakdown } from '../../api/types'
 import { INK, RAMP, STATUS, count } from './tokens'
-import { HoverCard, useHoverCard } from './HoverCard'
+import { HoverCard, useHoverCard } from '../shared/HoverCard'
 import { useReveal } from './motion'
 
 // One bar, not four. The question is "what share of the whole never needs a model", and a

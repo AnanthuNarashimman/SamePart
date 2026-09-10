@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import type { GraphCluster } from '../../api/types'
 import { orgColour } from '../insights/tokens'
+import { HoverCard, useHoverCard } from '../shared/HoverCard'
+import { Pager, usePaged } from '../shared/Paginated'
 
 // Agreement, as a matrix. One row per national identity, one column per CPSE.
 //
@@ -32,6 +34,7 @@ export function ConsensusMatrix({
   onSelect: (id: string) => void
 }) {
   const [sort, setSort] = useState<Sort>('consensus')
+  const { anchor, show, hide } = useHoverCard()
 
   const rows = useMemo(() => {
     const built = clusters.map((c) => {
@@ -46,7 +49,13 @@ export function ConsensusMatrix({
         codes: c.members.length,
         consensus: Object.keys(merged).length,
         subTotal: c.alternatives.length,
-        short: (c.standardised_short ?? c.canonical_id).replace('BOLT, HEX HEAD; ', ''),
+        // Drop the family head, whatever it is. This read `.replace('BOLT, HEX HEAD; ', '')`,
+        // so with four families every bearing row rendered as "BEARING, DEEP GROOVE BALL;
+        // 12MM; SERIES…" and truncated away the only part that differed. The head names the
+        // family, which the reader already knows; the tail is the identity.
+        short: (c.standardised_short ?? c.canonical_id).split('; ').slice(1).join('; ')
+               || (c.standardised_short ?? c.canonical_id),
+        family: (c.standardised_short ?? '').split(';')[0],
       }
     })
     const by = {
@@ -59,6 +68,9 @@ export function ConsensusMatrix({
     return [...built].sort(by[sort])
   }, [clusters, sort])
 
+  // Twelve to a page: enough to compare rows against each other, short enough that the
+  // proof panel beside it stays level with the table rather than floating past its end.
+  const paged = usePaged(rows, 12)
   const anySubs = rows.some((r) => r.subTotal > 0)
   const maxCodes = Math.max(...rows.map((r) => r.codes), 1)
   const maxCell = Math.max(...rows.flatMap((r) => Object.values(r.merged)), 1)
@@ -119,9 +131,8 @@ export function ConsensusMatrix({
         </div>
       </div>
 
-      <ul ref={listRef} onKeyDown={onKey}
-          className="max-h-[520px] divide-y divide-stone-100 overflow-y-auto scroll-clean">
-        {rows.map((r) => {
+      <ul ref={listRef} onKeyDown={onKey} className="divide-y divide-stone-100">
+        {paged.slice.map((r) => {
           const isSel = selected === r.cluster.canonical_id
           return (
             <li key={r.cluster.canonical_id}>
@@ -138,12 +149,20 @@ export function ConsensusMatrix({
                     : 'border-transparent hover:bg-stone-100/70'
                 }`}
               >
-                <span
-                  className={`min-w-0 truncate pr-4 font-mono text-[13px] ${
-                    isSel ? 'font-semibold text-stone-900' : 'font-medium text-stone-700'
-                  }`}
-                >
-                  {r.short}
+                <span className="flex min-w-0 flex-col pr-4">
+                  <span
+                    className={`truncate font-mono text-[13px] ${
+                      isSel ? 'font-semibold text-stone-900' : 'font-medium text-stone-700'
+                    }`}
+                  >
+                    {r.short}
+                  </span>
+                  {r.family && (
+                    <span className="truncate font-mono text-[10px] uppercase tracking-wide
+                                     text-stone-400">
+                      {r.family}
+                    </span>
+                  )}
                 </span>
 
                 {orgs.map((o) => {
@@ -152,6 +171,10 @@ export function ConsensusMatrix({
                   // Dot area is a comparison, not a quantity: a reader can see that one CPSE
                   // contributed more than another but cannot read "three" off a circle. The
                   // tooltip supplies the number the encoding deliberately does not.
+                  // A real hover layer rather than the browser's `title`, which takes about a
+                  // second to appear, cannot be styled, and shows one line of grey text. On a
+                  // grid of a hundred and sixty cells that is the difference between a chart
+                  // you can interrogate and one you can only look at.
                   const reading =
                     n > 0
                       ? `${o} folded in ${n} source code${n === 1 ? '' : 's'}` +
@@ -161,10 +184,31 @@ export function ConsensusMatrix({
                             sub === 1 ? '' : 's'} kept separate from it`
                         : `${o} has no code for this material`
 
+                  const card = (
+                    <>
+                      <span className="flex items-center gap-1.5 font-medium text-stone-900">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ background: orgColour(o) }} />
+                        {o}
+                      </span>
+                      <span className="mt-1 block text-[11px] leading-relaxed text-stone-600">
+                        {reading}
+                      </span>
+                      <span className="mt-1.5 block border-t border-stone-100 pt-1.5 font-mono
+                                       text-[10px] text-stone-400">
+                        {r.short}
+                      </span>
+                    </>
+                  )
+
                   return (
                     <span key={o} className="flex justify-center">
-                      <svg width="26" height="26" className="overflow-visible">
-                        <title>{reading}</title>
+                      <svg
+                        width="26" height="26" className="overflow-visible"
+                        onMouseEnter={(e) => show(e, card)}
+                        onMouseMove={(e) => show(e, card)}
+                        onMouseLeave={hide}
+                      >
                         {n > 0 ? (
                           <circle cx="13" cy="13" r={radius(n)} fill={orgColour(o)} />
                         ) : sub > 0 ? (
@@ -226,6 +270,14 @@ export function ConsensusMatrix({
           )
         })}
       </ul>
+
+      <Pager
+        page={paged.page} pages={paged.pages} from={paged.from} to={paged.to}
+        total={paged.total} unit="identities" onPage={paged.setPage}
+        className="border-t border-stone-100 px-5 py-2.5"
+      />
+
+      <HoverCard anchor={anchor} />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-stone-100 px-5 py-2.5
                       text-[11px] text-muted-foreground">

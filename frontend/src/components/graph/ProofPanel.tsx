@@ -8,9 +8,18 @@ import { orgColourDark } from '../insights/tokens'
 // reader who clicks a row needs the answer to feel like a different kind of object from the
 // list they clicked it in — a panel, not another row.
 //
+// Deep green rather than black. Black belongs to nothing in this product; #0d2a1a is the brand
+// hue taken almost to the floor, so the panel reads as part of the same system rather than as
+// a terminal window dropped onto the page. Checked rather than picked: all four CPSE colours
+// clear 3:1 against it (worst 3.97, CPCL) and white text sits at 15.4:1. A lighter, more
+// obviously green ground was tried first and failed — CPCL fell to 2.97.
+//
 // Each attribute is a card rather than a line of text, because an attribute is a unit: a name,
 // one agreed value, and four independent votes on it. Spread across a grid of loose text those
 // three things stop reading as one fact.
+
+/** The panel ground. Not black: the brand hue taken almost to the floor. */
+const GROUND = '#0d2a1a'
 
 const SHORTEN = (s: string) =>
   s.replace('Nominal thread ', '').replace('Nominal ', '').replace(' under head', '')
@@ -43,13 +52,14 @@ export function ProofPanel({
   const subs = cluster.alternatives.length
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-stone-900 text-stone-100 shadow-sm">
+    <div className="overflow-hidden rounded-2xl text-stone-100 shadow-sm"
+         style={{ background: GROUND }}>
       <div className="px-5 pt-5 pb-4">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-stone-500">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-200/45">
           proving this identity
         </p>
         <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-white">{head}</h2>
-        <p className="mt-1 font-mono text-base text-stone-300">
+        <p className="mt-1 font-mono text-base text-emerald-50/80">
           {rest.join(' · ').trim()}
         </p>
 
@@ -57,15 +67,15 @@ export function ProofPanel({
           <span className="rounded-md bg-white/10 px-2 py-1 font-mono text-[11px] text-stone-200">
             {cluster.national_code}
           </span>
-          <span className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-stone-400">
+          <span className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-emerald-50/60">
             {cluster.orgs.length} CPSEs
           </span>
-          <span className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-stone-400">
+          <span className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-emerald-50/60">
             {cluster.members.length} codes
           </span>
           {subs > 0 && (
-            <span className="rounded-md border border-dashed border-stone-600 px-2 py-1
-                             font-mono text-[11px] text-stone-400">
+            <span className="rounded-md border border-dashed border-white/25 px-2 py-1
+                             font-mono text-[11px] text-emerald-50/60">
               {subs} substitute{subs > 1 ? 's' : ''} kept separate
             </span>
           )}
@@ -73,7 +83,7 @@ export function ProofPanel({
       </div>
 
       <div className="border-t border-white/10 px-5 py-4">
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-stone-500">
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-emerald-200/45">
           independent evidence, by attribute
         </p>
 
@@ -131,10 +141,10 @@ export function ProofPanel({
                     ? 'border-amber-300/70 bg-amber-300/15'
                     : isLit
                       ? 'border-white/25 bg-white/[0.08]'
-                      : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                      : 'border-white/10 bg-white/[0.045] hover:bg-white/[0.08]'
                 }`}
               >
-                <p className="font-mono text-[9.5px] uppercase tracking-wider text-stone-500">
+                <p className="font-mono text-[9.5px] uppercase tracking-wider text-emerald-200/45">
                   {SHORTEN(label(key))}
                 </p>
                 <p className="mt-0.5 font-mono text-lg leading-tight text-white">{agreed}</p>
@@ -146,10 +156,10 @@ export function ProofPanel({
                         className="h-[7px] w-[7px] shrink-0 rounded-full border"
                         style={{
                           background: v.agrees ? orgColourDark(v.org) : 'transparent',
-                          borderColor: v.has ? orgColourDark(v.org) : '#57534e',
+                          borderColor: v.has ? orgColourDark(v.org) : 'rgba(255,255,255,0.22)',
                         }}
                       />
-                      <span className={v.has ? 'text-stone-400' : 'text-stone-600'}>{v.org}</span>
+                      <span className={v.has ? 'text-emerald-50/60' : 'text-emerald-200/30'}>{v.org}</span>
                     </li>
                   ))}
                 </ul>
@@ -167,7 +177,7 @@ export function ProofPanel({
                       </p>
                     )}
                     {variantOrgs.length > 0 && (
-                      <p className="text-stone-400">
+                      <p className="text-emerald-50/60">
                         also listed as {[...new Set(variantOrgs.flatMap((v) => v.variants))].join(', ')}
                         {' by '}
                         {variantOrgs.map((v) => v.org).join(', ')}
@@ -180,7 +190,7 @@ export function ProofPanel({
           })}
         </div>
 
-        <p className="mt-3 text-[11px] leading-relaxed text-stone-500">
+        <p className="mt-3 text-[11px] leading-relaxed text-emerald-200/45">
           A filled dot means that CPSE&apos;s own description carried this fact independently.
           Hollow means it stated something different. Hover a card to light the exact words in
           the source text below; click to hold it.

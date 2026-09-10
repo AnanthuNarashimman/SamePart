@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pager, usePaged } from '../shared/Paginated'
 import type { QueueItem, Verdict } from '../../api/types'
 import { VERDICT_TONE } from '../shared/formatters'
 
@@ -26,13 +27,46 @@ export function QueueList({ items, selectedId, onSelect }: QueueListProps) {
       {GROUP_ORDER.map((group) => {
         const groupItems = items.filter((i) => i.verdict === group.verdict)
         if (groupItems.length === 0) return null
-        const isCollapsed = collapsed[group.verdict]
-
         return (
-          <div key={group.verdict} className="rounded-2xl border border-stone-100 bg-white shadow-sm">
+          <QueueGroup
+            key={group.verdict}
+            group={group}
+            groupItems={groupItems}
+            collapsed={collapsed[group.verdict]}
+            onToggle={() =>
+              setCollapsed((c) => ({ ...c, [group.verdict]: !c[group.verdict] }))}
+            selectedId={selectedId}
+            onSelect={onSelect}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+/** One verdict group, paging independently.
+ *
+ *  Its own component because a hook cannot live inside a `.map()`, and because each group
+ *  needs its own page position: "confirmed different" alone runs to thousands of pairs, and a
+ *  reviewer working the queue is only ever inside one group at a time.
+ */
+function QueueGroup({
+  group, groupItems, collapsed: isCollapsed, onToggle, selectedId, onSelect,
+}: {
+  group: (typeof GROUP_ORDER)[number]
+  groupItems: QueueItem[]
+  collapsed: boolean
+  onToggle: () => void
+  selectedId: number | null
+  onSelect: (id: number) => void
+}) {
+  const paged = usePaged(groupItems, 10)
+
+  return (
+        <div className="rounded-2xl border border-stone-100 bg-white shadow-sm">
             <button
               type="button"
-              onClick={() => setCollapsed((c) => ({ ...c, [group.verdict]: !c[group.verdict] }))}
+              onClick={onToggle}
               className="flex w-full items-center justify-between px-4 py-3"
             >
               <span className="flex items-center gap-2">
@@ -47,7 +81,7 @@ export function QueueList({ items, selectedId, onSelect }: QueueListProps) {
 
             {!isCollapsed && (
               <ul className="flex flex-col divide-y divide-stone-100 border-t border-stone-100">
-                {groupItems.map((item) => (
+                {paged.slice.map((item) => (
                   <li key={item.id}>
                     <button
                       type="button"
@@ -72,9 +106,14 @@ export function QueueList({ items, selectedId, onSelect }: QueueListProps) {
                 ))}
               </ul>
             )}
-          </div>
-        )
-      })}
-    </div>
+
+            {!isCollapsed && (
+              <Pager
+                page={paged.page} pages={paged.pages} from={paged.from} to={paged.to}
+                total={paged.total} unit="pairs" onPage={paged.setPage}
+                className="border-t border-stone-100 px-4 py-2.5"
+              />
+            )}
+        </div>
   )
 }

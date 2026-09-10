@@ -1,9 +1,10 @@
 import type { PriceSpreadReport } from '../../api/types'
 import { inr } from '../shared/formatters'
 import { INK, STATUS, orgColour } from './tokens'
-import { HoverCard, useHoverCard } from './HoverCard'
+import { HoverCard, useHoverCard } from '../shared/HoverCard'
 import { orgOpacity, useOrgFocus } from './OrgFocus'
 import { useReveal } from './motion'
+import { Pager, usePaged } from '../shared/Paginated'
 
 // One row per material, one dot per buyer, on a shared logarithmic price scale.
 //
@@ -40,6 +41,7 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
   const { focus, pinned, hover, toggle, clear } = useOrgFocus()
   const { anchor, show, hide } = useHoverCard()
   const flaggedCount = items.filter((i) => i.flagged).length
+  const paged = usePaged(items, 7)
 
   return (
     <div className="flex flex-col rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
@@ -102,7 +104,7 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
       </p>
 
       <ul className="flex flex-col gap-3.5">
-        {items.map((item, row) => (
+        {paged.slice.map((item, row) => (
           <li
             key={item.canonical_id}
             className="transition-all duration-500 ease-out motion-reduce:transition-none"
@@ -194,6 +196,12 @@ export function PriceSpreadChart({ data }: { data: PriceSpreadReport }) {
           </li>
         ))}
       </ul>
+
+      <Pager
+        page={paged.page} pages={paged.pages} from={paged.from} to={paged.to}
+        total={paged.total} unit="materials" onPage={paged.setPage}
+        className="mt-4 border-t border-stone-100 pt-3"
+      />
 
       <HoverCard anchor={anchor} />
     </div>

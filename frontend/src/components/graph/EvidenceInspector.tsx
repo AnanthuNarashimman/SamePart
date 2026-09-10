@@ -1,5 +1,6 @@
 import type { GraphCluster, GraphMember } from '../../api/types'
 import { orgColour } from '../insights/tokens'
+import { Pager, usePaged } from '../shared/Paginated'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 
@@ -43,6 +44,10 @@ export function EvidenceInspector({
   onLight: (key: string | null) => void
 }) {
   const rows = cluster.members
+  // Eight to a page. A cluster of forty source codes is a wall of near-identical text; eight
+  // is enough to see that the wording differs wildly while the attributes do not, which is the
+  // entire argument this table makes.
+  const paged = usePaged(rows, 8)
   const keys = order.filter(
     (k) => !(HIDDEN_WHEN_EMPTY.has(k) && rows.every((r) => value(r, k)?.value == null)),
   )
@@ -77,7 +82,7 @@ export function EvidenceInspector({
               </tr>
             </thead>
             <tbody>
-              {rows.map((m) => (
+              {paged.slice.map((m) => (
                 <tr key={m.record_id} className="border-b border-border/60 align-top">
                   <td className="py-2.5 pr-4">
                     <span className="flex items-center gap-1.5 font-mono text-[11px]">
@@ -154,6 +159,11 @@ export function EvidenceInspector({
             ))}
           </div>
         )}
+      <Pager
+        page={paged.page} pages={paged.pages} from={paged.from} to={paged.to}
+        total={paged.total} unit="source codes" onPage={paged.setPage}
+        className="mt-3 border-t border-stone-100 pt-3"
+      />
     </div>
   )
 }
