@@ -18,6 +18,51 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Capabilities 5 and 8: migration support and ERP integration
+**Who:** Aditya (with Claude) · both were sitting at zero
+
+**The shape of the deliverable is the argument.** A cross-reference puts the CPSE's own code
+in the first column and never alters it. Everything after it is additional information about
+that code. Every competing approach merges and deletes inside the customer's master, which is
+why those projects frighten plant teams and stall for years. This one adds rows.
+
+```
+org_code,source_code,national_code,canonical_identity,classification_code,...,status,duplicate_of
+CPCL,CPCL-000002,IN-31161600-0000007-2,IN-0000007-5,31161600,...,duplicate,IOCL-000003
+```
+
+Four endpoints: cross-reference as JSON, the same as a downloadable CSV, a migration plan,
+and an ERP payload.
+
+### The migration plan, capability 5
+| Action | Codes | Meaning |
+|---|---|---|
+| Keep | 183 | one per canonical material |
+| Collapse | 298 | duplicates, **cross-referenced not deleted** |
+| Close | 124 | no purchase order in four years |
+| Review | 173 | the system would not decide alone |
+
+**Do not quote the 65% headline.** Our generated data is deliberately duplicate-heavy, so
+that figure is a property of the generator. The method is what transfers; the percentage is
+not. Published duplicate rates sit nearer 7 to 9%.
+
+Three notes ship with the plan itself, so they cannot be separated from the numbers: no CPSE
+code is deleted, closing a dead code is a recommendation a stores team confirms, and codes
+under review are ones the system declined to decide alone.
+
+### The ERP payload, capability 8
+Shaped as a **MATMAS05 IDoc**, which is the interface an SAP team already recognises, with
+`E1MARAM` for basic data, `E1MAKTM` for descriptions and `E1MARMM` for alternative units,
+correctly carrying the conversion factors normalisation produced (`BOX-100` = 100 `EA`).
+
+Our addition is a `Z1XREFM` segment holding each CPSE's **unchanged** source material number
+beside the national code. That segment is the whole proposition in one place: the national
+reference is added, the local code is untouched.
+
+Nothing talks to a real SAP system. The point is that the output arrives in a shape a systems
+team can wire up rather than one they need talked through.
+
+
 ### The model tier, second half: pairwise comparison
 **Who:** Aditya (with Claude) · **Completes:** capability 1's "AI-based matching"
 

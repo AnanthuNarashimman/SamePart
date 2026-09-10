@@ -1118,3 +1118,160 @@ class LiveAnalytics:
             return s.AuditFlagResult(
                 median_spread_all=round(median, 3), threshold=threshold,
                 flagged=len(items), items=items[:limit])
+
+
+# ---------------------------------------------------------------------------
+# Export: what a CPSE actually loads back into its own system
+# ---------------------------------------------------------------------------
+class LiveExport:
+    """Capabilities 5 and 8: migration support, and integration with the systems of record.
+
+    The shape of the deliverable is the argument. A cross-reference puts the CPSE's own code
+    in the first column and never alters it; everything else is additional information about
+    that code. Every competing approach in this space merges and deletes inside the
+    customer's master, which is why those projects frighten plant teams and stall. This one
+    adds rows.
+    """
+
+    def __init__(self, dictionary: Dictionary) -> None:
+        self.dictionary = dictionary
+
+    def _context(self, db):
+        mapping = dict(db.execute(
+            select(ApprovedMapping.record_id, ApprovedMapping.canonical_id)).all())
+        approvers = dict(db.execute(
+            select(ApprovedMapping.record_id, ApprovedMapping.approved_by)).all())
+        approved_at = dict(db.execute(
+            select(ApprovedMapping.record_id, ApprovedMapping.at)).all())
+        canon = {c.canonical_id: c for c in db.scalars(select(CanonicalMaterial))}
+        members: dict[str, list[int]] = {}
+        for rid, cid in mapping.items():
+            members.setdefault(cid, []).append(rid)
+        ordered = {c for (c,) in db.execute(select(PO.source_code).distinct())}
+        return mapping, approvers, approved_at, canon, members, ordered
+
+    def cross_reference(self, org_code: str | None = None,
+                        limit: int = 5000) -> s.CrossReferenceExport:
+        from samepart.taxonomy.loader import Taxonomy
+
+        with session_scope() as db:
+            mapping, approvers, approved_at, canon, members, ordered = self._context(db)
+            q = select(SourceRecord).order_by(SourceRecord.id)
+            records = list(db.scalars(q))
+            codes = {r.id: r.source_code for r in records}
+
+            tax = None
+            try:
+                tax = Taxonomy.from_xlsx(settings.dictionary_dir.parent
+                                         / "data" / "taxonomy" / "unspsc.xlsx")
+            except Exception:
+                tax = None                      # codeset is licensed and may be absent
+
+            rows: list[s.CrossReferenceRow] = []
+            dead = dupes = mapped = 0
+            for r in records:
+                if org_code and r.org.code != org_code:
+                    continue
+                cid = mapping.get(r.id)
+                material = canon.get(cid) if cid else None
+                siblings = [x for x in members.get(cid, []) if x != r.id] if cid else []
+
+                if cid:
+                    mapped += 1
+                if r.source_code not in ordered:
+                    status, dupe = "dead", None
+                    dead += 1
+                elif siblings:
+                    status = "duplicate"
+                    dupe = codes.get(sorted(siblings)[0])
+                    dupes += 1
+                elif cid:
+                    status, dupe = "active", None
+                else:
+                    status, dupe = "unmapped", None
+
+                cls = material.classification_code if material else None
+                rows.append(s.CrossReferenceRow(
+                    org_code=r.org.code, source_code=r.source_code,
+                    national_code=registry.national_code(cid, cls) if cid else None,
+                    canonical_identity=cid, classification_code=cls,
+                    classification_path=tax.label(cls) if (tax and cls) else None,
+                    standardised_short=material.standardised_short if material else None,
+                    base_uom=r.base_uom, status=status, duplicate_of=dupe,
+                    approved_by=approvers.get(r.id),
+                    approved_at=approved_at.get(r.id)))
+
+            return s.CrossReferenceExport(
+                generated_at=datetime.now(timezone.utc), rows=len(rows), mapped=mapped,
+                dead=dead, duplicates=dupes, items=rows[:limit])
+
+    def migration_plan(self) -> s.MigrationPlan:
+        with session_scope() as db:
+            mapping, _, _, _, members, ordered = self._context(db)
+            records = list(db.scalars(select(SourceRecord)))
+            total = len(records)
+            close = sum(1 for r in records if r.source_code not in ordered)
+            collapse = sum(max(len(v) - 1, 0) for v in members.values())
+            keep = len(members)
+            review = total - len(mapping)
+
+        return s.MigrationPlan(
+            generated_at=datetime.now(timezone.utc), total_codes=total, keep=keep,
+            collapse=collapse, close=close, review=review,
+            estimated_codes_removed=collapse + close,
+            notes=[
+                "No CPSE material code is deleted by this plan. Collapsing means the code is "
+                "cross-referenced to a national code, not removed from the CPSE's master.",
+                "Closing a dead code is a recommendation based on no purchase order in the "
+                "window. A stores team confirms it; the system does not act alone.",
+                "Codes under review are those the system would not decide without a person.",
+            ])
+
+    def erp_payload(self, canonical_id: str) -> dict:
+        """A material master payload shaped like the interface an SAP team expects.
+
+        Deliberately mirrors the MATMAS IDoc segment structure: client-level basic data,
+        descriptions, and alternative units of measure. Nothing here talks to a real system.
+        The point is that the output is in a shape a systems team recognises and can wire up,
+        rather than a bespoke format they would have to be talked through.
+        """
+        with session_scope() as db:
+            material = db.get(CanonicalMaterial, canonical_id)
+            if material is None:
+                raise KeyError(canonical_id)
+            record_ids = list(db.scalars(select(ApprovedMapping.record_id)
+                                         .where(ApprovedMapping.canonical_id == canonical_id)))
+            records = [db.get(SourceRecord, rid) for rid in record_ids]
+            attrs = (material.attributes or {}).get("merged", {})
+
+            national = registry.national_code(canonical_id, material.classification_code)
+            return {
+                "IDOC": {
+                    "EDI_DC40": {"IDOCTYP": "MATMAS05", "MESTYP": "MATMAS",
+                                 "SNDPRN": "SAMEPART", "RCVPRN": "<CPSE system>"},
+                    "E1MARAM": {                       # client-level basic data
+                        "MSGFN": "005", "MATNR": national,
+                        "MTART": "ERSA", "MBRSH": "M",
+                        "MATKL": material.classification_code or "",
+                        "MEINS": next((r.base_uom for r in records if r.base_uom), "EA"),
+                        "ZZ_NATIONAL_CODE": national,
+                        "ZZ_CANONICAL_ID": canonical_id,
+                        "E1MAKTM": [                   # descriptions
+                            {"MSGFN": "005", "SPRAS_ISO": "EN",
+                             "MAKTX": (material.standardised_short or "")[:40]}],
+                        "E1MARMM": [                   # alternative units
+                            {"MSGFN": "005", "MEINH": r.raw_uom or "EA",
+                             "UMREZ": int(r.base_quantity / r.quantity)
+                             if r.quantity and r.base_quantity else 1, "UMREN": 1}
+                            for r in records if r.raw_uom],
+                        "Z1XREFM": [                   # the cross-reference, our addition
+                            {"ZZ_ORG": r.org.code, "ZZ_SOURCE_MATNR": r.source_code,
+                             "ZZ_SOURCE_TEXT": r.raw_description[:40]}
+                            for r in records],
+                    },
+                },
+                "_note": ("Shaped like MATMAS05 so an SAP team recognises it. The source "
+                          "material numbers in Z1XREFM are unchanged; this payload adds a "
+                          "national reference and never rewrites a CPSE's own code."),
+                "_characteristics": attrs,
+            }

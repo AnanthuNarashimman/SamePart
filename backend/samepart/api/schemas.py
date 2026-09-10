@@ -400,6 +400,49 @@ class AnswerResult(BaseModel):
     message: str
 
 
+class CrossReferenceRow(BaseModel):
+    """One line of the deliverable a CPSE actually loads into its own system.
+
+    The CPSE's own code is the first column and is never altered. Everything after it is
+    additional information about that code, which is the entire political proposition: you
+    keep your master, you gain a national reference.
+    """
+    org_code: str
+    source_code: str
+    national_code: str | None = None
+    canonical_identity: str | None = None
+    classification_code: str | None = None
+    classification_path: str | None = None
+    standardised_short: str | None = None
+    base_uom: str | None = None
+    status: str = Field(description="active | duplicate | dead | unmapped")
+    duplicate_of: str | None = Field(
+        None, description="The source code this one duplicates, where it does")
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+
+
+class CrossReferenceExport(BaseModel):
+    generated_at: datetime
+    rows: int
+    mapped: int
+    dead: int
+    duplicates: int
+    items: list[CrossReferenceRow] = Field(default_factory=list)
+
+
+class MigrationPlan(BaseModel):
+    """Legacy material code rationalisation, as a plan a stores team can act on."""
+    generated_at: datetime
+    total_codes: int
+    keep: int = Field(description="Codes that stay, one per canonical material")
+    collapse: int = Field(description="Codes that duplicate another and can be cross-referenced")
+    close: int = Field(description="Codes with no purchase order in the window")
+    review: int = Field(description="Codes the system would not decide alone")
+    estimated_codes_removed: int
+    notes: list[str] = Field(default_factory=list)
+
+
 class FamilySummary(BaseModel):
     family: str
     label: str

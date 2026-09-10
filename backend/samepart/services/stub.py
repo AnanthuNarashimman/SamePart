@@ -289,3 +289,28 @@ class StubQuestions:
             record_id=record_id, applied=dict(req.values), pairs_reevaluated=20,
             resolved=s.QueueCounts(same_material=14, different=6),
             message="Recorded. 20 blocked pairs re-decided.")
+
+
+class StubExport:
+    def cross_reference(self, org_code=None, limit=5000):
+        from datetime import datetime, timezone
+        return s.CrossReferenceExport(
+            generated_at=datetime.now(timezone.utc), rows=654, mapped=471, dead=124,
+            duplicates=290,
+            items=[s.CrossReferenceRow(
+                org_code="CPCL", source_code="CPCL-000156",
+                national_code="IN-31161600-0000417-3", canonical_identity="IN-0000417-6",
+                classification_code="31161600",
+                classification_path="Manufacturing Components and Supplies > Hardware > Bolts",
+                standardised_short="BOLT, HEX HEAD; M16X80; A2-70; ISO4014",
+                base_uom="EA", status="active", approved_by="auto")])
+
+    def migration_plan(self):
+        from datetime import datetime, timezone
+        return s.MigrationPlan(
+            generated_at=datetime.now(timezone.utc), total_codes=654, keep=183,
+            collapse=288, close=124, review=183, estimated_codes_removed=412,
+            notes=["No CPSE material code is deleted by this plan."])
+
+    def erp_payload(self, canonical_id):
+        return {"IDOC": {"EDI_DC40": {"IDOCTYP": "MATMAS05"}}, "_note": "stub"}

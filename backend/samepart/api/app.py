@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from samepart.api.deps import live_services, mode
-from samepart.api.routers import (analytics, catalogue, families, prevention,
+from samepart.api.routers import (analytics, catalogue, export, families, prevention,
                                   questions, review)
 
 DESCRIPTION = """
@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    for r in (catalogue, review, questions, prevention, analytics, families):
+    for r in (catalogue, review, questions, prevention, analytics, export, families):
         app.include_router(r.router, prefix="/api")
 
     @app.get("/api/health", tags=["meta"])
