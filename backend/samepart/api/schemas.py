@@ -138,6 +138,11 @@ class DecisionRequest(BaseModel):
         None, description="Answers to a request_info, keyed by attribute"
     )
     reviewer: str = "demo-reviewer"
+    reviewer_role: str = Field(
+        "national_approver",
+        description="viewer | steward | national_approver | administrator")
+    reviewer_org: str | None = Field(
+        None, description="Required for a steward, whose authority is their own CPSE only")
 
 
 class DecisionResult(BaseModel):
@@ -441,6 +446,58 @@ class MigrationPlan(BaseModel):
     review: int = Field(description="Codes the system would not decide alone")
     estimated_codes_removed: int
     notes: list[str] = Field(default_factory=list)
+
+
+class AuditEvent(BaseModel):
+    id: int
+    at: datetime
+    actor: str
+    action: str
+    match_id: int | None = None
+    canonical_id: str | None = None
+    summary: str = ""
+    payload: dict | None = None
+
+
+class AuditTrail(BaseModel):
+    """Append-only. Nothing in here is updated or deleted, including reversals."""
+    total: int
+    by_action: dict[str, int] = Field(default_factory=dict)
+    by_actor: dict[str, int] = Field(default_factory=dict)
+    items: list[AuditEvent] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
+class ReverseRequest(BaseModel):
+    reason: str = Field(description="Why this mapping is being undone. Recorded permanently.")
+    reviewer: str = "demo-reviewer"
+    reviewer_role: str = "national_approver"
+    source_codes: list[str] = Field(
+        default_factory=list,
+        description="Detach only these records. Empty means dissolve the whole cluster.")
+
+
+class ReverseResult(BaseModel):
+    canonical_id: str
+    detached: list[str] = Field(default_factory=list)
+    remaining: int
+    dissolved: bool
+    message: str
+
+
+class RoleInfo(BaseModel):
+    key: str
+    label: str
+    description: str
+    permissions: list[str]
+    scope: str = "all"
+
+
+class GovernanceInfo(BaseModel):
+    default_state: str
+    policy_change_requires: str
+    automation_enabled: bool
+    roles: list[RoleInfo] = Field(default_factory=list)
 
 
 class FamilySummary(BaseModel):

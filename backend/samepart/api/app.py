@@ -10,8 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from samepart.api.deps import live_services, mode
-from samepart.api.routers import (analytics, catalogue, export, families, prevention,
-                                  questions, review)
+from samepart.api.routers import (analytics, catalogue, export, families, governance,
+                                  prevention, questions, review)
 
 DESCRIPTION = """
 Cross-organisation material identity resolution.
@@ -41,7 +41,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    for r in (catalogue, review, questions, prevention, analytics, export, families):
+    for r in (catalogue, review, questions, prevention, analytics, export,
+              governance, families):
         app.include_router(r.router, prefix="/api")
 
     @app.get("/api/health", tags=["meta"])

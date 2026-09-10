@@ -314,3 +314,28 @@ class StubExport:
 
     def erp_payload(self, canonical_id):
         return {"IDOC": {"EDI_DC40": {"IDOCTYP": "MATMAS05"}}, "_note": "stub"}
+
+
+class StubGovernance:
+    def info(self):
+        return s.GovernanceInfo(
+            default_state="review_everything", policy_change_requires="administrator",
+            automation_enabled=True,
+            roles=[s.RoleInfo(key="steward", label="CPSE Data Steward",
+                              description="Owns their own organisation's material master.",
+                              permissions=["read", "answer", "decide_within_org"],
+                              scope="own_organisation")])
+
+    def audit(self, cursor=None, limit=50, actor=None, action=None):
+        from datetime import datetime, timezone
+        return s.AuditTrail(total=412, by_action={"approve_same": 388, "reject": 24},
+                            by_actor={"auto": 388, "adi": 24},
+                            items=[s.AuditEvent(id=1, at=datetime.now(timezone.utc),
+                                                actor="auto", action="approve_same",
+                                                canonical_id="IN-0000417-6",
+                                                summary="merged into a canonical material")])
+
+    def reverse(self, canonical_id, req):
+        return s.ReverseResult(canonical_id=canonical_id, detached=req.source_codes,
+                               remaining=0, dissolved=True,
+                               message="No CPSE material code was altered.")

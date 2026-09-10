@@ -38,3 +38,8 @@ def decide(match_id: int, req: s.DecisionRequest, svc: ReviewService = Depends(r
         return svc.decide(match_id, req)
     except KeyError:
         raise HTTPException(404, f"no match with id {match_id}")
+    except PermissionError as exc:
+        # 403, not 500. The reviewer did nothing wrong; they lack the authority.
+        raise HTTPException(403, str(exc))
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))

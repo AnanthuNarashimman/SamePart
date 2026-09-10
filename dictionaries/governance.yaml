@@ -1,0 +1,61 @@
+# Who may do what, and who answers for it.
+#
+# "Audit trail" and "governance" are two different things and the problem statement names
+# both. The trail is already real: decisions are append-only rows. Governance is the part
+# that says a national identifier is not something whoever ran the import gets to mint.
+#
+# The two-tier model exists because of a political fact, not a technical one. A CPSE will
+# accept a steward inside its own organisation deciding about its own codes. It will not
+# accept another CPSE's steward, or a vendor's engineer, deciding that its code and someone
+# else's are the same thing. Cross-organisation identity needs an authority both sides
+# recognise.
+version: 1
+
+roles:
+  viewer:
+    label: Viewer
+    description: Read anything. Change nothing.
+    permissions: [read]
+
+  steward:
+    label: CPSE Data Steward
+    description: >-
+      Owns their own organisation's material master. May answer questions, mark values
+      unobtainable, and approve or reject relationships where every record involved belongs
+      to their organisation.
+    permissions: [read, answer, mark_unresolvable, decide_within_org]
+    scope: own_organisation
+
+  national_approver:
+    label: National Codification Approver
+    description: >-
+      May approve a relationship spanning two or more CPSEs, which is the moment a national
+      code comes into existence. May reverse a mapping.
+    permissions: [read, answer, mark_unresolvable, decide_within_org, decide_cross_org,
+                  reverse_mapping]
+
+  administrator:
+    label: Framework Administrator
+    description: >-
+      May change the automation policy and the dictionaries. Cannot approve mappings; the
+      person who sets the rules should not also be the person who applies them.
+    permissions: [read, change_policy, change_dictionaries]
+
+# Automation is a delegation of authority, so it is recorded like one.
+policy_control:
+  default_state: review_everything
+  change_requires: administrator
+  rules:
+    - Automation is off until an organisation turns it on, having seen measured precision on
+      its own data
+    - A verdict produced by a model is never automated, whatever the policy says
+    - Enabling automation records who enabled it, when, and at what thresholds
+    - A sampled share of automated decisions is always routed to a person
+
+reversal:
+  requires: reverse_mapping
+  rules:
+    - Reversing a mapping deletes the cross-reference row and nothing else
+    - The CPSE's own material code was never altered, so there is nothing to restore
+    - A reversal is itself an append-only event, with the reason recorded
+    - A national identifier that has been issued is never reused, even after reversal

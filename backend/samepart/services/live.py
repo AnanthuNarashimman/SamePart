@@ -454,6 +454,16 @@ class LiveReview:
                 raise KeyError(match_id)
             a, b = db.get(SourceRecord, m.a_id), db.get(SourceRecord, m.b_id)
 
+            # Approving a pair that spans organisations is the moment a national identifier
+            # comes into existence, and that is not a decision one CPSE makes about another's
+            # codes. Answering a question is not an approval and is not gated.
+            if req.action is not s.DecisionAction.REQUEST_INFO:
+                ruling = gov.may_decide(req.reviewer_role,
+                                        {a.org.code, b.org.code}, req.reviewer_org)
+                if not ruling.allowed:
+                    raise PermissionError(
+                        f"{ruling.reason} Required role: {ruling.required_role}.")
+
             if req.action is s.DecisionAction.REQUEST_INFO:
                 return self._request_info(db, m, a, b, req)
 
@@ -1275,3 +1285,128 @@ class LiveExport:
                           "national reference and never rewrites a CPSE's own code."),
                 "_characteristics": attrs,
             }
+
+
+# ---------------------------------------------------------------------------
+# Governance: who may decide, what was decided, and how to undo it
+# ---------------------------------------------------------------------------
+from samepart import governance as gov  # noqa: E402
+
+_SUMMARY = {
+    "approve_same": "merged into a canonical material",
+    "approve_alternative": "linked as a conditional substitute",
+    "approve_different": "confirmed as different materials",
+    "reject": "rejected; recorded as a cannot-link constraint",
+    "information_supplied": "a missing value was supplied",
+    "information_requested": "information requested",
+    "declared_unresolvable": "a value was declared unobtainable",
+    "attributes_supplied": "blanks filled on a record",
+    "mapping_reversed": "a mapping was undone",
+}
+
+
+class LiveGovernance:
+    def __init__(self, dictionary: Dictionary) -> None:
+        self.dictionary = dictionary
+
+    def info(self) -> s.GovernanceInfo:
+        g = gov.load()
+        family = self.dictionary.families.get("hex_bolt")
+        return s.GovernanceInfo(
+            default_state=g.default_state,
+            policy_change_requires=g.policy_change_role,
+            automation_enabled=bool(family and family.auto_merge.enabled),
+            roles=[s.RoleInfo(key=r.key, label=r.label, description=r.description,
+                              permissions=sorted(r.permissions), scope=r.scope)
+                   for r in g.roles.values()])
+
+    def audit(self, cursor: str | None = None, limit: int = 50,
+              actor: str | None = None, action: str | None = None) -> s.AuditTrail:
+        with session_scope() as db:
+            q = select(DecisionEvent)
+            if actor:
+                q = q.where(DecisionEvent.actor == actor)
+            if action:
+                q = q.where(DecisionEvent.action == action)
+            total = db.scalar(select(func.count(DecisionEvent.id))) or 0
+            by_action = dict(db.execute(
+                select(DecisionEvent.action, func.count(DecisionEvent.id))
+                .group_by(DecisionEvent.action)).all())
+            by_actor = dict(db.execute(
+                select(DecisionEvent.actor, func.count(DecisionEvent.id))
+                .group_by(DecisionEvent.actor)).all())
+
+            offset = int(cursor) if cursor and cursor.isdigit() else 0
+            rows = list(db.scalars(q.order_by(DecisionEvent.id.desc())
+                                   .offset(offset).limit(limit + 1)))
+            more = len(rows) > limit
+            rows = rows[:limit]
+            items = [s.AuditEvent(
+                id=e.id, at=e.at, actor=e.actor, action=e.action, match_id=e.pair_id,
+                canonical_id=e.canonical_id,
+                summary=_SUMMARY.get(e.action, e.action.replace("_", " ")),
+                payload=e.payload) for e in rows]
+        return s.AuditTrail(total=total, by_action=by_action, by_actor=by_actor,
+                            items=items, next_cursor=str(offset + limit) if more else None)
+
+    def reverse(self, canonical_id: str, req: s.ReverseRequest) -> s.ReverseResult:
+        """Undo a mapping.
+
+        This is the claim the whole design rests on, made real. Reversing deletes a
+        cross-reference row and nothing else. The CPSE's own material code was never altered,
+        so there is nothing to restore and no data to recover. The reversal is itself an
+        append-only event.
+
+        The national identifier is not reused, even after the cluster it belonged to is
+        dissolved. A number that has been issued and quoted must never come to mean something
+        different later.
+        """
+        if not gov.load().may(req.reviewer_role, "reverse_mapping"):
+            raise PermissionError(
+                f"{req.reviewer_role} may not reverse a mapping; that requires "
+                f"national_approver")
+        if not req.reason.strip():
+            raise ValueError("a reversal must carry a reason; it is recorded permanently")
+
+        with session_scope() as db:
+            material = db.get(CanonicalMaterial, canonical_id)
+            if material is None:
+                raise KeyError(canonical_id)
+            mappings = list(db.scalars(select(ApprovedMapping)
+                                       .where(ApprovedMapping.canonical_id == canonical_id)))
+            if not mappings:
+                raise KeyError(canonical_id)
+
+            wanted = set(req.source_codes)
+            detached: list[str] = []
+            for m in list(mappings):
+                record = db.get(SourceRecord, m.record_id)
+                if wanted and record.source_code not in wanted:
+                    continue
+                detached.append(record.source_code)
+                db.delete(m)
+            db.flush()
+
+            remaining = db.scalar(
+                select(func.count(ApprovedMapping.id))
+                .where(ApprovedMapping.canonical_id == canonical_id)) or 0
+            dissolved = remaining == 0
+
+            db.add(DecisionEvent(
+                canonical_id=canonical_id, actor=req.reviewer, action="mapping_reversed",
+                payload={"reason": req.reason, "detached": detached,
+                         "remaining": remaining, "dissolved": dissolved,
+                         "role": req.reviewer_role,
+                         "note": "source material codes were never altered and "
+                                 "required no restoration"}))
+            if not dissolved:
+                LiveReview(self.dictionary)._restate(db, canonical_id)
+
+        return s.ReverseResult(
+            canonical_id=canonical_id, detached=detached, remaining=remaining,
+            dissolved=dissolved,
+            message=(f"{len(detached)} source code(s) detached. "
+                     + ("The canonical material is now empty and its identifier is retired; "
+                        "it will never be reissued. " if dissolved else
+                        f"{remaining} record(s) remain mapped. ")
+                     + "No CPSE material code was altered, so nothing needed restoring."))

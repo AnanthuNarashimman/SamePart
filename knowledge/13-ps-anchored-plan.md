@@ -6,7 +6,12 @@ were already our strongest, while 2, 4, 5, 6, 7 and 8 stayed where they were.
 **Rule from here: work is chosen by what the problem statement names and we do not have,
 not by what is interesting.**
 
-## Honest coverage, today
+## Coverage as of 10 September 2026: all eight capabilities covered
+
+Every capability the problem statement names now has an implementation. What follows is the
+assessment that started this plan, kept for the record.
+
+## Honest coverage, when this plan was written
 
 | # | Capability | Status | What is actually missing |
 |---|---|---|---|
@@ -60,13 +65,13 @@ we will build to:
 
 | # | Work | Capability | Why here |
 |---|---|---|---|
-| A | **Procurement history as a first-class input** | 1, 5, 6 | Unlocks three capabilities. Everything below leans on it |
-| B | **Dashboard and analytics** | 6 | Wholly absent, cheapest on the list, delivers six of the nine impact bullets |
-| C | **Classification into a taxonomy** | 2 | The missing half, and the honest trained-ML artifact |
-| D | **Common national material code** | 4 | Mostly a structure and governance decision |
-| E | **Model tier for extraction and matching** | 1, 2 | Puts the NLP in, and cuts the 207 open blanks by reading whole records |
-| F | **ERP integration and legacy migration** | 5, 8 | Both named, both currently zero |
-| G | **Governance** | 7 | Roles, two-tier approval, who owns the automation policy |
+| A ✅ | **Procurement history as a first-class input** | 1, 5, 6 | Unlocks three capabilities. Everything below leans on it |
+| B ✅ | **Dashboard and analytics** | 6 | Wholly absent, cheapest on the list, delivers six of the nine impact bullets |
+| C ✅ | **Classification into a taxonomy** | 2 | The missing half, and the honest trained-ML artifact |
+| D ✅ | **Common national material code** | 4 | Mostly a structure and governance decision |
+| E ✅ | **Model tier for extraction and matching** | 1, 2 | Puts the NLP in, and cuts the 207 open blanks by reading whole records |
+| F ✅ | **ERP integration and legacy migration** | 5, 8 | Both named, both currently zero |
+| G ✅ | **Governance** | 7 | Roles, two-tier approval, who owns the automation policy |
 
 Stopped deliberately: further tuning of the human queue. 288 actions is defensible and past
 the point of returns.

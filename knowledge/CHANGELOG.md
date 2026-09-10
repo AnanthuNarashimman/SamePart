@@ -18,6 +18,66 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Capability 7 second half: governance. All eight capabilities now covered.
+**Who:** Aditya (with Claude)
+
+The audit trail was already real, being append-only rows. Governance is the part that says a
+national identifier is not something whoever ran the import gets to mint.
+
+**Two-tier approval, and the reason is political rather than technical.** A CPSE will accept
+its own steward deciding about its own codes. It will not accept another organisation's
+steward, or a vendor's engineer, deciding that its code and someone else's are the same
+thing. So a relationship inside one organisation is a local decision, and one that spans
+organisations is the moment a national identifier comes into existence.
+
+Verified on a live IOCL-to-BPCL pair:
+
+| Role | Result |
+|---|---|
+| Steward of CPCL | 403 |
+| Steward of IOCL, an organisation in the pair | **403** |
+| Viewer | 403 |
+| Administrator | 403 |
+| National approver | 200 |
+
+The refusal explains itself rather than saying "forbidden": *"This pair spans BPCL, IOCL.
+Approving it creates a national identifier, which is not a decision one organisation makes
+about another's codes."*
+
+**Separation of duties.** The administrator may change the automation policy and the
+dictionaries but may not approve a single mapping. Whoever sets the rules should not also be
+the person who applies them.
+
+### Reversibility, finally demonstrated rather than asserted
+We have claimed all along that an incorrect merge is undone by deleting a cross-reference.
+It is now implemented and proven.
+
+Dissolving a three-CPSE cluster detached all three source codes, and afterwards:
+
+```
+CPCL-000002 still reads: HEX BOLT M8X16  10.9  DIN933  ZINC PLATED
+IOCL-000003 still reads: Bolt, Hexagon Head, M8 x 16mm  Property Class CLASS 10.9
+```
+
+Untouched, because they were never altered in the first place. There was nothing to restore
+and no data to recover. **This is the single strongest thing we can say against every
+incumbent, all of which merge and delete inside the customer's own master.**
+
+Two rules enforced: a reversal must carry a reason, recorded permanently; and a retired
+national identifier is never reissued, because a number that has been quoted must never come
+to mean something different later.
+
+### Roles, and the default posture
+`viewer`, `steward` (own organisation only), `national_approver`, `administrator`, declared
+in `dictionaries/governance.yaml` with their permissions. Default state is
+**review_everything**: automation stays off until an organisation turns it on having seen
+measured precision on its own data. That matches the PS wording, which asks for a workflow
+*allowing* users to review and approve.
+
+New endpoints: `GET /api/governance`, `GET /api/audit`, and
+`POST /api/canonical/{id}/reverse`. Refusals return **403 with an explanation**, not 500.
+
+
 ### Capabilities 5 and 8: migration support and ERP integration
 **Who:** Aditya (with Claude) · both were sitting at zero
 
