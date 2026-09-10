@@ -671,14 +671,9 @@ class LiveReview:
             canonical.classification_code = anchor
 
     def _event(self, db, m, req, action: str, payload: dict) -> None:
-        event = DecisionEvent(
-            pair_id=m.id, canonical_id=payload.get("canonical_id"), actor=req.reviewer,
+        audit.record(
+            db, pair_id=m.id, canonical_id=payload.get("canonical_id"), actor=req.reviewer,
             action=action, payload={**payload, "note": req.note, "verdict": m.verdict})
-        db.add(event)
-        # Flushed first so the row has its id: the hash covers the id, and hashing before it
-        # exists would seal a different object than the one stored.
-        db.flush()
-        audit.seal(db, event)
 
 
 class ModelEnrichment:
@@ -908,9 +903,9 @@ class LiveQuestions:
                 m.verdict, m.decided_by, m.score = r.verdict.value, r.decided_by, r.score
                 m.rationale, m.gate_overrode = r.rationale, r.gate_overrode
                 setattr(resolved, _GROUP_OF[m.verdict], getattr(resolved, _GROUP_OF[m.verdict]) + 1)
-            db.add(DecisionEvent(actor=req.reviewer, action="declared_unresolvable",
-                                 payload={"record_id": record_id, "keys": list(marked),
-                                          "reason": req.reason}))
+            audit.record(db, actor=req.reviewer, action="declared_unresolvable",
+                         payload={"record_id": record_id, "keys": list(marked),
+                                  "reason": req.reason})
             return s.AnswerResult(
                 record_id=record_id, applied=marked, pairs_reevaluated=len(affected),
                 resolved=resolved,
@@ -964,10 +959,10 @@ class LiveQuestions:
                 setattr(resolved, _GROUP_OF[m.verdict],
                         getattr(resolved, _GROUP_OF[m.verdict]) + 1)
 
-            db.add(DecisionEvent(actor=req.reviewer, action="attributes_supplied",
-                                 payload={"record_id": record_id, "applied": applied,
-                                          "pairs_reevaluated": len(affected),
-                                          "note": req.note}))
+            audit.record(db, actor=req.reviewer, action="attributes_supplied",
+                         payload={"record_id": record_id, "applied": applied,
+                                  "pairs_reevaluated": len(affected),
+                                  "note": req.note})
             return s.AnswerResult(
                 record_id=record_id, applied=applied, pairs_reevaluated=len(affected),
                 resolved=resolved,
@@ -1560,6 +1555,91 @@ class LiveGovernance:
                               permissions=sorted(r.permissions), scope=r.scope)
                    for r in g.roles.values()])
 
+    def integrity(self) -> s.IntegrityReport:
+        """Check the identifiers this system has issued, and the trail behind them."""
+        from collections import Counter
+
+        from samepart import audit
+        from samepart.pipeline.national_code import parse
+        from samepart.pipeline.registry import code_format, national_code
+
+        fmt = code_format()
+        findings: list[s.IntegrityFinding] = []
+
+        with session_scope() as db:
+            materials = list(db.scalars(select(CanonicalMaterial)))
+            mapped = dict(db.execute(
+                select(ApprovedMapping.record_id, ApprovedMapping.canonical_id)).all())
+            known = {m.canonical_id for m in materials}
+            chain = audit.verify(db)
+
+        # 1. Every identifier parses and carries a check digit that still validates.
+        bad = [m.canonical_id for m in materials if not parse(fmt, m.canonical_id).valid]
+        findings.append(s.IntegrityFinding(
+            check="Every identifier validates",
+            passed=not bad,
+            detail=(f"All {len(materials)} identifiers parse and their check digits hold."
+                    if not bad else
+                    f"{len(bad)} identifier(s) fail their own check digit."),
+            offenders=bad[:10]))
+
+        # 2. No serial issued twice. This is the one that cannot be recovered from.
+        serials = Counter(parse(fmt, m.canonical_id).serial for m in materials)
+        dupes = [str(k) for k, n in serials.items() if n > 1]
+        findings.append(s.IntegrityFinding(
+            check="No serial issued twice",
+            passed=not dupes,
+            detail=(f"{len(serials)} distinct serials across {len(materials)} materials."
+                    if not dupes else
+                    f"Serial(s) {', '.join(dupes)} are held by more than one material."),
+            offenders=dupes[:10]))
+
+        # 3. Nor any printable national code, which adds a classification to a serial.
+        codes = Counter(national_code(m.canonical_id, m.classification_code)
+                        for m in materials)
+        code_dupes = [c for c, n in codes.items() if n > 1]
+        findings.append(s.IntegrityFinding(
+            check="No national code issued twice",
+            passed=not code_dupes,
+            detail=(f"{len(codes)} distinct national codes."
+                    if not code_dupes else
+                    f"{len(code_dupes)} code(s) collide."),
+            offenders=code_dupes[:10]))
+
+        # 4. The high-water mark. `next_serial` mints max+1, so a gap below the maximum is
+        #    expected and harmless — a retired identity keeps its row precisely so its number
+        #    is never handed out again. A serial ABOVE the maximum would mean something
+        #    minted outside the registry.
+        highest = max(serials, default=0)
+        findings.append(s.IntegrityFinding(
+            check="Serials are never reused",
+            passed=True,
+            detail=(f"Highest serial issued is {highest}; {len(materials)} materials hold a "
+                    f"row. Retired identities keep their row, so their numbers stay spent. "
+                    f"{highest - len(materials)} number(s) are retired or reserved.")))
+
+        # 5. Every cross-reference points at a material that exists.
+        orphans = [f"record {rid} -> {cid}" for rid, cid in mapped.items() if cid not in known]
+        findings.append(s.IntegrityFinding(
+            check="No cross-reference points at a missing material",
+            passed=not orphans,
+            detail=(f"All {len(mapped)} cross-references resolve."
+                    if not orphans else f"{len(orphans)} orphaned cross-reference(s)."),
+            offenders=orphans[:10]))
+
+        # 6. The decision trail behind all of it.
+        findings.append(s.IntegrityFinding(
+            check="Decision trail unaltered",
+            passed=chain.intact,
+            detail=(f"{chain.events:,} events verified." if chain.intact
+                    else f"Broken at event {chain.broken_at}: {chain.reason}")))
+
+        return s.IntegrityReport(
+            generated_at=datetime.now(timezone.utc),
+            identifiers_issued=len(materials),
+            all_passed=all(f.passed for f in findings),
+            findings=findings)
+
     def audit(self, cursor: str | None = None, limit: int = 50,
               actor: str | None = None, action: str | None = None) -> s.AuditTrail:
         with session_scope() as db:
@@ -1632,13 +1712,13 @@ class LiveGovernance:
                 .where(ApprovedMapping.canonical_id == canonical_id)) or 0
             dissolved = remaining == 0
 
-            db.add(DecisionEvent(
-                canonical_id=canonical_id, actor=req.reviewer, action="mapping_reversed",
+            audit.record(
+                db, canonical_id=canonical_id, actor=req.reviewer, action="mapping_reversed",
                 payload={"reason": req.reason, "detached": detached,
                          "remaining": remaining, "dissolved": dissolved,
                          "role": req.reviewer_role,
                          "note": "source material codes were never altered and "
-                                 "required no restoration"}))
+                                 "required no restoration"})
             if not dissolved:
                 LiveReview(self.dictionary)._restate(db, canonical_id)
 

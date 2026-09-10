@@ -82,6 +82,21 @@ def head(db, before_id: int | None = None) -> str:
     return last.entry_hash if last and last.entry_hash else GENESIS
 
 
+def record(db, **fields) -> DecisionEvent:
+    """Write one decision event and chain it. The only supported way to add one.
+
+    Three writers previously constructed a DecisionEvent and added it directly, so the chain
+    broke the first time anyone declared a value unresolvable, supplied an attribute, or
+    reversed a merge. It went unnoticed because the only path exercised in testing was the
+    baseline reviewer, which goes through LiveReview._event. Routing every writer through one
+    function is what stops that recurring.
+    """
+    event = DecisionEvent(**fields)
+    db.add(event)
+    db.flush()          # the hash covers the id, so the row needs one first
+    return seal(db, event)
+
+
 def seal(db, event: DecisionEvent) -> DecisionEvent:
     """Chain a newly written event onto the trail.
 

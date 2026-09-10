@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useAuditFlags, useRationalisation, useRedistribution, useSavings, useSummary } from '../api/analytics'
 import { AuditFlagsPanel } from '../components/dashboard/AuditFlagsPanel'
+import { IntegrityPanel } from '../components/dashboard/IntegrityPanel'
 import { QueueBreakdown } from '../components/dashboard/QueueBreakdown'
 import { RationalisationPanel } from '../components/dashboard/RationalisationPanel'
 import { RedistributionPanel } from '../components/dashboard/RedistributionPanel'
@@ -87,6 +88,13 @@ export function Dashboard() {
         ) : (
           <AuditFlagsPanel data={auditFlags.data} />
         )}
+      </section>
+
+      {/* The question a CPSE asks before agreeing to anything: has any number been issued
+          twice, and has the record of who approved what been altered. An answer nobody can
+          find is not an answer. */}
+      <section className="mt-5">
+        <IntegrityPanel />
       </section>
     </div>
   )

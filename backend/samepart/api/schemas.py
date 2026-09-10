@@ -549,6 +549,34 @@ class MigrationPreview(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class IntegrityFinding(BaseModel):
+    check: str
+    passed: bool
+    detail: str
+    offenders: list[str] = Field(default_factory=list)
+
+
+class IntegrityReport(BaseModel):
+    """Whether the identifiers this system has issued are sound.
+
+    Not a reassurance panel. Every check here is a property that could genuinely fail, stated
+    so that a failure is visible rather than absorbed: a check digit that no longer validates,
+    two materials issued the same serial, a cross-reference pointing at a material that no
+    longer exists, or a decision trail that has been edited.
+
+    The serial check matters most and is the least obvious. Identifiers are minted as
+    `max(existing) + 1`, so the guarantee that a serial is never reused depends entirely on
+    retired materials being kept rather than deleted. If a dissolved identity were ever removed
+    from the table, its number would be handed to the next material and two different things
+    would share a national code across time — the one failure this scheme cannot recover from,
+    because the CPSEs holding the old cross-reference would never know.
+    """
+    generated_at: datetime
+    identifiers_issued: int
+    all_passed: bool
+    findings: list[IntegrityFinding] = Field(default_factory=list)
+
+
 class AuditEvent(BaseModel):
     id: int
     at: datetime

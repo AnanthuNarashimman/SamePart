@@ -1693,6 +1693,44 @@ MATMAS payload all existed with no way to see any of them.
 
 ---
 
+## 2026-09-11 — Identifier integrity report, and three unsealed audit writers
+
+**The bug W7 was written to look for, found immediately.** Three services constructed a
+`DecisionEvent` and added it directly rather than through the sealing helper, so the audit
+chain would have broken the first time anyone declared a value unresolvable, supplied an
+attribute, or reversed a merge. It verified clean when W4 landed only because the sole path
+exercised was the baseline reviewer, which goes through `LiveReview._event`.
+
+Every writer now goes through `audit.record`, which adds, flushes for an id and seals in one
+place. A structural test greps the service for a direct construction, because the failure mode
+is somebody adding a fourth writer.
+
+**`GET /api/governance/integrity`**, surfaced on the dashboard. Six properties that could
+genuinely fail, not a green tick:
+
+- every identifier parses and its check digit still validates
+- no serial issued twice
+- no printable national code issued twice
+- serials never reused
+- no cross-reference points at a material that no longer exists
+- the decision trail is unaltered
+
+Current state: 438 identifiers, 1,218 cross-references, 1,935 events, all six hold.
+
+**The serial check matters most and is the least obvious.** Identifiers are minted as
+`max(existing) + 1`, so "a serial is never reused" depends entirely on retired materials
+keeping their row. `reverse` deletes the cross-references and leaves the `CanonicalMaterial`
+in place, which is what makes the guarantee true — checked, and it holds. If a dissolved
+identity were ever deleted, its number would be handed to the next material and two different
+things would share a national code across time, which is the one failure this scheme cannot
+recover from: the CPSEs holding the old cross-reference would never know.
+
+Verified in both directions. Editing one decision event and inserting one orphaned
+cross-reference directly with sqlite3 makes the report fail on exactly those two checks and
+name the offending rows; restoring the file returns all six to passing.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

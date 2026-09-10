@@ -16,6 +16,16 @@ def info(svc: GovernanceService = Depends(governance_service)):
     return svc.info()
 
 
+@router.get("/governance/integrity", response_model=s.IntegrityReport)
+def integrity(svc: GovernanceService = Depends(governance_service)):
+    """Whether the identifiers this system has issued are sound.
+
+    Unauthenticated for the same reason the chain check is: an integrity claim only anyone
+    with credentials can verify is not much of a claim.
+    """
+    return svc.integrity()
+
+
 @router.get("/audit/verify")
 def audit_verify():
     """Whether the decision trail has been altered since it was written.

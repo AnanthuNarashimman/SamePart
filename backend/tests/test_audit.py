@@ -129,3 +129,32 @@ def test_an_empty_trail_is_intact_not_broken(db):
     status = audit.verify(db)
     assert status.intact
     assert status.events == 0
+
+
+def test_every_decision_event_writer_goes_through_record(db):
+    """A structural check, because this failed silently once.
+
+    Three services constructed a DecisionEvent and added it directly, so the chain broke the
+    first time anyone declared a value unresolvable, supplied an attribute, or reversed a
+    merge. Nothing caught it: the only path exercised was the baseline reviewer, which sealed
+    correctly. Grepping the source is a blunt test and a fair one — the failure mode is
+    somebody adding a fourth writer.
+    """
+    from pathlib import Path
+
+    source = Path("backend/samepart/services/live.py").read_text()
+    assert "DecisionEvent(" not in source, (
+        "a service constructs DecisionEvent directly; use audit.record so it is chained")
+
+
+def test_record_chains_a_written_event(db):
+    from samepart.db.models import DecisionEvent
+
+    audit.record(db, actor="steward", action="approve_same", payload={"a": 1})
+    audit.record(db, actor="steward", action="mapping_reversed", payload={"b": 2})
+    db.flush()
+
+    events = list(db.scalars(__import__("sqlalchemy").select(DecisionEvent)
+                             .order_by(DecisionEvent.id)))
+    assert [e.prev_hash for e in events] == [audit.GENESIS, events[0].entry_hash]
+    assert audit.verify(db).intact
