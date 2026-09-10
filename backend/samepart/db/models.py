@@ -186,7 +186,14 @@ class CandidateMatch(Base):
 
 
 class DecisionEvent(Base):
-    """Append-only. Never updated, never deleted."""
+    """Append-only, and now provably so.
+
+    Append-only was a property of our code: nothing in the application updates or deletes one
+    of these rows. That guarantee ends the moment somebody opens the database file. The two
+    hash columns chain each event to the one before it, so an edit, a deletion or an insertion
+    anywhere in the trail breaks every link after it and `samepart.audit.verify` names the
+    first row where it parts.
+    """
     __tablename__ = "decision_event"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -196,6 +203,12 @@ class DecisionEvent(Base):
     action: Mapped[str] = mapped_column(String(32), default="")
     payload: Mapped[dict | None] = mapped_column(JSON, default=None)
     at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    # Nullable so a database written before the chain existed still loads. `verify` reports an
+    # unsealed row rather than accepting it: it is not evidence of tampering, but it is not
+    # evidence of integrity either.
+    prev_hash: Mapped[str | None] = mapped_column(String(64), default=None)
+    entry_hash: Mapped[str | None] = mapped_column(String(64), default=None)
 
 
 class CanonicalMaterial(Base):

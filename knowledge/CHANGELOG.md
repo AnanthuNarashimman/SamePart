@@ -1604,6 +1604,50 @@ the schema cannot yet express the ISO 15 bore-code lookup that would read it.
 
 ---
 
+## 2026-09-11 — Tamper-evident decision trail, and a focused test suite
+
+**W3, deliberately smaller than planned.** The plan called for ~50 tests; the honest scope
+turned out to be 51 assertions across five files covering only what `cli evaluate`
+structurally cannot see. The harness is the better regression net for the matcher — it found
+the part-number defect no unit test would have — so tests cover properties with an exact right
+answer that never move an aggregate metric: unit conversion, the national code, the egress
+default, gate precedence, and a walk over every family's dictionary.
+
+Two gate tests failed on first run and both were the test being wrong about the domain, not
+the code: 8.8 against 10.9 returns `possible_alternative` because the family declares that
+substitution, and ISO 4014 against DIN 931 returns `same` because they are declared
+`equivalent`. Both are now asserted explicitly.
+
+One test paid for the whole exercise within minutes of being written. `seat_material` and
+`standard` vary between identities but were absent from `identity_keys` in two families
+authored the same day, so two valves differing only in seat — or two gaskets differing only in
+standard — would have shared a part number and been merged by the identity tier on fabricated
+evidence. The same defect as `_mpn`, caught by a check written for exactly that class.
+
+**W4: the decision trail is now tamper-evident.** It was already append-only in the sense that
+nothing in the application updates or deletes a `decision_event`, but that is a property of our
+code and it ends the moment somebody opens the database file. Each event now carries a SHA-256
+of its own contents bound to the hash of the event before it, so an edit, a deletion or an
+insertion breaks every link after it. `cli verify` and `GET /api/audit/verify` name the first
+row where the chain parts.
+
+Not a blockchain and no distributed claim: the same construction a tamper-evident log has used
+for decades, honest about proving that the trail has not been altered *since it was written*,
+not that what was written was true. The endpoint is deliberately unauthenticated — the point of
+tamper evidence is that anyone can check it, including someone who does not trust the operator.
+
+Two real bugs surfaced while testing it, neither of which would have been visible without a
+test that actually tampers. The hash was computed over an in-memory timezone-aware datetime
+while SQLite returns a naive one, so a freshly sealed chain failed on its own first event; the
+timestamp is now normalised to its stored form. And `head()` read the newest row to find the
+previous hash, but sealing happens after the flush that assigns an id — so every event chained
+onto itself, read its own empty hash and recorded GENESIS.
+
+Verified on the real trail: 1,935 events, intact. Editing one row directly with sqlite3 breaks
+it at exactly that row and `verify` exits non-zero; restoring the file returns it to intact.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

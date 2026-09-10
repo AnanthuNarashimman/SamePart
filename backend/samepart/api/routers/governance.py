@@ -16,6 +16,20 @@ def info(svc: GovernanceService = Depends(governance_service)):
     return svc.info()
 
 
+@router.get("/audit/verify")
+def audit_verify():
+    """Whether the decision trail has been altered since it was written.
+
+    Deliberately not behind a role: the point of tamper evidence is that anyone can check it,
+    including someone who does not trust the operator.
+    """
+    from samepart.audit import verify
+    from samepart.db.session import session_scope
+
+    with session_scope() as db:
+        return verify(db).as_dict()
+
+
 @router.get("/audit", response_model=s.AuditTrail)
 def audit(cursor: str | None = None, limit: int = Query(50, ge=1, le=500),
           actor: str | None = None, action: str | None = None,

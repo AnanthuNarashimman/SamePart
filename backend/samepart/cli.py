@@ -3,6 +3,7 @@
     python -m samepart.cli seed      generate catalogues and ingest them
     python -m samepart.cli stats     what is currently in the database
     python -m samepart.cli evaluate  score the matcher against the labels
+    python -m samepart.cli verify    check the audit chain has not been altered
 """
 from __future__ import annotations
 
@@ -409,6 +410,23 @@ def _check_thresholds(report) -> int:
     return 1 if missing else 0
 
 
+def verify() -> None:
+    """Walk the decision trail and report whether it has been altered since it was written."""
+    from samepart import audit
+
+    with session_scope() as db:
+        status = audit.verify(db)
+
+    print(f"\naudit chain: {status.events:,} events")
+    if status.intact:
+        print("    intact — every event hashes to the value recorded against it, and each")
+        print("    chains onto the one before it.")
+    else:
+        print(f"    BROKEN at event {status.broken_at}")
+        print(f"    {status.reason}")
+    sys.exit(0 if status.intact else 1)
+
+
 def stats() -> None:
     with session_scope() as db:
         records = db.scalar(select(func.count(SourceRecord.id))) or 0
@@ -431,4 +449,4 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
     {"seed": seed, "stats": stats, "match": match, "summary": summarise,
      "enrich": enrich, "baseline": baseline, "flis": flis,
-     "evaluate": evaluate}[cmd]()
+     "evaluate": evaluate, "verify": verify}[cmd]()

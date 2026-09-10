@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
+from samepart import audit
 from samepart.api import schemas as s
 from samepart.db.models import (ExtractedAttribute, Organisation, ProcurementLine,
                                 SourceRecord)
@@ -661,9 +662,14 @@ class LiveReview:
             canonical.classification_code = anchor
 
     def _event(self, db, m, req, action: str, payload: dict) -> None:
-        db.add(DecisionEvent(
+        event = DecisionEvent(
             pair_id=m.id, canonical_id=payload.get("canonical_id"), actor=req.reviewer,
-            action=action, payload={**payload, "note": req.note, "verdict": m.verdict}))
+            action=action, payload={**payload, "note": req.note, "verdict": m.verdict})
+        db.add(event)
+        # Flushed first so the row has its id: the hash covers the id, and hashing before it
+        # exists would seal a different object than the one stored.
+        db.flush()
+        audit.seal(db, event)
 
 
 class ModelEnrichment:
