@@ -46,7 +46,7 @@ const NAV_ITEMS = [
   { n: '02', label: 'Import', to: '/import', icon: 'import' },
   { n: '03', label: 'Reconciliation desk', to: '/desk', icon: 'desk' },
   { n: '04', label: 'Duplicate check', to: '/check', icon: 'check' },
-  { n: '05', label: 'Insights', to: '/graph', icon: 'graph' },
+  { n: '05', label: 'Relationship graph', to: '/graph', icon: 'graph' },
 ] as const
 
 function Icon({ name, className }: { name: keyof typeof ICONS; className?: string }) {

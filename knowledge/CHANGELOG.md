@@ -18,12 +18,17 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
-### Insights page: five charts that answer questions people actually ask
+### Insights page: built, then reverted at the team's call
 **Who:** Aditya (with Claude)
 
-The relationship graph was a network diagram, which shows that things are connected, a thing
-everyone already believes. It is now one panel on a page that shows what the connections are
-worth.
+**Reverted the same day.** The relationship graph is back exactly as Ananthu wrote it, and
+the sidebar reads "Relationship graph" again. The page and the routing are gone.
+
+**What was kept, dormant:** the five chart components under `src/components/insights/`, and
+the three endpoints behind them, which are live and returning real data. Nothing in the app
+imports the components. Picking this back up is a page and a route, not a rebuild.
+
+The original reasoning, kept for whenever that happens:
 
 | Chart | What it answers |
 |---|---|
@@ -64,8 +69,12 @@ None of them mine, all worth knowing:
 - **`recharts` needs `react-is`**, which was never installed because recharts was in
   `package.json` but not imported anywhere until now
 
-The graph itself was extracted as `ClusterGraph` so it can sit inside the Insights page.
-**What it renders is unchanged**, and the standalone route still works.
+The `ClusterGraph` extraction was undone with the rest. `RelationshipGraph.tsx` is
+byte-identical to what Ananthu wrote, verified against git rather than assumed.
+
+**The three frontend defects found on the way stay fixed**, since they were real and
+unrelated: the types script path, the uninstalled graph library, and the missing recharts
+peer dependency. So does the model tier being reachable from matching.
 
 
 ### Redistribution: the one finding cross-organisation identity makes possible
