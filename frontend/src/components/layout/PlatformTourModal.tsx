@@ -34,7 +34,7 @@ const STEPS: TourStep[] = [
   {
     eyebrow: 'Welcome',
     title: 'One dashboard, every CPSE',
-    body: 'SamePart pulls every connected organisation’s material master into one place, so you can see how much duplication is hiding across catalogues before you fix any of it.',
+    body: 'Meridian pulls every connected organisation’s material master into one place, so you can see how much duplication is hiding across catalogues before you fix any of it.',
     mockup: (
       <Frame>
         <div className="mb-3 flex items-center justify-between">
@@ -59,7 +59,7 @@ const STEPS: TourStep[] = [
   {
     eyebrow: 'Import · step 1',
     title: 'Bring in a catalogue file',
-    body: 'Pick which CPSE a file belongs to and drop in its CSV. SamePart reads the real header row from the file itself — nothing about the source is hardcoded.',
+    body: 'Pick which CPSE a file belongs to and drop in its CSV. Meridian reads the real header row from the file itself — nothing about the source is hardcoded.',
     mockup: (
       <Frame>
         <p className="mb-2 text-xs font-semibold text-stone-900">1. Choose source and file</p>
@@ -80,7 +80,7 @@ const STEPS: TourStep[] = [
   {
     eyebrow: 'Import · step 2',
     title: 'Map columns, not code',
-    body: 'Every source calls things something different. Line each of their columns up against SamePart’s fields once — description, source code, unit — and the mapping is reused for that source.',
+    body: 'Every source calls things something different. Line each of their columns up against Meridian’s fields once — description, source code, unit — and the mapping is reused for that source.',
     mockup: (
       <Frame>
         <p className="mb-2 text-xs font-semibold text-stone-900">Column mapping</p>
@@ -296,7 +296,7 @@ export function PlatformTourModal({ open, onClose }: { open: boolean; onClose: (
               onClick={() => (isLast ? onClose() : setStep((s) => s + 1))}
               className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
             >
-              {isLast ? 'Start using SamePart' : 'Next'}
+              {isLast ? 'Start using Meridian' : 'Next'}
             </button>
           </div>
         </div>

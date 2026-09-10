@@ -16,3 +16,8 @@ data/
 # Local working notes and the original brief
 notes/
 SamePart_Project_Plan*.docx
+
+# Local skills CLI installs (npx skills add ...) — machine-local, not app code
+.agents/
+.claude/
+skills-lock.json

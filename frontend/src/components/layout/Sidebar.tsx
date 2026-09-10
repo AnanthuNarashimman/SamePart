@@ -65,7 +65,7 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
   )
 }
 
-const STORAGE_KEY = 'samepart:sidebar-collapsed'
+const STORAGE_KEY = 'meridian:sidebar-collapsed'
 
 const initials = (code: string) => code.slice(0, 2)
 
@@ -117,9 +117,9 @@ export function Sidebar() {
 
       <div className={`flex items-center gap-2 px-1 pt-1 ${collapsed ? 'justify-center' : ''}`}>
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">
-          S
+          M
         </span>
-        {!collapsed && <span className="text-sm font-semibold tracking-wide">SamePart</span>}
+        {!collapsed && <span className="text-sm font-semibold tracking-wide">Meridian</span>}
       </div>
 
       {/* Company context card — which CPSE this session is acting as */}

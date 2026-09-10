@@ -26,7 +26,7 @@ export function Dashboard() {
           </p>
         </div>
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
-          S
+          M
         </span>
       </header>
 
