@@ -42,7 +42,15 @@ class CascadeResult:
     unobtainable: list[str] = field(default_factory=list)
 
     def auto_mergeable(self, policy) -> bool:
-        """Nothing here is a judgement call, so nobody needs to make one."""
+        """Nothing here is a judgement call, so nobody needs to make one.
+
+        A model verdict is never auto-mergeable, whatever the policy says. Automation is
+        permitted only where nothing is being judged, and a model call happens precisely
+        because something is. This is also what keeps the problem statement's user-validation
+        requirement satisfied once inference enters the pipeline.
+        """
+        if self.decided_by == "model":
+            return False
         if not policy.enabled or self.verdict is not Verdict.SAME:
             return False
         if policy.forbid_gate_override and self.gate.overridden:
@@ -126,9 +134,25 @@ def attribute_agreement(family: Family, a: dict, b: dict,
     return (num / den if den else 0.0), compared, disagreed, missing_critical, unobtainable
 
 
+def needs_model(result: "CascadeResult", a: dict, b: dict, family: Family) -> bool:
+    """Is this pair genuinely ambiguous, or simply missing data?
+
+    A model cannot invent a value nobody wrote down, so routing a pair whose critical
+    attributes are absent wastes a call and risks an invention. The band worth spending on is
+    the one where the facts are present and the rules still cannot settle it.
+    """
+    if result.verdict is not Verdict.INSUFFICIENT_EVIDENCE:
+        return False
+    for attr in family.attributes:
+        if attr.must_be_known and (a.get(attr.key) is None or b.get(attr.key) is None):
+            return False
+    return True
+
+
 def run(family: Family, a: dict, b: dict,
         unresolvable_a: set[str] | None = None,
-        unresolvable_b: set[str] | None = None) -> CascadeResult:
+        unresolvable_b: set[str] | None = None,
+        model=None) -> CascadeResult:
     settled = (unresolvable_a or set()) | (unresolvable_b or set())
     if identity_match(family, a, b):
         gate = evaluate(family, a, b, Verdict.SAME, settled)
@@ -170,7 +194,30 @@ def run(family: Family, a: dict, b: dict,
 
     decided_by = "gate" if gate.overridden else "attributes"
     rationale = why if not gate.overridden else f"{why} {gate.rationale}"
-    return CascadeResult(verdict=verdict, decided_by=decided_by, score=round(score, 4),
-                         proposal=proposal, gate=gate, rationale=rationale.strip(),
-                         compared=compared, disagreed=disagreed, missing=missing,
-                         unobtainable=unobtainable)
+    result = CascadeResult(verdict=verdict, decided_by=decided_by, score=round(score, 4),
+                           proposal=proposal, gate=gate, rationale=rationale.strip(),
+                           compared=compared, disagreed=disagreed, missing=missing,
+                           unobtainable=unobtainable)
+
+    # Tier 3. Only for pairs whose facts are present and whose rules still cannot settle it.
+    if model is not None and needs_model(result, a, b, family):
+        from samepart.model.compare import compare as model_compare
+
+        mv = model_compare(model, family, a, b)
+        if mv.ok and mv.verdict is not None:
+            # The gates run again over the model's answer and can overrule it. A model that
+            # says same over a grade conflict loses to a rule an engineer can read.
+            gate2 = evaluate(family, a, b, mv.verdict, settled)
+            result.verdict = gate2.verdict
+            result.gate = gate2
+            result.decided_by = "model"
+            result.rationale = (f"{mv.reason} "
+                                f"(decided on {mv.deciding_attribute or 'agreement across all attributes'})"
+                                ).strip()
+            if mv.condition:
+                result.gate.substitution_conditions = list(
+                    dict.fromkeys([*gate2.substitution_conditions, mv.condition]))
+        elif mv.error:
+            result.rationale = f"{result.rationale} Model tier unavailable: {mv.error}"
+
+    return result

@@ -18,6 +18,56 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### The model tier, second half: pairwise comparison
+**Who:** Aditya (with Claude) · **Completes:** capability 1's "AI-based matching"
+
+Tier 3 of the cascade. It sees **typed attributes with their evidence, never raw text**, so
+it is comparing established facts rather than guessing at similar-looking strings.
+
+**Only 224 of 3,429 pairs reach it, which is 6.5%.** The rest are settled by rules, or are
+missing a value no model can invent. Routing a pair whose critical attributes are absent
+wastes a call and invites a fabrication, so `needs_model` excludes them.
+
+Three constraints, all deliberate:
+
+1. **A model verdict is never auto-merged**, whatever the automation policy says. Automation
+   is permitted only where nothing is being judged, and a model call happens precisely
+   because something is. This is what keeps the PS's user-validation requirement satisfied
+   now that inference is in the pipeline
+2. **The gates run again over the model's answer** and can overrule it
+3. **It must name the deciding attribute.** A verdict citing no known attribute is rejected,
+   because "they look alike" is the reasoning this system exists to replace
+
+Unprompted, it got the asymmetry right on strength classes: 10.9 may replace 8.8, but 8.8
+must never replace 10.9.
+
+### A prompt bug that halved accuracy, and what it teaches
+First measurement on the ambiguous band: **40%**, worse than useless.
+
+Every error was the same shape. One record states a finish, the other is silent, and the
+model answered insufficient_evidence because finish is "critical".
+
+**The model was following my instruction faithfully. The instruction was wrong.** We had
+carefully separated two questions in the dictionary — does a *difference* mean different
+materials, and must the value be *known* to decide at all — and then I wrote a prompt that
+said only "critical" and let both collapse into one.
+
+After telling the model which attributes are identity-bearing and which must be known,
+separately:
+
+| | Agreement with ground truth |
+|---|---|
+| Rules alone on this band | 40% |
+| Model tier, original prompt | 40% |
+| **Model tier, corrected prompt** | **84%** |
+
+Same model, same data, same 25 pairs. The lesson worth keeping: when a model underperforms,
+check whether the prompt contradicts the system's own semantics before concluding anything
+about the model.
+
+Cost on the band: about 2 seconds and roughly 700 tokens per pair.
+
+
 ### The model tier, first half: extraction. And it abstains.
 **Who:** Aditya (with Claude) · **Closes:** the "no NLP anywhere" exposure
 
