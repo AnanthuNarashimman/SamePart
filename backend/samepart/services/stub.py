@@ -238,6 +238,44 @@ class StubAnalytics:
                                              orders_in_window=4, annual_demand=980.0,
                                              unit_price_base=41.8)])])
 
+    def cascade_breakdown(self):
+        return s.CascadeBreakdown(
+            total_pairs=3429, decided_without_a_model=3205, share_without_a_model=0.935,
+            tiers=[s.CascadeTier(tier="identity", label="Manufacturer part number",
+                                 pairs=412, share=0.12, needs_a_model=False),
+                   s.CascadeTier(tier="attributes", label="Attribute agreement",
+                                 pairs=1998, share=0.583, needs_a_model=False),
+                   s.CascadeTier(tier="gate", label="Conflict gate",
+                                 pairs=795, share=0.232, needs_a_model=False),
+                   s.CascadeTier(tier="model", label="Language model",
+                                 pairs=224, share=0.065, needs_a_model=True)])
+
+    def price_spread(self, limit=12):
+        return s.PriceSpreadReport(
+            median_spread=1.43, flag_threshold=2.14,
+            items=[s.PriceSpread(
+                canonical_id="IN-0000023-1", national_code="IN-31161600-0000023-8",
+                standardised_short="BOLT, HEX HEAD; M10X40; A2-70; ISO4014",
+                price_min=30.79, price_max=241.75, spread=7.85, flagged=True,
+                points=[s.PricePoint(org_code="BPCL", unit_price_base=30.79,
+                                     quantity=8200, orders=3),
+                        s.PricePoint(org_code="IOCL", unit_price_base=241.75,
+                                     quantity=1400, orders=2)])])
+
+    def stock_ageing(self, idle_days=365):
+        return s.StockAgeing(
+            total_records_with_stock=417, total_base_quantity=291564, idle_threshold_days=idle_days,
+            buckets=[s.AgeBucket(label="under 3 months", from_days=0, to_days=90,
+                                 records=52, base_quantity=18400),
+                     s.AgeBucket(label="3 to 12 months", from_days=90, to_days=365,
+                                 records=161, base_quantity=61200),
+                     s.AgeBucket(label="1 to 2 years", from_days=365, to_days=730,
+                                 records=38, base_quantity=29800),
+                     s.AgeBucket(label="2 to 3 years", from_days=730, to_days=1095,
+                                 records=71, base_quantity=74300),
+                     s.AgeBucket(label="over 3 years", from_days=1095, to_days=None,
+                                 records=95, base_quantity=107864)])
+
     def rationalisation(self, limit=100):
         return s.RationalisationResult(
             window="last 4 financial years", records=654, dead_codes=124,

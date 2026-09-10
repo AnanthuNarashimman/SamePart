@@ -95,7 +95,9 @@ function DemoEdge({ sourceX, sourceY, targetX, targetY, data }: EdgeProps<Edge<D
 
 const edgeTypes = { demo: DemoEdge }
 
-export function RelationshipGraph() {
+// The graph on its own, so it can sit inside the Insights page as the closing visual as well
+// as standing alone. Same nodes, same edges, same look.
+export function ClusterGraph() {
   const nodes = useMemo<Node<DemoNodeData>[]>(
     () =>
       RAW_NODES.map((n) => ({
@@ -121,16 +123,7 @@ export function RelationshipGraph() {
   )
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden app-canvas p-8">
-      <header className="mb-6 shrink-0">
-        <h1 className="text-xl font-semibold text-stone-900">Relationship graph</h1>
-        <p className="text-sm text-stone-400">
-          One curated cluster — how four source records resolve to a single canonical material.
-          Drag nodes, scroll to zoom, or use the controls in the corner.
-        </p>
-      </header>
-
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
+    <div className="relative h-full w-full overflow-hidden bg-white">
         <svg width="0" height="0">
           <defs>
             <marker id="demo-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -157,6 +150,25 @@ export function RelationshipGraph() {
           <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded border border-dashed border-khaki-500" /> possible alternative</span>
           <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-primary-500" /> canonical material</span>
         </div>
+    </div>
+  )
+}
+
+
+// The standalone page, unchanged in what it shows.
+export function RelationshipGraph() {
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden app-canvas p-8">
+      <header className="mb-6 shrink-0">
+        <h1 className="text-xl font-semibold text-stone-900">Relationship graph</h1>
+        <p className="text-sm text-stone-400">
+          One curated cluster — how four source records resolve to a single canonical material.
+          Drag nodes, scroll to zoom, or use the controls in the corner.
+        </p>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-stone-100 shadow-sm">
+        <ClusterGraph />
       </div>
 
       <p className="mt-4 shrink-0 text-xs text-stone-400">

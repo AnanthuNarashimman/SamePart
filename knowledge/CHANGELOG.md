@@ -18,6 +18,56 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Insights page: five charts that answer questions people actually ask
+**Who:** Aditya (with Claude)
+
+The relationship graph was a network diagram, which shows that things are connected, a thing
+everyone already believes. It is now one panel on a page that shows what the connections are
+worth.
+
+| Chart | What it answers |
+|---|---|
+| **How each pair was decided** | "Where is the AI" and "does this scale", in one picture |
+| **What each CPSE paid** | The money story, and where the audit flags come from |
+| **Where to stop answering** | Diminishing returns, so a data owner stops on purpose |
+| **Each CPSE's master** | Every organisation looks for its own row first |
+| **How long stock has sat** | Which piles are redistribution candidates |
+
+Three new endpoints behind them: `/analytics/cascade`, `/analytics/price-spread`,
+`/analytics/stock-ageing`. The other two use data already returned.
+
+### On the charting library that was suggested
+`lieflat-charts` was proposed. **Declined, for a licence reason.** It is PolyForm
+Noncommercial 1.0.0: commercial use requires a separate licence, and the pitch is that this
+becomes a national framework adopted across public sector enterprises. Building a
+noncommercial-only dependency into that creates a problem someone has to unpick, and "is your
+stack licensable for government deployment" is a fair question.
+
+It is also the wrong shape, being an agent skill that emits standalone HTML reports rather
+than a component library. **Recharts was already installed and unused**, MIT licensed. Its
+design principles, real units preserved and hierarchy through spacing rather than decoration,
+were worth taking without the dependency.
+
+### The model tier was unreachable from matching
+Tier 3 was wired into `cascade.run` but `build_matches` never passed a model, so the model
+never ran in the main path and the cascade chart showed 100% deterministic. Now opt-in via
+`SAMEPART_MODEL_MATCHING=1`, off by default, same posture as egress: about two seconds a pair
+and the deterministic tiers settle everything anyway.
+
+### Three defects found in the frontend while building this
+None of them mine, all worth knowing:
+
+- **`gen:types` pointed at `/api/openapi.json`** rather than `/openapi.json` and had been
+  failing silently, which is why types were being hand-written
+- **`@xyflow/react` was declared but not installed**, so the build was broken on a fresh
+  checkout
+- **`recharts` needs `react-is`**, which was never installed because recharts was in
+  `package.json` but not imported anywhere until now
+
+The graph itself was extracted as `ClusterGraph` so it can sit inside the Insights page.
+**What it renders is unchanged**, and the standalone route still works.
+
+
 ### Redistribution: the one finding cross-organisation identity makes possible
 **Who:** Aditya (with Claude) · beyond the eight named capabilities
 

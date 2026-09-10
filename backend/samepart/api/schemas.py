@@ -553,6 +553,69 @@ class RedistributionReport(BaseModel):
     items: list[RedistributionOpportunity] = Field(default_factory=list)
 
 
+class CascadeTier(BaseModel):
+    tier: str
+    label: str
+    pairs: int
+    share: float
+    needs_a_model: bool
+    verdicts: dict[str, int] = Field(default_factory=dict)
+
+
+class CascadeBreakdown(BaseModel):
+    """Which tier settled each pair.
+
+    The point of the picture: the overwhelming majority never reach a model. That answers
+    "where is the AI" and "does this scale" at once, and it is the strongest technical claim
+    in the system.
+    """
+    total_pairs: int
+    decided_without_a_model: int
+    share_without_a_model: float
+    tiers: list[CascadeTier] = Field(default_factory=list)
+
+
+class PricePoint(BaseModel):
+    org_code: str
+    unit_price_base: float
+    quantity: float
+    orders: int
+
+
+class PriceSpread(BaseModel):
+    canonical_id: str
+    national_code: str | None = None
+    standardised_short: str | None = None
+    points: list[PricePoint] = Field(default_factory=list)
+    price_min: float
+    price_max: float
+    spread: float = Field(description="Highest divided by lowest")
+    flagged: bool = Field(description="Spread far enough above the norm to suspect the merge")
+
+
+class PriceSpreadReport(BaseModel):
+    currency: str = "INR"
+    median_spread: float
+    flag_threshold: float
+    items: list[PriceSpread] = Field(default_factory=list)
+
+
+class AgeBucket(BaseModel):
+    label: str
+    from_days: int
+    to_days: int | None = None
+    records: int
+    base_quantity: float
+
+
+class StockAgeing(BaseModel):
+    """How long redistribution candidates have been sitting."""
+    total_records_with_stock: int
+    total_base_quantity: float
+    idle_threshold_days: int
+    buckets: list[AgeBucket] = Field(default_factory=list)
+
+
 class FamilySummary(BaseModel):
     family: str
     label: str

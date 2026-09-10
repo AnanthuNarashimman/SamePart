@@ -184,6 +184,62 @@ export interface RationalisationResult {
   items: DeadCode[]
 }
 
+export interface CascadeTier {
+  tier: string
+  label: string
+  pairs: number
+  share: number
+  needs_a_model: boolean
+  verdicts: Record<string, number>
+}
+
+export interface CascadeBreakdown {
+  total_pairs: number
+  decided_without_a_model: number
+  share_without_a_model: number
+  tiers: CascadeTier[]
+}
+
+export interface PricePoint {
+  org_code: string
+  unit_price_base: number
+  quantity: number
+  orders: number
+}
+
+export interface PriceSpread {
+  canonical_id: string
+  national_code: string | null
+  standardised_short: string | null
+  points: PricePoint[]
+  price_min: number
+  price_max: number
+  spread: number
+  flagged: boolean
+}
+
+export interface PriceSpreadReport {
+  currency: string
+  median_spread: number
+  flag_threshold: number
+  items: PriceSpread[]
+}
+
+export interface AgeBucket {
+  label: string
+  from_days: number
+  to_days: number | null
+  records: number
+  base_quantity: number
+}
+
+export interface StockAgeing {
+  total_records_with_stock: number
+  total_base_quantity: number
+  idle_threshold_days: number
+  buckets: AgeBucket[]
+}
+
 export interface StockHolder {
   org_code: string
   source_code: string

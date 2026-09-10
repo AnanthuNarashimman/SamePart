@@ -6,6 +6,7 @@ cannot tell the difference.
 """
 from __future__ import annotations
 
+import os
 import random
 import uuid
 from collections import Counter
@@ -310,6 +311,16 @@ class LiveReview:
             policy = family.auto_merge
             rng = random.Random(20260909)
 
+            # The model tier is opt-in for matching, off by default. It costs about two
+            # seconds a pair and only the genuinely ambiguous band reaches it, but on a full
+            # rebuild that band is still large enough to matter. Same posture as egress:
+            # the safe thing runs unless someone deliberately asks for the other.
+            model = None
+            if os.getenv("SAMEPART_MODEL_MATCHING", "0").lower() in ("1", "true", "yes"):
+                from samepart.model.client import get_model
+                candidate = get_model()
+                model = candidate if candidate.available else None
+
             pairs = retriever.candidate_pairs()
             if only_records:
                 pairs = {p for p in pairs
@@ -319,7 +330,7 @@ class LiveReview:
                 a_id, b_id = sorted((int(sa), int(sb)))
                 a, b = by_id[a_id], by_id[b_id]
                 result = cascade.run(family, a.attrs(), b.attrs(),
-                                     a.unresolvable(), b.unresolvable())
+                                     a.unresolvable(), b.unresolvable(), model=model)
                 counts[_GROUP_OF[result.verdict.value]] += 1
 
                 row = decided.get((a_id, b_id))
@@ -1725,3 +1736,129 @@ class _RedistributionMixin:
 # LiveAnalytics gains redistribution here rather than by inheritance order, because the mixin
 # is defined after it and Python is not going to pretend otherwise.
 LiveAnalytics.redistribution = _RedistributionMixin.redistribution
+
+
+# ---------------------------------------------------------------------------
+# Insights: the three views the pitch rests on
+# ---------------------------------------------------------------------------
+TIER_LABEL = {
+    "identity": ("Manufacturer part number", False),
+    "attributes": ("Attribute agreement", False),
+    "gate": ("Conflict gate", False),
+    "model": ("Language model", True),
+}
+
+
+class _InsightsMixin:
+    def cascade_breakdown(self) -> s.CascadeBreakdown:
+        with session_scope() as db:
+            rows = db.execute(
+                select(CandidateMatch.decided_by, CandidateMatch.verdict,
+                       func.count(CandidateMatch.id))
+                .group_by(CandidateMatch.decided_by, CandidateMatch.verdict)).all()
+
+        by_tier: dict[str, dict[str, int]] = {}
+        for tier, verdict, n in rows:
+            by_tier.setdefault(tier or "attributes", {})[verdict or "unknown"] = n
+
+        total = sum(sum(v.values()) for v in by_tier.values())
+        tiers = []
+        for tier, verdicts in by_tier.items():
+            label, needs_model = TIER_LABEL.get(tier, (tier.title(), False))
+            pairs = sum(verdicts.values())
+            tiers.append(s.CascadeTier(
+                tier=tier, label=label, pairs=pairs,
+                share=round(pairs / total, 4) if total else 0.0,
+                needs_a_model=needs_model, verdicts=verdicts))
+
+        # Cheapest tier first, which is also the order the cascade runs in.
+        order = ["identity", "attributes", "gate", "model"]
+        tiers.sort(key=lambda t: order.index(t.tier) if t.tier in order else 99)
+        without = sum(t.pairs for t in tiers if not t.needs_a_model)
+        return s.CascadeBreakdown(
+            total_pairs=total, decided_without_a_model=without,
+            share_without_a_model=round(without / total, 4) if total else 0.0,
+            tiers=tiers)
+
+    def price_spread(self, limit: int = 12) -> s.PriceSpreadReport:
+        flagged = {f.canonical_id for f in self.audit_flags(limit=10_000).items}
+
+        with session_scope() as db:
+            names = dict(db.execute(select(CanonicalMaterial.canonical_id,
+                                           CanonicalMaterial.standardised_short)).all())
+            classes = dict(db.execute(select(CanonicalMaterial.canonical_id,
+                                             CanonicalMaterial.classification_code)).all())
+            rows = db.execute(
+                select(ApprovedMapping.canonical_id, Organisation.code,
+                       func.sum(PO.line_value), func.sum(PO.base_quantity), func.count(PO.id))
+                .join(SourceRecord, SourceRecord.id == ApprovedMapping.record_id)
+                .join(Organisation, Organisation.id == SourceRecord.org_id)
+                .join(PO, PO.record_id == SourceRecord.id)
+                .where(PO.unit_price_base.is_not(None))
+                .group_by(ApprovedMapping.canonical_id, Organisation.code)).all()
+
+        grouped: dict[str, list[s.PricePoint]] = {}
+        for cid, org, spend, qty, orders in rows:
+            if not qty:
+                continue
+            grouped.setdefault(cid, []).append(s.PricePoint(
+                org_code=org, unit_price_base=round(spend / qty, 2),
+                quantity=round(qty, 2), orders=orders))
+
+        items: list[s.PriceSpread] = []
+        for cid, points in grouped.items():
+            if len(points) < 2:                # a spread needs at least two buyers
+                continue
+            lo = min(p.unit_price_base for p in points)
+            hi = max(p.unit_price_base for p in points)
+            if lo <= 0:
+                continue
+            items.append(s.PriceSpread(
+                canonical_id=cid,
+                national_code=registry.national_code(cid, classes.get(cid)),
+                standardised_short=names.get(cid),
+                points=sorted(points, key=lambda p: p.unit_price_base),
+                price_min=lo, price_max=hi, spread=round(hi / lo, 2),
+                flagged=cid in flagged))
+
+        spreads = sorted(i.spread for i in items)
+        median = spreads[len(spreads) // 2] if spreads else 0.0
+        items.sort(key=lambda i: -i.spread)
+        return s.PriceSpreadReport(
+            median_spread=round(median, 3), flag_threshold=round(median * 1.5, 3),
+            items=items[:limit])
+
+    def stock_ageing(self, idle_days: int = 365) -> s.StockAgeing:
+        edges = [(0, 90, "under 3 months"), (90, 365, "3 to 12 months"),
+                 (365, 730, "1 to 2 years"), (730, 1095, "2 to 3 years"),
+                 (1095, None, "over 3 years")]
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        with session_scope() as db:
+            records = list(db.scalars(
+                select(SourceRecord).where(SourceRecord.stock_base_qty > 0)))
+            buckets = {label: [0, 0.0] for _, _, label in edges}
+            total_qty = 0.0
+            for r in records:
+                qty = r.stock_base_qty or 0.0
+                total_qty += qty
+                # Stock that has never been issued is the oldest case there is.
+                age = (now - r.last_issue_date).days if r.last_issue_date else 10_000
+                for lo, hi, label in edges:
+                    if age >= lo and (hi is None or age < hi):
+                        buckets[label][0] += 1
+                        buckets[label][1] += qty
+                        break
+
+        return s.StockAgeing(
+            total_records_with_stock=len(records),
+            total_base_quantity=round(total_qty, 2), idle_threshold_days=idle_days,
+            buckets=[s.AgeBucket(label=label, from_days=lo, to_days=hi,
+                                 records=buckets[label][0],
+                                 base_quantity=round(buckets[label][1], 2))
+                     for lo, hi, label in edges])
+
+
+LiveAnalytics.cascade_breakdown = _InsightsMixin.cascade_breakdown
+LiveAnalytics.price_spread = _InsightsMixin.price_spread
+LiveAnalytics.stock_ageing = _InsightsMixin.stock_ageing
