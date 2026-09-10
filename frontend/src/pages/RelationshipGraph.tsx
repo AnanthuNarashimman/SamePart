@@ -7,12 +7,12 @@
 import { useState } from 'react'
 import { useGraph } from '../api/analytics'
 import { ClusterDetail } from '../components/graph/ClusterDetail'
-import { ClusterField } from '../components/graph/ClusterField'
+import { ClusterMap } from '../components/graph/ClusterMap'
 import { QueryState } from '../components/shared/QueryState'
 import { orgColour } from '../components/insights/tokens'
 
 export function RelationshipGraph() {
-  const graph = useGraph(21)
+  const graph = useGraph(28)
   const [picked, setPicked] = useState<string | null>(null)
 
   const clusters = graph.data?.clusters ?? []
@@ -35,10 +35,13 @@ export function RelationshipGraph() {
           <QueryState isLoading={graph.isLoading} isError={graph.isError} error={graph.error} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.15fr_1fr]">
+        <div className="flex flex-col gap-5">
+          {/* The map gets the room. It is the only thing on the page that shows scale. */}
           <section className="rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
             <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <h2 className="text-sm font-semibold text-stone-900">Every cluster at once</h2>
+              <h2 className="text-sm font-semibold text-stone-900">
+                The national material master, so far
+              </h2>
               <ul className="flex flex-wrap items-center gap-3">
                 {orgs.map((o) => (
                   <li key={o} className="flex items-center gap-1.5">
@@ -46,26 +49,48 @@ export function RelationshipGraph() {
                     <span className="font-mono text-[11px] text-stone-500">{o}</span>
                   </li>
                 ))}
+                <li className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full border-2 border-stone-300 bg-white" />
+                  <span className="font-mono text-[11px] text-stone-400">substitute</span>
+                </li>
               </ul>
             </div>
-            <p className="mb-5 text-xs leading-relaxed text-stone-400">
-              Each constellation is one national identity. The dark centre is the code we
-              minted; every dot around it is a CPSE material code that resolved to it, coloured
-              by which organisation it came from. A hollow dot is linked as a substitute rather
-              than merged. Pick one to read what those codes actually said.
+            <p className="mb-2 max-w-3xl text-xs leading-relaxed text-stone-400">
+              Every dark centre is a national code we minted. Every dot around it is one CPSE&apos;s
+              own material code that resolved into it, coloured by the organisation it came from.
+              Hover to isolate a cluster, click to read what those codes actually said.
             </p>
-            <ClusterField
+            <ClusterMap
               clusters={clusters}
               selected={selected?.canonical_id ?? null}
               onSelect={setPicked}
             />
-            <p className="mt-4 border-t border-stone-100 pt-3 text-[11px] text-stone-400">
-              Showing the {graph.data.shown} clusters spanning the most organisations, of{' '}
-              {graph.data.total_clusters} in total.
+            <p className="border-t border-stone-100 pt-3 text-[11px] text-stone-400">
+              Showing the {graph.data.shown} identities spanning the most organisations, of{' '}
+              {graph.data.total_clusters} built so far from {graph.data.total_records} CPSE codes.
             </p>
           </section>
 
-          {selected && <ClusterDetail cluster={selected} />}
+          {selected && (
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+              <ClusterDetail cluster={selected} />
+              <div className="rounded-2xl border border-stone-100 bg-stone-50 p-6">
+                <h3 className="mb-2 text-sm font-semibold text-stone-900">Why this is hard</h3>
+                <p className="text-xs leading-relaxed text-stone-500">
+                  Nothing in those descriptions matches. One writes <code className="rounded bg-white px-1">M20X40</code>,
+                  another <code className="rounded bg-white px-1">M20 x 40mm</code>, a third
+                  <code className="rounded bg-white px-1">DIA 20MM; LG 40MM</code>. A text
+                  comparison finds nothing in common. Each CPSE has been buying the same bolt
+                  under its own code for years, and neither system had any way to know.
+                </p>
+                <p className="mt-3 text-xs leading-relaxed text-stone-500">
+                  The match is made on extracted attributes rather than on the words: diameter,
+                  length, property class, standard. Every value carries the substring that
+                  proved it, so a reviewer can check the working rather than trust a score.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
