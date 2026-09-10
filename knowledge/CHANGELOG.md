@@ -18,6 +18,53 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Redistribution: the one finding cross-organisation identity makes possible
+**Who:** Aditya (with Claude) · beyond the eight named capabilities
+
+`GET /api/analytics/redistribution`. One CPSE is sitting on stock another is about to buy.
+Neither can see it today, because each describes the same item differently and their systems
+have no way to know it is the same thing.
+
+```
+IN-31161600-0000011-4   BOLT, HEX HEAD; M10X80; A2-70; DIN931
+  HOLDS  CPCL: 20 BOX-100 = 2,000 each, unissued 1,732 days
+  BUYS   BPCL: 1,107/yr at Rs 218.84/each, 6 orders
+  -> transfer 1,107, avoid Rs 242,225
+```
+
+30 opportunities, 17,386 base units that could move, Rs 20.2 lakh of purchasing avoided.
+
+That one line does three things at once: it shows unit normalisation earning its keep
+(20 boxes against 2,000 each), it names both parties, and it ends in an action rather than an
+observation.
+
+### Modelled stock rather than inferring it
+A real material master carries quantity on hand; ours did not. Inferring "sitting unused"
+from a gap in purchase history is a much weaker claim than reading the number.
+
+Added `stock_on_hand`, `stock_base_qty` and `last_issue_date` through the model, the loader
+and the header aliases, normalised to base units at ingestion exactly like price and quantity.
+A holder's boxes and a buyer's each are therefore directly comparable, which is the
+difference between a transfer recommendation and a nonsense one.
+
+### Two numbers that would not have survived a stores manager
+First run produced 150,000 bolts sitting in one depot, and annualised 25,000 units of demand
+from a single purchase order. Both fixed:
+
+- Stock is now drawn in **base units** at quantities a fastener store would actually hold,
+  then expressed in the issuing unit. Previously it was drawn in issue units and multiplied up
+- Demand is measured over the **actual purchasing window**, first order to last, and requires
+  at least two orders. One order is a purchase, not a rate
+
+Total fell from Rs 70.3 lakh to Rs 20.2 lakh. The smaller number is the real one.
+
+### Four caveats ship inside the response
+Stock is simulated here; idle is a strong signal, not proof the stock can move; freight,
+condition and shelf life are not modelled so the figure is avoided purchase cost rather than
+net saving; and quantities are compared in base units. They travel with the numbers rather
+than sitting in a footnote someone can drop.
+
+
 ### Fictional vendors and sites, so a screenshot cannot be misread
 **Who:** Aditya (with Claude)
 

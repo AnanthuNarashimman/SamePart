@@ -220,6 +220,24 @@ class StubAnalytics:
                                total_spend=1_284_000.0, shared_materials=len(clusters),
                                window="last 4 financial years", clusters=clusters)
 
+    def redistribution(self, idle_days=365, limit=50):
+        return s.RedistributionReport(
+            idle_threshold_days=idle_days, opportunities=1, total_transferable=600.0,
+            total_avoided_spend=25_080.0,
+            caveats=["Stock figures in this dataset are simulated."],
+            items=[s.RedistributionOpportunity(
+                canonical_id="IN-0000417-6", national_code="IN-31161600-0000417-3",
+                standardised_short="BOLT, HEX HEAD; M16X80; A2-70; ISO4014",
+                idle_stock=600.0, annual_demand=980.0, transferable=600.0,
+                unit_price_base=41.8, avoided_spend=25_080.0,
+                holders=[s.StockHolder(org_code="BPCL", source_code="BPCL-000167",
+                                       raw_description="BLT HEX HD M16X80MM  SS304 A2-70",
+                                       stock_on_hand=6.0, stock_uom="C",
+                                       stock_base_qty=600.0, idle_days=1240)],
+                requesters=[s.StockRequester(org_code="CPCL", source_code="CPCL-000156",
+                                             orders_in_window=4, annual_demand=980.0,
+                                             unit_price_base=41.8)])])
+
     def rationalisation(self, limit=100):
         return s.RationalisationResult(
             window="last 4 financial years", records=654, dead_codes=124,

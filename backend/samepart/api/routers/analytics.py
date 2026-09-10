@@ -26,6 +26,17 @@ def rationalisation(limit: int = 100, svc: AnalyticsService = Depends(analytics_
     return svc.rationalisation(limit)
 
 
+@router.get("/analytics/redistribution", response_model=s.RedistributionReport)
+def redistribution(idle_days: int = 365, limit: int = 50,
+                   svc: AnalyticsService = Depends(analytics_service)):
+    """Stock one CPSE already holds that another is actively buying.
+
+    Impossible without cross-organisation identity: neither party can see it today, because
+    each describes the same item differently and their systems cannot tell they match.
+    """
+    return svc.redistribution(idle_days, limit)
+
+
 @router.get("/analytics/audit-flags", response_model=s.AuditFlagResult)
 def audit_flags(limit: int = 50, svc: AnalyticsService = Depends(analytics_service)):
     """Merges the system nominates for a second look, based on evidence it never used."""

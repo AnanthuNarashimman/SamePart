@@ -31,6 +31,11 @@ catalogue:
   manufacturer_part_number:
     - mpn, mfrpn, manufacturer part number, manufacturer part no, mfr part no
     - part number, part no, catalogue number, catalogue no, cat no, model number
+  stock_on_hand:
+    - stock, stock on hand, on hand, closing stock, balance, stock balance
+    - unrestricted stock, labst, quantity on hand, qoh, inventory
+  last_issue_date:
+    - last issue date, last issued, last movement, last goods issue, last consumption
 
 procurement:
   source_code:

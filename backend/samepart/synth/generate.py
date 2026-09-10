@@ -13,7 +13,10 @@ from __future__ import annotations
 import csv
 import random
 from dataclasses import dataclass, asdict
+from datetime import date, timedelta
 from pathlib import Path
+
+WINDOW_END = date(2026, 3, 31)
 
 # ISO 261 / ISO 724 metric coarse series: diameter -> coarse pitch
 COARSE = {6: 1.0, 8: 1.25, 10: 1.5, 12: 1.75, 16: 2.0, 20: 2.5, 24: 3.0}
@@ -96,6 +99,8 @@ class Row:
     unit_price: float
     manufacturer: str
     mfr_part_no: str
+    stock_on_hand: float = 0.0
+    last_issue_date: str = ""
 
 
 def _mpn(ident: Identity) -> str:
@@ -184,6 +189,25 @@ def generate(out_dir: Path, identities: int = 260, seed: int = 20260909) -> dict
             code = f"{org}-{counters[org]:06d}"
             counters[org] += 1
             has_mpn = rng.random() < 0.55
+
+            # Stock on hand, in the issue unit. Three populations, because a real stores
+            # ledger has all three and redistribution only exists because of the third:
+            # actively consumed, empty, and a pile nobody has touched in years.
+            # Drawn in BASE units, at quantities a fastener store would actually hold, then
+            # expressed in whatever unit this organisation issues in. Drawing in issue units
+            # and multiplying up produced 150,000 bolts in a single depot.
+            roll = rng.random()
+            if roll < 0.34:
+                base_stock, last_issue = 0.0, ""
+            elif roll < 0.80:
+                base_stock = float(rng.choice([40, 80, 150, 300, 600]))
+                last_issue = (WINDOW_END - timedelta(days=rng.randint(5, 240))).isoformat()
+            else:
+                # Surplus: a real quantity, untouched for years. This is the money.
+                base_stock = float(rng.choice([400, 800, 1200, 2000, 3500]))
+                last_issue = (WINDOW_END - timedelta(days=rng.randint(900, 1800))).isoformat()
+            stock = round(base_stock / pack, 2) if base_stock else 0.0
+
             catalogues[org].append(Row(
                 source_code=code,
                 description=desc,
@@ -192,6 +216,8 @@ def generate(out_dir: Path, identities: int = 260, seed: int = 20260909) -> dict
                 unit_price=price,
                 manufacturer=ident.manufacturer if has_mpn else "",
                 mfr_part_no=ident.mpn if has_mpn else "",
+                stock_on_hand=stock,
+                last_issue_date=last_issue,
             ))
             labels.append((org, code, ident.identity_id))
 
@@ -221,17 +247,19 @@ def generate(out_dir: Path, identities: int = 260, seed: int = 20260909) -> dict
 def _seed_demo_cases(catalogues, labels, counters, rng) -> None:
     """The demo cases are placed deliberately, not left to chance in random generation."""
     def add(org: str, desc: str, identity: str, uom="EA", qty=1.0, price=41.0,
-            mfr="", mpn="") -> None:
+            mfr="", mpn="", stock=0.0, last_issue="") -> None:
         code = f"{org}-{counters[org]:06d}"
         counters[org] += 1
-        catalogues[org].append(Row(code, desc, uom, qty, price, mfr, mpn))
+        catalogues[org].append(Row(code, desc, uom, qty, price, mfr, mpn,
+                                   stock, last_issue))
         labels.append((org, code, identity))
 
     # 1. Clean merge across three organisations, wildly different wording.
     add("CPCL", "HEX BOLT M16X80  A2-70  ISO 4014  PLAIN", "DEMO-CLEAN", "EA", 1, 41.00)
     add("IOCL", "Bolt, Hexagon Head, M16 x 80mm, Property Class A2-70, Conforming to ISO 4014",
         "DEMO-CLEAN", "BOX-100", 1, 4180.00)
-    add("BPCL", "BLT HEX HD M16X80MM  SS304 A2-70  ISO4014", "DEMO-CLEAN", "C", 1, 4390.00)
+    add("BPCL", "BLT HEX HD M16X80MM  SS304 A2-70  ISO4014", "DEMO-CLEAN", "C", 1, 4390.00,
+        stock=6.0, last_issue="2022-11-04")   # 600 each, untouched for over three years
 
     # 2. Grade conflict. Identical but for one critical attribute; must never merge.
     add("CPCL", "HEX BOLT M20X100  8.8  DIN 931  HDG", "DEMO-CONFLICT-A")

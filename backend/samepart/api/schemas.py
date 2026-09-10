@@ -500,6 +500,59 @@ class GovernanceInfo(BaseModel):
     roles: list[RoleInfo] = Field(default_factory=list)
 
 
+class StockHolder(BaseModel):
+    org_code: str
+    source_code: str
+    raw_description: str
+    stock_on_hand: float
+    stock_uom: str | None = None
+    stock_base_qty: float
+    last_issue_date: datetime | None = None
+    idle_days: int | None = None
+
+
+class StockRequester(BaseModel):
+    org_code: str
+    source_code: str
+    orders_in_window: int
+    annual_demand: float = Field(description="Base units bought per year, recent average")
+    unit_price_base: float | None = None
+    last_purchase: datetime | None = None
+
+
+class RedistributionOpportunity(BaseModel):
+    """One CPSE is sitting on stock another is about to buy.
+
+    This is the only finding in the system that is impossible without cross-organisation
+    identity. Neither party can see it today, because the two describe the same item
+    differently and their systems have no way to know it is the same thing.
+    """
+    canonical_id: str
+    national_code: str | None = None
+    standardised_short: str | None = None
+    holders: list[StockHolder] = Field(default_factory=list)
+    requesters: list[StockRequester] = Field(default_factory=list)
+    idle_stock: float = Field(description="Base units sitting unissued")
+    annual_demand: float = Field(description="Base units the requesters buy per year")
+    transferable: float = Field(description="What could move: the lesser of the two")
+    unit_price_base: float | None = None
+    avoided_spend: float = Field(description="Cost of buying what could be transferred")
+
+
+class RedistributionResult:
+    pass
+
+
+class RedistributionReport(BaseModel):
+    currency: str = "INR"
+    idle_threshold_days: int
+    opportunities: int
+    total_transferable: float
+    total_avoided_spend: float
+    caveats: list[str] = Field(default_factory=list)
+    items: list[RedistributionOpportunity] = Field(default_factory=list)
+
+
 class FamilySummary(BaseModel):
     family: str
     label: str

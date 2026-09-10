@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
@@ -28,6 +28,15 @@ from samepart.pipeline.extract import extract
 _IMPORTS: dict[str, s.ImportStatus] = {}
 
 _GIVEN_KEYS = ("manufacturer", "manufacturer_part_number")
+
+
+def _parse_date(value: str | None):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).strip())
+    except ValueError:
+        return None
 
 
 class LiveCatalogue:
@@ -198,6 +207,8 @@ class LiveCatalogue:
             family=family, raw_uom=row.uom, base_uom=row.base_uom,
             quantity=row.quantity, base_quantity=row.base_quantity,
             unit_price=row.unit_price, unit_price_base=row.unit_price_base,
+            stock_on_hand=row.stock_on_hand, stock_base_qty=row.stock_base_qty,
+            last_issue_date=_parse_date(row.last_issue_date),
             row_ref=row.row_ref,
         )
         db.add(record)
@@ -1592,3 +1603,125 @@ class LiveFamilies:
         return s.FamilyLoadResult(family=family.family, loaded=True,
                                   attribute_count=len(family.attributes),
                                   gate_count=len(family.gates))
+
+
+# ---------------------------------------------------------------------------
+# Redistribution: stock one CPSE already owns, that another is about to buy
+# ---------------------------------------------------------------------------
+class _RedistributionMixin:
+    """Mixed into LiveAnalytics. Kept separate because the reasoning is different.
+
+    Every other analytic here describes what is in the data. This one proposes an action, and
+    it is the only finding in the system that cannot exist without cross-organisation
+    identity: two CPSEs cannot see each other's stock of "the same" item while their systems
+    have no way to know it is the same item.
+    """
+
+    def redistribution(self, idle_days: int = 365, limit: int = 50) -> s.RedistributionReport:
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=idle_days)
+
+        with session_scope() as db:
+            members: dict[str, list[int]] = {}
+            for rid, cid in db.execute(
+                    select(ApprovedMapping.record_id, ApprovedMapping.canonical_id)).all():
+                members.setdefault(cid, []).append(rid)
+
+            names = dict(db.execute(select(CanonicalMaterial.canonical_id,
+                                           CanonicalMaterial.standardised_short)).all())
+            classes = dict(db.execute(select(CanonicalMaterial.canonical_id,
+                                             CanonicalMaterial.classification_code)).all())
+
+            # Recent purchasing per source code: who is actively consuming this.
+            # Demand is measured over the actual purchasing window, first order to last,
+            # not over the idle threshold. Dividing a single large order by one year and
+            # calling it annual demand is not a rate, it is one order.
+            demand: dict[int, dict] = {}
+            for rid, orders, qty, spend, first, last in db.execute(
+                select(PO.record_id, func.count(PO.id), func.sum(PO.base_quantity),
+                       func.sum(PO.line_value), func.min(PO.po_date), func.max(PO.po_date))
+                .where(PO.record_id.is_not(None))
+                .group_by(PO.record_id)).all():
+                span_years = max(((last - first).days / 365.0) if first and last else 0.0, 1.0)
+                demand[rid] = {"orders": orders, "qty": qty or 0.0, "spend": spend or 0.0,
+                               "last": last, "years": span_years}
+
+            items: list[s.RedistributionOpportunity] = []
+            for cid, record_ids in members.items():
+                records = [db.get(SourceRecord, rid) for rid in record_ids]
+                holders: list[s.StockHolder] = []
+                requesters: list[s.StockRequester] = []
+
+                for r in records:
+                    idle = None
+                    if r.last_issue_date:
+                        idle = (datetime.now(timezone.utc).replace(tzinfo=None)
+                                - r.last_issue_date).days
+
+                    # Idle stock: a real quantity that has not moved. Stock with no issue
+                    # date at all counts, since a balance nobody has ever drawn against is
+                    # the clearest case of all.
+                    if (r.stock_base_qty or 0) > 0 and (idle is None or idle >= idle_days):
+                        holders.append(s.StockHolder(
+                            org_code=r.org.code, source_code=r.source_code,
+                            raw_description=r.raw_description,
+                            stock_on_hand=r.stock_on_hand or 0.0, stock_uom=r.raw_uom,
+                            stock_base_qty=r.stock_base_qty or 0.0,
+                            last_issue_date=r.last_issue_date, idle_days=idle))
+
+                    d = demand.get(r.id)
+                    # One order is a purchase, not a demand rate. Two is the minimum from
+                    # which anything can be annualised honestly.
+                    if d and d["qty"] > 0 and d["orders"] >= 2 and d["last"] >= cutoff:
+                        years = d["years"]
+                        requesters.append(s.StockRequester(
+                            org_code=r.org.code, source_code=r.source_code,
+                            orders_in_window=d["orders"],
+                            annual_demand=round(d["qty"] / years, 2),
+                            unit_price_base=(round(d["spend"] / d["qty"], 2)
+                                             if d["qty"] else None),
+                            last_purchase=d["last"]))
+
+                # A transfer needs two different organisations. One CPSE holding stock it is
+                # also buying is an internal problem, not a national one.
+                holder_orgs = {h.org_code for h in holders}
+                requesters = [r for r in requesters if r.org_code not in holder_orgs]
+                if not holders or not requesters:
+                    continue
+
+                idle_stock = sum(h.stock_base_qty for h in holders)
+                annual = sum(r.annual_demand for r in requesters)
+                transferable = min(idle_stock, annual)
+                prices = [r.unit_price_base for r in requesters if r.unit_price_base]
+                price = sum(prices) / len(prices) if prices else None
+
+                items.append(s.RedistributionOpportunity(
+                    canonical_id=cid,
+                    national_code=registry.national_code(cid, classes.get(cid)),
+                    standardised_short=names.get(cid),
+                    holders=sorted(holders, key=lambda h: -h.stock_base_qty)[:4],
+                    requesters=sorted(requesters, key=lambda r: -r.annual_demand)[:4],
+                    idle_stock=round(idle_stock, 2), annual_demand=round(annual, 2),
+                    transferable=round(transferable, 2), unit_price_base=price,
+                    avoided_spend=round(transferable * price, 2) if price else 0.0))
+
+        items.sort(key=lambda i: -i.avoided_spend)
+        return s.RedistributionReport(
+            idle_threshold_days=idle_days, opportunities=len(items),
+            total_transferable=round(sum(i.transferable for i in items), 2),
+            total_avoided_spend=round(sum(i.avoided_spend for i in items), 2),
+            items=items[:limit],
+            caveats=[
+                "Stock figures in this dataset are simulated. On real CPSE data these come "
+                "from the material master's own quantity on hand.",
+                "Idle means no goods issue within the threshold. It is a strong signal, not "
+                "proof that the stock is available to move.",
+                "Freight, condition, shelf life and inter-CPSE transfer terms are not "
+                "modelled. The figure is avoided purchase cost, not net saving.",
+                "Quantities are compared in base units, so a holder's boxes and a buyer's "
+                "each are directly comparable.",
+            ])
+
+
+# LiveAnalytics gains redistribution here rather than by inheritance order, because the mixin
+# is defined after it and Python is not going to pretend otherwise.
+LiveAnalytics.redistribution = _RedistributionMixin.redistribution

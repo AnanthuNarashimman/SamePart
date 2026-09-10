@@ -54,6 +54,13 @@ class SourceRecord(Base):
     unit_price_base: Mapped[float | None] = mapped_column(Float, default=None)
     currency: Mapped[str] = mapped_column(String(8), default="INR")
 
+    # Stock on hand. A real material master carries this; ours did not, and inferring
+    # "sitting unused" from a gap in purchase history is a much weaker claim than reading
+    # the quantity. Modelled explicitly so the analysis reads a field rather than a proxy.
+    stock_on_hand: Mapped[float | None] = mapped_column(Float, default=None)
+    stock_base_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    last_issue_date: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+
     row_ref: Mapped[str | None] = mapped_column(String(64), default=None)
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 

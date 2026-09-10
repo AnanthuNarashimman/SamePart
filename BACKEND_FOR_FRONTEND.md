@@ -178,6 +178,24 @@ label it as a real-world rate on screen.
 claim, because those merges are under audit and may be wrong. Showing the withheld figure
 next to the claimed one is the point, not a footnote.
 
+### `GET /api/analytics/redistribution`
+
+**The strongest single screen in the product.** Stock one CPSE already holds that another is
+actively buying. Neither can see it today, because each describes the item differently and
+their systems cannot tell they match.
+
+Each item carries `holders` (who has idle stock, how long unissued) and `requesters` (who
+buys it, how much a year, at what price), plus `transferable` and `avoided_spend`.
+
+Two things to render carefully:
+
+- **Show `stock_on_hand` with its unit AND `stock_base_qty`.** "20 BOX-100 = 2,000 each" is
+  the line that proves unit normalisation is doing real work. Showing only one number throws
+  that away
+- **`caveats` must appear on the page**, not in a tooltip. Stock is simulated, idle is a
+  signal rather than proof, and freight is not modelled. The figure is avoided purchase cost,
+  not net saving
+
 ### `GET /api/analytics/rationalisation`
 
 Capability 5. Codes nobody has ordered in four years.

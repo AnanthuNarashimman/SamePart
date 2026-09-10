@@ -24,6 +24,8 @@ DEFAULT_COLUMN_MAP = {
     "unit_price": "unit_price",
     "manufacturer": "manufacturer",
     "manufacturer_part_number": "mfr_part_no",
+    "stock_on_hand": "stock_on_hand",
+    "last_issue_date": "last_issue_date",
 }
 
 REQUIRED = ("source_code", "description")
@@ -42,6 +44,9 @@ class Row:
     unit_price_base: float | None = None
     manufacturer: str | None = None
     manufacturer_part_number: str | None = None
+    stock_on_hand: float | None = None
+    stock_base_qty: float | None = None
+    last_issue_date: str | None = None
 
 
 @dataclass
@@ -94,7 +99,9 @@ def load_csv(content: bytes, units: UnitRegistry,
                   quantity=_num(get(raw, "quantity")),
                   unit_price=_num(get(raw, "unit_price")),
                   manufacturer=get(raw, "manufacturer"),
-                  manufacturer_part_number=get(raw, "manufacturer_part_number"))
+                  manufacturer_part_number=get(raw, "manufacturer_part_number"),
+                  stock_on_hand=_num(get(raw, "stock_on_hand")),
+                  last_issue_date=get(raw, "last_issue_date"))
 
         if row.uom:
             try:
@@ -106,6 +113,11 @@ def load_csv(content: bytes, units: UnitRegistry,
                     # unit_price is the price of ONE issue unit, so one box of a hundred
                     # costs unit_price and each costs unit_price / 100.
                     row.unit_price_base = round(row.unit_price / spec.factor, 4)
+                if row.stock_on_hand is not None:
+                    # Stock is held in the issue unit too. A hundred boxes is ten thousand
+                    # each, and comparing that with someone else's "10,000" unnormalised is
+                    # how a transfer recommendation becomes nonsense.
+                    row.stock_base_qty = row.stock_on_hand * spec.factor
             except UnknownUnitError:
                 out.errors.append(f"row {n}: unrecognised unit {row.uom!r}, left unconverted")
 
