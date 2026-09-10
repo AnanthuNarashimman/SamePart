@@ -1,13 +1,19 @@
-// 437 messy CPSE codes compressing into 159 trusted identities, with the evidence.
+// Three questions, three sections, in the order a reader asks them.
 //
-// Three earlier versions drew connectivity — which dot joined which dot — on white, with
-// hairlines and a KPI card. None of them felt like compression. This one puts the numbers
-// themselves at the top as the hero, gives the convergence a dark analytical surface where
-// ribbon width is the number of codes collapsed, and lets one hover light the same fact
-// across the fingerprint and every raw description at once.
+//   Compression — 520 messy codes became 178 identities. One strip, at the top, once.
+//   Consensus   — which CPSEs agree on which identity. A matrix, because that is what
+//                 agreement is.
+//   Proof       — why these unrecognisably different descriptions are the same material.
+//
+// Earlier versions tried to make one ribbon diagram carry all three. It could not: a Sankey
+// encodes flow between stages, and there are no stages here, only organisations and
+// identities and the question of which agree. The ribbons were dramatic and after five
+// seconds a reader still could not say which identities mattered, how many CPSEs agreed, or
+// what had actually matched. Splitting the story into three views that each do one job beats
+// one view that does none of them well.
 import { useState } from 'react'
 import { useGraph } from '../api/analytics'
-import { ConvergenceSankey } from '../components/graph/ConvergenceSankey'
+import { ConsensusMatrix } from '../components/graph/ConsensusMatrix'
 import { EvidenceFingerprint } from '../components/graph/EvidenceFingerprint'
 import { EvidenceInspector } from '../components/graph/EvidenceInspector'
 import { orgColour } from '../components/insights/tokens'
@@ -16,8 +22,75 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
+/** Before and after, on one line. Four source masters stacked to their real proportions,
+ *  then the same quantity of material as a much shorter bar of identities. The gap between
+ *  the two bar lengths is the entire product, and it costs one row to say. */
+function CompressionStrip({
+  byOrg,
+  orgs,
+  identities,
+  sourceCodes,
+}: {
+  byOrg: Record<string, number>
+  orgs: string[]
+  identities: number
+  sourceCodes: number
+}) {
+  return (
+    // Both tracks are the same width, so the second bar filling a third of its track is a
+    // direct, honest picture of 178 out of 520. An earlier version gave the right-hand side a
+    // narrower container and then scaled the bar back up to fill it, which drew a nearly-full
+    // bar and said the opposite of what the numbers say.
+    <div className="grid items-center gap-2.5 sm:grid-cols-[1fr_auto_1fr] sm:gap-5">
+      <div className="min-w-0">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            source codes
+          </span>
+          <span className="font-mono text-[11px] tabular-nums text-stone-500">{sourceCodes}</span>
+        </div>
+        <div className="flex h-7 w-full gap-[2px] overflow-hidden rounded-md">
+          {orgs.map((o) => (
+            <div
+              key={o}
+              className="flex items-center justify-center"
+              style={{ width: `${((byOrg[o] ?? 0) / sourceCodes) * 100}%`, background: orgColour(o) }}
+              title={`${o} · ${byOrg[o]} codes`}
+            >
+              <span className="font-mono text-[10px] font-medium text-white/90">{byOrg[o]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <span aria-hidden className="hidden shrink-0 text-lg text-stone-300 sm:block">→</span>
+
+      <div className="min-w-0">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            national identities
+          </span>
+          <span className="font-mono text-[11px] tabular-nums text-stone-500">{identities}</span>
+        </div>
+        {/* Same track width as the left bar, so the shortening is the message. */}
+        <div className="h-7 w-full overflow-hidden rounded-md bg-stone-100">
+          <div
+            className="flex h-full items-center justify-end rounded-md bg-stone-900 pr-2"
+            style={{ width: `${(identities / sourceCodes) * 100}%` }}
+          >
+            <span className="font-mono text-[10px] font-medium text-white/90">
+              {((identities / sourceCodes) * 100).toFixed(0)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function RelationshipGraph() {
-  const graph = useGraph(11)
+  // A matrix reads more rows comfortably than a ribbon diagram ever could.
+  const graph = useGraph(40)
   const [picked, setPicked] = useState<string | null>(null)
   const [lit, setLit] = useState<string | null>(null)
 
@@ -34,9 +107,7 @@ export function RelationshipGraph() {
         </Card>
       ) : (
         <>
-          {/* The numbers are the hero. No card, no border — a box around this would only
-              make it smaller. */}
-          <header className="mb-7">
+          <header className="mb-5">
             <p className="mb-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
               relationship graph
             </p>
@@ -50,13 +121,25 @@ export function RelationshipGraph() {
             </p>
           </header>
 
+          <Card className="mb-6">
+            <CardContent className="py-4">
+              <CompressionStrip
+                byOrg={stats.by_org}
+                orgs={orgs}
+                identities={stats.identities}
+                sourceCodes={stats.source_codes}
+              />
+            </CardContent>
+          </Card>
+
           <section className="mb-6">
             <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Material convergence</h2>
+                <h2 className="text-sm font-semibold text-foreground">Who agrees on what</h2>
                 <p className="text-xs text-muted-foreground">
-                  Ribbon width is how many codes collapsed along it. A dashed tie is a
-                  substitute, which never merges into the identity.
+                  One row per national identity, one column per CPSE. A filled dot means that
+                  CPSE contributed source codes to this identity; the bigger the dot, the more
+                  it contributed.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -68,22 +151,30 @@ export function RelationshipGraph() {
                 ))}
               </div>
             </div>
-            <ConvergenceSankey
+
+            <ConsensusMatrix
               clusters={clusters}
               orgs={orgs}
-              perOrgTotal={stats.by_org}
               selected={selected?.canonical_id ?? null}
               onSelect={setPicked}
             />
+
             <p className="mt-2 text-xs text-muted-foreground">
-              Showing {graph.data.shown} identities of {graph.data.total_clusters}, ranked by how
-              many organisations they span.
+              Showing {graph.data.shown} identities of {graph.data.total_clusters}. Click a row to
+              see why its codes were merged.
             </p>
           </section>
 
           {selected && (
-            <div className="flex flex-col gap-5">
-              {/* The selected identity, at a size that says it is the destination. */}
+            <section className="flex flex-col gap-5">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Why these are one material</h2>
+                <p className="text-xs text-muted-foreground">
+                  The descriptions below share almost no words. The extracted attributes are
+                  identical, and every one of them is traceable to the text it came from.
+                </p>
+              </div>
+
               <Card>
                 <CardContent className="py-5">
                   <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -101,6 +192,10 @@ export function RelationshipGraph() {
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       {selected.orgs.length} CPSEs · {selected.members.length} source codes
+                      {selected.alternatives.length > 0 &&
+                        ` · ${selected.alternatives.length} substitute${
+                          selected.alternatives.length > 1 ? 's' : ''
+                        } held separate`}
                     </span>
                   </div>
                   <Separator className="my-4" />
@@ -128,7 +223,7 @@ export function RelationshipGraph() {
                 lit={lit}
                 onLight={setLit}
               />
-            </div>
+            </section>
           )}
         </>
       )}

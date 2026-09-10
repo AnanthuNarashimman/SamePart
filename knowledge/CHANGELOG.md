@@ -1478,6 +1478,31 @@ here, `d3-sankey` is MIT and is the layout engine MUI's own implementation wraps
 
 ---
 
+## 2026-09-10 — Relationship graph: consensus matrix replaces the Sankey; substitutes now exist
+
+**Why the Sankey went.** A Sankey encodes flow between stages, and this page has no stages —
+it has a set of organisations, a set of identities, and the question of which agree. That is a
+matrix. Eight iterations of ribbon tuning made the picture prettier without making it answer
+the four questions a reader actually has: which identities matter, how many CPSEs agree, what
+matched, and why. The page is now three sections, each doing one job: a compression strip
+(520 codes into 178 identities, said once), a consensus matrix, and the existing proof
+inspector.
+
+In the matrix each cell answers "did this CPSE contribute codes to this identity, and how
+many". Dot **area** carries the count, not radius, because doubling a radius quadruples the
+ink for twice the codes. A substitute gets an outline and never a fill, since "interchangeable
+under conditions" and "the same material" are different claims and must not share a mark.
+
+**The substitute path had never once run.** `baseline` approved only `same_material` verdicts,
+so all 443 `possible_alternative` verdicts stayed queued, the `possible_alternative` table
+stayed empty, and `GraphCluster.alternatives` was empty for every one of the 177 clusters. The
+code for conditional substitutes was complete end to end — gates, decision branch, schema,
+rendering — and no data had ever exercised it, so the part of the problem statement about
+interchangeable-but-not-identical parts was invisible in the product. `baseline` now works
+that queue too, holding a quarter back: 333 linked, 110 left for a reviewer.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

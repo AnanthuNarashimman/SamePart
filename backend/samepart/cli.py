@@ -117,25 +117,43 @@ def baseline() -> None:
     keep_back = int(sys.argv[3]) if len(sys.argv) > 3 else 25
 
     svc = LiveReview(dictionary())
-    with session_scope() as db:
-        ids = [m.id for m in db.scalars(
-            select(CandidateMatch)
-            .where(CandidateMatch.review_state == "queued",
-                   CandidateMatch.verdict == "same_material")
-            .order_by(CandidateMatch.id))]
-    todo = ids[:-keep_back] if keep_back and len(ids) > keep_back else ids
 
-    approved = 0
-    for match_id in todo:
-        try:
-            svc.decide(match_id, sch.DecisionRequest(
-                action=sch.DecisionAction.APPROVE, reviewer=reviewer,
-                reviewer_role="national_approver",
-                note="baseline: prior review history for demonstration"))
-            approved += 1
-        except (KeyError, ValueError, PermissionError):
-            continue
-    print(f"{reviewer} approved {approved} merges; {len(ids) - approved} left in the queue")
+    def queued(verdict: str) -> list[int]:
+        with session_scope() as db:
+            return [m.id for m in db.scalars(
+                select(CandidateMatch)
+                .where(CandidateMatch.review_state == "queued",
+                       CandidateMatch.verdict == verdict)
+                .order_by(CandidateMatch.id))]
+
+    def work(ids: list[int], hold: int) -> int:
+        todo = ids[:-hold] if hold and len(ids) > hold else ids
+        done = 0
+        for match_id in todo:
+            try:
+                svc.decide(match_id, sch.DecisionRequest(
+                    action=sch.DecisionAction.APPROVE, reviewer=reviewer,
+                    reviewer_role="national_approver",
+                    note="baseline: prior review history for demonstration"))
+                done += 1
+            except (KeyError, ValueError, PermissionError):
+                continue
+        return done
+
+    merges = queued("same_material")
+    approved = work(merges, keep_back)
+    print(f"{reviewer} approved {approved} merges; {len(merges) - approved} left in the queue")
+
+    # Substitutes too. Approving one does not merge anything -- it records a conditional
+    # link and leaves both identities and both source codes exactly as they were. Without
+    # this pass the possible_alternative verdicts stay queued forever, the
+    # possible_alternative table stays empty, and the substitute story -- which is the part
+    # of the problem statement about interchangeable-but-not-identical parts -- never once
+    # appears in the UI despite being implemented end to end.
+    alts = queued("possible_alternative")
+    linked = work(alts, max(len(alts) // 4, 1))
+    print(f"{reviewer} linked {linked} conditional substitutes; "
+          f"{len(alts) - linked} left in the queue")
     summarise()
 
 
