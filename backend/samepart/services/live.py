@@ -1215,7 +1215,6 @@ class LiveExport:
 
     def cross_reference(self, org_code: str | None = None,
                         limit: int = 5000) -> s.CrossReferenceExport:
-        from samepart.taxonomy.loader import Taxonomy
 
         with session_scope() as db:
             mapping, approvers, approved_at, canon, members, ordered = self._context(db)
@@ -1531,12 +1530,6 @@ class LivePrevention:
                                      set(), other.unresolvable(), model=model)
                 if result.verdict.value == "different":
                     continue
-                mapping = db.scalar(select(ApprovedMapping)
-                                    .where(ApprovedMapping.record_id == other.id))
-                cls = None
-                if mapping:
-                    material = db.get(CanonicalMaterial, mapping.canonical_id)
-                    cls = material.classification_code if material else None
                 found.append(s.MatchDetail(
                     id=other.id, verdict=s.Verdict(result.verdict.value),
                     decided_by=result.decided_by, score=result.score,
@@ -1601,7 +1594,6 @@ class LiveFamilies:
         self.dictionary = dictionary
 
     def list_families(self) -> list[s.FamilySummary]:
-        from samepart.taxonomy.loader import Taxonomy
 
         tax = _taxonomy()
 
@@ -1657,10 +1649,6 @@ class _RedistributionMixin:
                                            CanonicalMaterial.standardised_short)).all())
             classes = dict(db.execute(select(CanonicalMaterial.canonical_id,
                                              CanonicalMaterial.classification_code)).all())
-            per_org = dict(db.execute(
-                select(Organisation.code, func.count(SourceRecord.id))
-                .join(SourceRecord, SourceRecord.org_id == Organisation.id)
-                .group_by(Organisation.code)).all())
 
             # Recent purchasing per source code: who is actively consuming this.
             # Demand is measured over the actual purchasing window, first order to last,
@@ -1917,17 +1905,30 @@ class _GraphMixin:
                 alt_pairs.setdefault(a.a_id, []).append((a.b_id, a.condition or ""))
                 alt_pairs.setdefault(a.b_id, []).append((a.a_id, a.condition or ""))
 
-            family = self.dictionary.family("hex_bolt")
-            # The columns worth a table: what a difference in them would actually mean.
-            shown_keys = [a.key for a in family.attributes
-                          if not a.is_derived
-                          and a.criticality.value in ("critical", "major")]
-            labels = {a.key: a.label for a in family.attributes}
+            # Per family, not one hardcoded family. This read `family("hex_bolt")`, so with
+            # more than one family loaded a bearing was described using bolt attributes: every
+            # one of them null, and the proof panel rendered an identity with no evidence at
+            # all. The columns worth a table are the ones where a difference would actually
+            # mean something, and which columns those are depends on the material.
+            per_family: dict[str, list[str]] = {}
+            labels: dict[str, str] = {}
+            for fam in self.dictionary.families.values():
+                per_family[fam.family] = [a.key for a in fam.attributes
+                                          if not a.is_derived
+                                          and a.criticality.value in ("critical", "major")]
+                labels.update({a.key: a.label for a in fam.attributes})
+
+            # The union, in family order, so the response carries a column list covering every
+            # family present. A cluster only ever fills its own family's keys, and the client
+            # already drops any column no member has a value for.
+            shown_keys: list[str] = []
+            for name in sorted(per_family):
+                shown_keys += [k for k in per_family[name] if k not in shown_keys]
 
             def view(record, relation, reason="", condition=None) -> s.GraphMember:
                 by_key = {a.key: a for a in record.attributes}
                 attrs = []
-                for key in shown_keys:
+                for key in per_family.get(record.family, shown_keys):
                     a = by_key.get(key)
                     if a is None:
                         continue

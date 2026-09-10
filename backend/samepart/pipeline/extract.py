@@ -55,7 +55,14 @@ def extract_one(attr: AttributeDef, text: str) -> Value:
             continue
         try:
             raw = m.group("value")
-        except (IndexError, error_type := Exception):
+        except IndexError:
+            # The only expected failure: this pattern declares no group named "value", which
+            # is a fault in the family file rather than in the text being read.
+            #
+            # This was `except (IndexError, error_type := Exception)` -- a walrus inside the
+            # tuple, so it caught every exception and quietly returned `unknown` for the
+            # attribute. Any real defect in extraction would have looked exactly like a
+            # description that simply did not state the fact.
             continue
         if raw is None:
             continue

@@ -25,7 +25,6 @@ import csv
 import io
 import json
 import zipfile
-from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 

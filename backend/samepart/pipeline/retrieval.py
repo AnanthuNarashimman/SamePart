@@ -23,7 +23,7 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 

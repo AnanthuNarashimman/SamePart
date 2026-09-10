@@ -8,9 +8,7 @@ Precedence in particular cannot be measured in aggregate: a gate table that reso
 "same and different" to `same` would still score well on a dataset where the case is rare,
 and would be catastrophic on the one pair where it mattered.
 """
-from pathlib import Path
 
-import pytest
 
 from samepart.api.deps import dictionary
 from samepart.gates import Verdict, evaluate

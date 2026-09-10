@@ -149,9 +149,22 @@ export function ConsensusMatrix({
                 {orgs.map((o) => {
                   const n = r.merged[o] ?? 0
                   const sub = r.subs[o] ?? 0
+                  // Dot area is a comparison, not a quantity: a reader can see that one CPSE
+                  // contributed more than another but cannot read "three" off a circle. The
+                  // tooltip supplies the number the encoding deliberately does not.
+                  const reading =
+                    n > 0
+                      ? `${o} folded in ${n} source code${n === 1 ? '' : 's'}` +
+                        (sub > 0 ? `, and holds ${sub} substitute${sub === 1 ? '' : 's'}` : '')
+                      : sub > 0
+                        ? `${o} has no code in this identity, but holds ${sub} substitute${
+                            sub === 1 ? '' : 's'} kept separate from it`
+                        : `${o} has no code for this material`
+
                   return (
                     <span key={o} className="flex justify-center">
-                      <svg width="26" height="26" aria-hidden>
+                      <svg width="26" height="26" className="overflow-visible">
+                        <title>{reading}</title>
                         {n > 0 ? (
                           <circle cx="13" cy="13" r={radius(n)} fill={orgColour(o)} />
                         ) : sub > 0 ? (
@@ -163,10 +176,11 @@ export function ConsensusMatrix({
                         ) : (
                           <circle cx="13" cy="13" r="1.6" fill="#e7e5e4" />
                         )}
+                        {/* A hit area the size of the cell, so a one-code dot is as easy to
+                            hover as an eight-code one. */}
+                        <circle cx="13" cy="13" r="13" fill="transparent" />
                       </svg>
-                      <span className="sr-only">
-                        {o}: {n > 0 ? `${n} source codes` : sub > 0 ? 'substitute only' : 'none'}
-                      </span>
+                      <span className="sr-only">{reading}</span>
                     </span>
                   )
                 })}

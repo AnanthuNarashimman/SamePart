@@ -12,8 +12,13 @@ version: 1
 naming:
   noun: BEARING
   modifier: DEEP GROOVE BALL
-  short_template: "{noun}, {modifier}; {designation}; {clearance}"
-  long_template: "{noun}, {modifier}; designation {designation}; bore {bore_mm} MM; series {series}; closure {seal_type}; clearance {clearance}"
+  # Built from attributes that actually exist. These read "{designation}", which derived from
+  # a two-digit ISO 15 bore code -- and a bore code needs a lookup, which a template cannot
+  # express, so it always resolved to nothing. Every bearing identity was therefore named
+  # "BEARING, DEEP GROOVE BALL; CN": three distinct names across twenty-three identities, all
+  # truncated to the same thing in a table.
+  short_template: "{noun}, {modifier}; {bore_mm}MM; SERIES {series}; {seal_type}; {clearance}"
+  long_template: "{noun}, {modifier}; bore {bore_mm} MM; series {series}; closure {seal_type}; clearance {clearance}"
 
 attributes:
   - key: manufacturer
@@ -95,12 +100,6 @@ attributes:
       "MACHINED BRASS": BRASS
       "NYLON": POLYAMIDE
       "PA66": POLYAMIDE
-
-  - key: designation
-    label: ISO designation
-    type: derived
-    criticality: informational
-    derive: "{series}{bore_code}{seal_type}"
 
 classification:
   system: UNSPSC

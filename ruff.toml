@@ -1,0 +1,29 @@
+# Lint for correctness, not for style.
+#
+# Default ruff reported 85 findings, 31 of them B008 "function call in default argument" —
+# which is precisely how FastAPI's `Depends()` is meant to be written. A linter that fails on
+# the framework's own idiom trains everyone to ignore it, so the rule set here is narrow and
+# every rule in it earns its place by catching a class of bug we have actually shipped.
+#
+#   F   pyflakes: undefined names, unused imports, unused locals. F821 would have caught the
+#       `settings` NameError that a bare `except Exception` swallowed for two commits, silently
+#       disabling classification in export and families.
+#   E9  syntax and IO errors.
+#   B   flake8-bugbear, minus the FastAPI false positive: mutable defaults, loop-variable
+#       binding, and the like.
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["F", "E9", "B"]
+ignore = [
+  "B008",  # Depends() in a default is the FastAPI idiom, not a bug.
+  "B904",  # `raise ... from` inside except; our messages are written for a person, not a trace.
+  "B905",  # zip(strict=) — explicitness we would set to `False` everywhere to preserve
+           # behaviour, which would add a keyword and catch nothing. Revisit if a length
+           # mismatch ever actually bites.
+]
+
+[lint.per-file-ignores]
+# Tests assert on behaviour that sometimes needs an unused binding to be readable.
+"backend/tests/*" = ["F841"]

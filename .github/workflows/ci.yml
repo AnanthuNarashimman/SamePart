@@ -1,0 +1,46 @@
+# Fast checks on every push. Deliberately fast, and deliberately not everything.
+#
+# The frozen benchmark (`cli evaluate --check`) is NOT here. It needs a seeded database, which
+# takes fifteen to twenty minutes to build, so running it per push would trade a quick signal
+# for a slow one nobody waits for. It stays a thing we run deliberately before a demo, and the
+# thresholds in dictionaries/evaluation.yaml are the record.
+#
+# What this catches is the failure that actually bites a two-person team pushing to one
+# branch: a change that breaks the other person's checkout. The suite runs in under a second.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Lint
+        run: ruff check backend/samepart
+      - name: Tests
+        run: pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Typecheck and build
+        run: npm run build
