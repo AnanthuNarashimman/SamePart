@@ -207,7 +207,8 @@ substitution_groups:
 synthesis:
   identities: 150
   part_number_prefix: SW
-  identity_keys: [nominal_size_mm, pressure_class, winding_material, filler, outer_ring]
+  identity_keys: [nominal_size_mm, pressure_class, winding_material, filler, outer_ring,
+                  standard]
 
   pools:
     nominal_size_mm: [15, 20, 25, 40, 50, 80, 100, 150, 200, 250, 300]
