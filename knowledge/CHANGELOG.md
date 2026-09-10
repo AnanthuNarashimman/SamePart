@@ -18,6 +18,51 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Every service is now live. Nothing returns fixtures.
+**Who:** Aditya (with Claude)
+
+`prevention` and `families` were the last two stubs and both are on the demo path.
+`/api/health` reports eight live services.
+
+**Check-before-create** reuses the exact cascade the reconciliation desk uses. No new
+matching logic exists there, deliberately: if creation used different rules from review, a
+material could be waved through at creation and flagged as a duplicate a week later, which is
+how people stop trusting a system. Verified on four cases:
+
+| Entered | Result |
+|---|---|
+| An exact duplicate of a loaded record | **blocked**, names the existing CPCL code |
+| Same geometry, grade 12.9 instead of A2-70 | safe to create |
+| Same geometry, grade not stated | **blocked**, asks for the missing attribute first |
+| Genuinely new size | safe to create |
+
+**Families** reads from the dictionaries at runtime and reports each family's classification.
+`POST /api/families` loads a family from YAML at runtime, which is the live-bootstrap demo.
+
+### A broad `except` was hiding a real fault
+`settings` was never imported in the services module, so every use of it raised NameError,
+which a bare `except Exception` swallowed as "the codeset is absent". Two features silently
+returned nothing: classification paths in the export and in the families list. Both had been
+shipping empty and neither had failed loudly.
+
+Now a single helper checks whether the file exists, since the codeset is licensed and
+gitignored and its absence is genuinely expected. Anything else raises.
+
+Worth keeping as a lesson: the broad except was written to tolerate one known, legitimate
+condition, and it swallowed an unrelated programming error for two features across two
+commits.
+
+### Demo posture
+`SAMEPART_ALLOW_EXTERNAL=1` is set locally so the hosted model runs for demonstrations. The
+committed default in `.env.example` stays **blocked**, and production runs an open-weight
+model on CPSE infrastructure. See [14-deployment-and-sovereignty.md](14-deployment-and-sovereignty.md).
+
+**One thing to fix before demonstrating:** the review queue shows `same_material=0`, because
+auto-merge takes every unambiguous pair. There is nothing to approve on stage. Setting
+`auto_merge.enabled: false` in the family file routes everything to a person, which is both a
+better demo and the posture the PS actually describes.
+
+
 ### Egress guard and local model: the sovereignty claim, made checkable
 **Who:** Aditya (with Claude) · **Prompted by:** "aren't we contradicting the data-must-not-
 leave requirement with Azure?" — we were

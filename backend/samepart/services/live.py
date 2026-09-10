@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from samepart.api import schemas as s
 from samepart.db.models import (ExtractedAttribute, Organisation, ProcurementLine,
                                 SourceRecord)
+from samepart.config import settings
 from samepart.db.session import session_scope
 from samepart.dictionary.loader import Dictionary
 from samepart.ingest.csv_loader import Row, load_csv
@@ -1130,6 +1131,20 @@ class LiveAnalytics:
                 flagged=len(items), items=items[:limit])
 
 
+def _taxonomy():
+    """Load the classification codeset, or None if it is not present.
+
+    The file is licensed personal-use-only and gitignored, so a checkout legitimately may not
+    have it. That is the only failure tolerated here.
+    """
+    from samepart.taxonomy.loader import Taxonomy
+
+    path = settings.dictionary_dir.parent / "data" / "taxonomy" / "unspsc.xlsx"
+    if not path.exists():
+        return None
+    return Taxonomy.from_xlsx(path)
+
+
 # ---------------------------------------------------------------------------
 # Export: what a CPSE actually loads back into its own system
 # ---------------------------------------------------------------------------
@@ -1170,12 +1185,10 @@ class LiveExport:
             records = list(db.scalars(q))
             codes = {r.id: r.source_code for r in records}
 
-            tax = None
-            try:
-                tax = Taxonomy.from_xlsx(settings.dictionary_dir.parent
-                                         / "data" / "taxonomy" / "unspsc.xlsx")
-            except Exception:
-                tax = None                      # codeset is licensed and may be absent
+            # The codeset is licensed and gitignored, so its absence is expected and must
+            # not break an export. Only that is caught; anything else is a real fault and a
+            # broad except here previously hid one for two features.
+            tax = _taxonomy()
 
             rows: list[s.CrossReferenceRow] = []
             dead = dupes = mapped = 0
@@ -1410,3 +1423,172 @@ class LiveGovernance:
                         "it will never be reissued. " if dissolved else
                         f"{remaining} record(s) remain mapped. ")
                      + "No CPSE material code was altered, so nothing needed restoring."))
+
+
+# ---------------------------------------------------------------------------
+# Prevention: the cheapest place to fix a duplicate is before it exists
+# ---------------------------------------------------------------------------
+class LivePrevention:
+    """One record against the whole canonical set, using the same cascade as the desk.
+
+    No new matching logic exists here and that is deliberate. If check-before-create used
+    different rules from the reconciliation desk, a material could be waved through at
+    creation and then flagged as a duplicate a week later, which is precisely the behaviour
+    that makes people stop trusting a system.
+    """
+
+    def __init__(self, dictionary: Dictionary) -> None:
+        self.dictionary = dictionary
+
+    def check(self, req: s.CheckRequest) -> s.CheckResult:
+        from samepart.model.client import get_model
+        from samepart.pipeline.extract import extract
+        from samepart.pipeline.retrieval import Retriever
+
+        family = self.dictionary.family(req.family)
+        values = extract(family, req.description)
+        proposed = {k: v.value for k, v in values.items() if v.value is not None}
+
+        attrs = [
+            s.AttributeView(
+                key=k, label=(family.attribute(k).label if family.attribute(k) else k),
+                value=v.value, unit=v.unit,
+                status=s.AttributeStatus(v.status if v.value is not None else "unknown"),
+                method=s.ExtractionMethod(v.method), evidence=v.evidence,
+                confidence=v.confidence,
+                criticality=(family.attribute(k).criticality.value
+                             if family.attribute(k) else "informational"))
+            for k, v in values.items()
+        ]
+
+        with session_scope() as db:
+            records = list(db.scalars(
+                select(SourceRecord).where(SourceRecord.family == req.family)
+                .options(selectinload(SourceRecord.attributes))))
+            if not records:
+                return s.CheckResult(
+                    verdict=s.Verdict.INSUFFICIENT_EVIDENCE, safe_to_create=True,
+                    message="Nothing to compare against yet.", extracted=attrs)
+
+            # Block the same way ingestion does, so the candidate set is identical to the one
+            # this record would land in after import.
+            retriever = Retriever(family)
+            retriever.build([(str(r.id), r.raw_description) for r in records])
+            key_attrs = family.blocking.primary_key
+            key = tuple(proposed.get(k) for k in key_attrs)
+            by_id = {r.id: r for r in records}
+
+            if all(v is not None for v in key):
+                shortlist = [by_id[int(x)] for x in retriever._blocks.get(key, [])]
+            else:
+                shortlist = list(by_id.values())[:200]
+
+            model = get_model()
+            found: list[s.MatchDetail] = []
+            best = s.Verdict.DIFFERENT
+            review = LiveReview(self.dictionary)
+
+            for other in shortlist[:40]:
+                result = cascade.run(family, proposed, other.attrs(),
+                                     set(), other.unresolvable(), model=model)
+                if result.verdict.value == "different":
+                    continue
+                mapping = db.scalar(select(ApprovedMapping)
+                                    .where(ApprovedMapping.record_id == other.id))
+                cls = None
+                if mapping:
+                    material = db.get(CanonicalMaterial, mapping.canonical_id)
+                    cls = material.classification_code if material else None
+                found.append(s.MatchDetail(
+                    id=other.id, verdict=s.Verdict(result.verdict.value),
+                    decided_by=result.decided_by, score=result.score,
+                    gate_overrode=result.gate_overrode,
+                    gate_firings=[s.GateFiring(
+                        gate_id=f.gate_id, action=f.action.value, message=f.message,
+                        attributes=f.attributes, detail=f.detail)
+                        for f in result.gate.firings],
+                    substitution_conditions=result.gate.substitution_conditions,
+                    notes=[result.rationale] if result.rationale else [],
+                    a=s.RecordView(record_id=0, org_code=req.org_code,
+                                   source_code="(not yet created)",
+                                   raw_description=req.description, uom=req.uom,
+                                   quantity=req.quantity, attributes=attrs),
+                    b=review._record_view(db, other.id)))
+                if result.verdict.value == "same_material":
+                    best = s.Verdict.SAME_MATERIAL
+                elif best is not s.Verdict.SAME_MATERIAL:
+                    best = s.Verdict(result.verdict.value)
+
+            found.sort(key=lambda m: 0 if m.verdict is s.Verdict.SAME_MATERIAL else 1)
+
+        if best is s.Verdict.SAME_MATERIAL:
+            existing = found[0].b
+            national = None
+            with session_scope() as db:
+                mapping = db.scalar(select(ApprovedMapping)
+                                    .where(ApprovedMapping.record_id == existing.record_id))
+                if mapping:
+                    material = db.get(CanonicalMaterial, mapping.canonical_id)
+                    national = registry.national_code(
+                        mapping.canonical_id,
+                        material.classification_code if material else None)
+            return s.CheckResult(
+                verdict=best, safe_to_create=False, extracted=attrs, candidates=found[:5],
+                message=(f"This already exists as {existing.org_code} "
+                         f"{existing.source_code}"
+                         + (f", national code {national}. " if national else ". ")
+                         + "Creating a new code would duplicate it."))
+
+        if best is s.Verdict.INSUFFICIENT_EVIDENCE:
+            return s.CheckResult(
+                verdict=best, safe_to_create=False, extracted=attrs, candidates=found[:5],
+                message="Cannot confirm this is new. Similar materials exist but a critical "
+                        "attribute is missing; supply it before a code is minted.")
+
+        if found:
+            return s.CheckResult(
+                verdict=best, safe_to_create=True, extracted=attrs, candidates=found[:5],
+                message=f"Safe to create. {len(found)} related material(s) exist as "
+                        f"conditional substitutes, which are linked rather than merged.")
+
+        return s.CheckResult(
+            verdict=s.Verdict.DIFFERENT, safe_to_create=True, extracted=attrs,
+            message="Safe to create. No existing material matches.")
+
+
+class LiveFamilies:
+    """Material families, read from the dictionaries at runtime."""
+
+    def __init__(self, dictionary: Dictionary) -> None:
+        self.dictionary = dictionary
+
+    def list_families(self) -> list[s.FamilySummary]:
+        from samepart.taxonomy.loader import Taxonomy
+
+        tax = _taxonomy()
+
+        out = []
+        for family in self.dictionary.families.values():
+            code = family.classification.code or None
+            out.append(s.FamilySummary(
+                family=family.family, label=family.label,
+                attribute_count=len(family.attributes), gate_count=len(family.gates),
+                blocking_key=list(family.blocking.primary_key),
+                classification_code=code,
+                classification_path=tax.label(code) if (tax and code) else None))
+        return out
+
+    def load_family(self, yaml_text: str) -> s.FamilyLoadResult:
+        """Add a family at runtime. This is the live-bootstrap demo."""
+        import yaml as _yaml
+
+        from samepart.dictionary.loader import _validate_family
+        from samepart.dictionary.models import Family
+
+        raw = _yaml.safe_load(yaml_text)
+        family = Family.model_validate(raw)
+        _validate_family(family, self.dictionary.units)
+        self.dictionary.families[family.family] = family
+        return s.FamilyLoadResult(family=family.family, loaded=True,
+                                  attribute_count=len(family.attributes),
+                                  gate_count=len(family.gates))
