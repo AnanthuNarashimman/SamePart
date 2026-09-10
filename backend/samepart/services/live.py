@@ -1641,6 +1641,10 @@ class _RedistributionMixin:
                                            CanonicalMaterial.standardised_short)).all())
             classes = dict(db.execute(select(CanonicalMaterial.canonical_id,
                                              CanonicalMaterial.classification_code)).all())
+            per_org = dict(db.execute(
+                select(Organisation.code, func.count(SourceRecord.id))
+                .join(SourceRecord, SourceRecord.org_id == Organisation.id)
+                .group_by(Organisation.code)).all())
 
             # Recent purchasing per source code: who is actively consuming this.
             # Demand is measured over the actual purchasing window, first order to last,
@@ -1878,6 +1882,10 @@ class _GraphMixin:
                                            CanonicalMaterial.standardised_short)).all())
             classes = dict(db.execute(select(CanonicalMaterial.canonical_id,
                                              CanonicalMaterial.classification_code)).all())
+            per_org = dict(db.execute(
+                select(Organisation.code, func.count(SourceRecord.id))
+                .join(SourceRecord, SourceRecord.org_id == Organisation.id)
+                .group_by(Organisation.code)).all())
 
             # Why each pair was joined, so an edge can carry its reason rather than a colour.
             reasons: dict[tuple[int, int], tuple[str, str]] = {}
@@ -1893,16 +1901,36 @@ class _GraphMixin:
                 alt_pairs.setdefault(a.a_id, []).append((a.b_id, a.condition or ""))
                 alt_pairs.setdefault(a.b_id, []).append((a.a_id, a.condition or ""))
 
+            family = self.dictionary.family("hex_bolt")
+            # The columns worth a table: what a difference in them would actually mean.
+            shown_keys = [a.key for a in family.attributes
+                          if not a.is_derived
+                          and a.criticality.value in ("critical", "major")]
+            labels = {a.key: a.label for a in family.attributes}
+
             def view(record, relation, reason="", condition=None) -> s.GraphMember:
+                by_key = {a.key: a for a in record.attributes}
+                attrs = []
+                for key in shown_keys:
+                    a = by_key.get(key)
+                    if a is None:
+                        continue
+                    value = a.value_number if a.value_number is not None else a.value_text
+                    attrs.append(s.MemberAttribute(
+                        key=key, label=labels.get(key, key), value=value, unit=a.unit,
+                        evidence=a.evidence, status=a.status))
                 return s.GraphMember(
                     record_id=record.id, org_code=record.org.code,
                     source_code=record.source_code,
                     raw_description=record.raw_description,
-                    relation=relation, reason=reason, condition=condition)
+                    relation=relation, reason=reason, condition=condition,
+                    attributes=attrs)
 
             clusters: list[s.GraphCluster] = []
             for cid, rids in members.items():
-                records = [db.get(SourceRecord, r) for r in rids]
+                records = list(db.scalars(
+                    select(SourceRecord).where(SourceRecord.id.in_(rids))
+                    .options(selectinload(SourceRecord.attributes))))
                 orgs = sorted({r.org.code for r in records})
                 if len(orgs) < min_orgs:
                     continue
@@ -1932,12 +1960,21 @@ class _GraphMixin:
                     members=merged, alternatives=alternatives[:2]))
 
             total_records = sum(len(v) for v in members.values())
+            identities = len(members)
+            stats = s.ConvergenceStat(
+                source_codes=total_records, identities=identities,
+                resolved=max(total_records - identities, 0),
+                consolidation=round((total_records - identities) / total_records, 4)
+                if total_records else 0.0,
+                by_org=per_org)
 
         # Widest reach first: the clusters spanning most organisations are the ones that make
         # the point, and they are also the ones a judge will ask about.
         clusters.sort(key=lambda c: (-len(c.orgs), -len(c.members)))
-        return s.GraphView(total_clusters=len(members), total_records=total_records,
-                           shown=min(limit, len(clusters)), clusters=clusters[:limit])
+        return s.GraphView(
+            total_clusters=identities, total_records=total_records,
+            shown=min(limit, len(clusters)), stats=stats,
+            attribute_order=shown_keys, clusters=clusters[:limit])
 
 
 LiveAnalytics.graph = _GraphMixin.graph

@@ -18,6 +18,48 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Relationship graph redesigned around convergence, not clusters
+**Who:** Aditya (with Claude) · **Design direction from:** Ananthu
+
+**The constellation view was the wrong picture.** It looked like a network, but the data is
+not one. Every identity was the same star shape, so position on the canvas carried no
+information and the whole thing communicated only "there are clusters". The story is a
+convergence, and the page now draws that.
+
+The page is built around one sentence: **437 messy CPSE codes became 159 trusted national
+identities, with evidence for every convergence.**
+
+**Top — the result.** `437 → 159`, 278 redundant codes resolved, 63.6% consolidation, with a
+bar showing how much of the master was redundant. A visualisation without a stated purpose is
+decoration.
+
+**Middle — the convergence map.** Four company lanes on the left, national identities on the
+right, a curved flow for every code. **Solid means same identity, dashed means approved
+substitute** — a different claim deserves a different line, not a subtler dot. Hovering a row
+fades the rest.
+
+**Bottom — the evidence inspector.** The original description beside the extracted attributes,
+and this is where the technical claim stops being a claim:
+
+```
+CPCL  HEX BOLT M20X40  CLASS 8.8  ISO 4014...        20.0   40.0   8.8   ISO4014
+IOCL  Bolt, Hexagon Head, M20 x 40mm  Property...    20.0   40.0   8.8   ISO4014
+BPCL  BLT HEX HD M20X40MM  8.8  ISO4014...           20.0   40.0   8.8   ISO4014
+NTPC  BOLT HEX HEAD; DIA 20MM; LG 40MM...            20.0   40.0   8.8   ISO4014
+```
+
+**Hovering a value lights the exact substring it was read from, in every row at once.** Hover
+the diameter column and `M20X`, `M20 x` and `DIA 20MM` highlight inside the raw text.
+That argues evidence provenance far better than a paragraph claiming we have it.
+
+**Substitutes moved out of the identity** into their own block, "compatible, not identical",
+with the condition under which the substitution is safe. Entity resolution and engineering
+substitution are different questions and the interface now says so.
+
+The endpoint carries per-record attributes with their evidence, and the headline consolidation
+figures.
+
+
 ### shadcn/ui installed, and the graph page rebuilt on it
 **Who:** Aditya (with Claude)
 

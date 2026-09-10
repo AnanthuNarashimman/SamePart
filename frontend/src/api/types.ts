@@ -184,6 +184,23 @@ export interface RationalisationResult {
   items: DeadCode[]
 }
 
+export interface MemberAttribute {
+  key: string
+  label: string
+  value: string | number | null
+  unit: string | null
+  evidence: string | null
+  status: string
+}
+
+export interface ConvergenceStat {
+  source_codes: number
+  identities: number
+  resolved: number
+  consolidation: number
+  by_org: Record<string, number>
+}
+
 export interface GraphMember {
   record_id: number
   org_code: string
@@ -192,6 +209,7 @@ export interface GraphMember {
   relation: 'merged' | 'alternative'
   reason: string
   condition: string | null
+  attributes: MemberAttribute[]
 }
 
 export interface GraphCluster {
@@ -207,6 +225,8 @@ export interface GraphView {
   total_clusters: number
   total_records: number
   shown: number
+  stats: ConvergenceStat | null
+  attribute_order: string[]
   clusters: GraphCluster[]
 }
 

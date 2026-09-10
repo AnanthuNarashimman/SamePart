@@ -616,6 +616,21 @@ class StockAgeing(BaseModel):
     buckets: list[AgeBucket] = Field(default_factory=list)
 
 
+class MemberAttribute(BaseModel):
+    """One extracted fact and the exact words that proved it.
+
+    `evidence` is the substring of the raw description the value came from. It is what turns
+    "the words barely match, the attributes do" from a claim into something a reader can
+    check by eye.
+    """
+    key: str
+    label: str
+    value: str | float | None = None
+    unit: str | None = None
+    evidence: str | None = None
+    status: str = "extracted"
+
+
 class GraphMember(BaseModel):
     record_id: int
     org_code: str
@@ -624,6 +639,7 @@ class GraphMember(BaseModel):
     relation: str = Field(description="merged | alternative")
     reason: str = ""
     condition: str | None = None
+    attributes: list[MemberAttribute] = Field(default_factory=list)
 
 
 class GraphCluster(BaseModel):
@@ -633,6 +649,14 @@ class GraphCluster(BaseModel):
     orgs: list[str] = Field(default_factory=list)
     members: list[GraphMember] = Field(default_factory=list)
     alternatives: list[GraphMember] = Field(default_factory=list)
+
+
+class ConvergenceStat(BaseModel):
+    source_codes: int
+    identities: int
+    resolved: int = Field(description="Codes that collapsed into an existing identity")
+    consolidation: float = Field(description="Share of codes that were redundant")
+    by_org: dict[str, int] = Field(default_factory=dict)
 
 
 class GraphView(BaseModel):
@@ -645,6 +669,10 @@ class GraphView(BaseModel):
     total_clusters: int
     total_records: int
     shown: int
+    stats: ConvergenceStat | None = None
+    attribute_order: list[str] = Field(
+        default_factory=list,
+        description="Attribute keys worth showing in the evidence table, in dictionary order")
     clusters: list[GraphCluster] = Field(default_factory=list)
 
 
