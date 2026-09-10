@@ -33,6 +33,7 @@ already been tried, reversed, and why.
 | 11 | [team-split-and-stack.md](11-team-split-and-stack.md) | Who owns what, the tech stack, and the frozen API contract |
 | 12 | [build-plan.md](12-build-plan.md) | Ordered steps from stubs to live, with exit conditions |
 | 13 | [ps-anchored-plan.md](13-ps-anchored-plan.md) | Coverage re-checked against the PS, and the order of work from here |
+| 14 | [deployment-and-sovereignty.md](14-deployment-and-sovereignty.md) | Where the model runs, and what to claim about it |
 
 ## Conventions used in these notes
 
