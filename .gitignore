@@ -1,9 +1,18 @@
 __pycache__/
 *.pyc
-.env
-samepart.db
 .venv/
-data/generated/
-# UNSPSC codeset from the UN procurement portal is licensed PERSONAL USE ONLY and forbids
-# redistribution. Download it locally; never commit it.
-data/taxonomy/
+node_modules/
+
+# Secrets. Never commit.
+.env
+
+# Databases and generated data. Rebuild with: python -m samepart.cli seed
+samepart.db
+data/
+
+# The UNSPSC codeset lives under data/ and is licensed PERSONAL USE ONLY.
+# It forbids redistribution, so it must never be committed.
+
+# Local working notes and the original brief
+notes/
+SamePart_Project_Plan*.docx

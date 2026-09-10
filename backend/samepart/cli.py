@@ -100,6 +100,45 @@ def enrich() -> None:
     print(f"  records changed       : {info['records_changed']}   errors: {info['errors']}")
 
 
+def baseline() -> None:
+    """Work the queue as a reviewer would, to give a demo a populated starting point.
+
+    Automation is off, which is the correct posture, but it means nothing is merged until a
+    person approves it and the dashboard has nothing to show. A real deployment would have
+    months of prior approvals behind it. This produces that history.
+
+    Every approval is recorded against a NAMED reviewer, not as "auto", so the audit trail
+    says exactly what happened. It is a demo aid and the trail shows it as one.
+    """
+    from samepart.api import schemas as sch
+    from samepart.db.models import CandidateMatch
+
+    reviewer = sys.argv[2] if len(sys.argv) > 2 else "steward-demo"
+    keep_back = int(sys.argv[3]) if len(sys.argv) > 3 else 25
+
+    svc = LiveReview(dictionary())
+    with session_scope() as db:
+        ids = [m.id for m in db.scalars(
+            select(CandidateMatch)
+            .where(CandidateMatch.review_state == "queued",
+                   CandidateMatch.verdict == "same_material")
+            .order_by(CandidateMatch.id))]
+    todo = ids[:-keep_back] if keep_back and len(ids) > keep_back else ids
+
+    approved = 0
+    for match_id in todo:
+        try:
+            svc.decide(match_id, sch.DecisionRequest(
+                action=sch.DecisionAction.APPROVE, reviewer=reviewer,
+                reviewer_role="national_approver",
+                note="baseline: prior review history for demonstration"))
+            approved += 1
+        except (KeyError, ValueError, PermissionError):
+            continue
+    print(f"{reviewer} approved {approved} merges; {len(ids) - approved} left in the queue")
+    summarise()
+
+
 def stats() -> None:
     with session_scope() as db:
         records = db.scalar(select(func.count(SourceRecord.id))) or 0
@@ -121,4 +160,4 @@ def stats() -> None:
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
     {"seed": seed, "stats": stats, "match": match, "summary": summarise,
-     "enrich": enrich}[cmd]()
+     "enrich": enrich, "baseline": baseline}[cmd]()

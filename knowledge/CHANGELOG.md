@@ -18,6 +18,39 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
+### Automation turned OFF by default, and the repository moved
+**Who:** Aditya (with Claude)
+
+`auto_merge.enabled` is now **false** in the family file. That is the posture the problem
+statement describes, a workflow *allowing* users to review and approve, and an organisation
+turns automation on deliberately having seen measured precision on its own data. It is also
+the better demonstration, because the moment worth showing is a person approving a merge.
+
+With it off, nothing is merged until someone approves, which left the dashboard empty. Added
+`python -m samepart.cli baseline <reviewer> <keep_back>`: it works the queue as a reviewer
+would, producing the prior review history a real deployment would already have.
+
+**Every baseline approval is recorded against a named reviewer, not "auto".** The audit trail
+reads `by_actor: {"steward-demo": 384}`, so what happened is visible rather than disguised.
+It is a demo aid and the trail says so.
+
+Result: 177 canonical materials on the dashboard **and** 25 merges still waiting, so there is
+something real to approve on stage.
+
+### The working directory is now the repository
+Until now the project lived in an untracked folder and was copied into a clone by hand before
+each push. That is exactly how a change goes missing. `/Users/adi/sih-2026` is now the git
+repository itself, so `git status` is the truth and there is no copy step to forget.
+
+Two things surfaced during the move, both worth knowing:
+
+- The working copy's frontend was **stale**, several commits behind what Ananthu had pushed.
+  Anyone editing it would have been working against old files
+- `.gitignore` was rewritten. `data/` is ignored wholesale, which covers the generated
+  catalogues, the scratch databases, and the **licensed UNSPSC codeset that forbids
+  redistribution**. Also `.env`, `notes/`, and the original brief
+
+
 ### Every service is now live. Nothing returns fixtures.
 **Who:** Aditya (with Claude)
 

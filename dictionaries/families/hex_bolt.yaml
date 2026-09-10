@@ -165,7 +165,11 @@ blocking:
 
 # Automation policy. The system merges without asking only when there is nothing to judge.
 auto_merge:
-  enabled: true
+  # OFF by default, which is the posture the problem statement describes: a workflow
+  # ALLOWING users to review and approve. An organisation turns automation on deliberately,
+  # having seen measured precision on its own data. It is also the better demonstration,
+  # because the moment worth showing is a person approving a merge.
+  enabled: false
   require_all_known: true      # no critical attribute unknown on either side
   require_score: 1.0           # every comparable attribute agrees exactly
   forbid_gate_override: true   # no gate had to step in
