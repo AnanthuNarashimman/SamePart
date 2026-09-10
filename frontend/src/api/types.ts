@@ -184,6 +184,49 @@ export interface RationalisationResult {
   items: DeadCode[]
 }
 
+export interface StockHolder {
+  org_code: string
+  source_code: string
+  raw_description: string
+  stock_on_hand: number
+  stock_uom: string | null
+  stock_base_qty: number
+  last_issue_date: string | null
+  idle_days: number | null
+}
+
+export interface StockRequester {
+  org_code: string
+  source_code: string
+  orders_in_window: number
+  annual_demand: number
+  unit_price_base: number | null
+  last_purchase: string | null
+}
+
+export interface RedistributionOpportunity {
+  canonical_id: string
+  national_code: string | null
+  standardised_short: string | null
+  holders: StockHolder[]
+  requesters: StockRequester[]
+  idle_stock: number
+  annual_demand: number
+  transferable: number
+  unit_price_base: number | null
+  avoided_spend: number
+}
+
+export interface RedistributionReport {
+  currency: string
+  idle_threshold_days: number
+  opportunities: number
+  total_transferable: number
+  total_avoided_spend: number
+  caveats: string[]
+  items: RedistributionOpportunity[]
+}
+
 export interface AuditFlag {
   canonical_id: string
   standardised_short: string | null

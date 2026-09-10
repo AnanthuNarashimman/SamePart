@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
-import { useAuditFlags, useRationalisation, useSavings, useSummary } from '../api/analytics'
+import { useAuditFlags, useRationalisation, useRedistribution, useSavings, useSummary } from '../api/analytics'
 import { AuditFlagsPanel } from '../components/dashboard/AuditFlagsPanel'
 import { QueueBreakdown } from '../components/dashboard/QueueBreakdown'
 import { RationalisationPanel } from '../components/dashboard/RationalisationPanel'
+import { RedistributionPanel } from '../components/dashboard/RedistributionPanel'
 import { SavingsPanel } from '../components/dashboard/SavingsPanel'
 import { StatCard } from '../components/dashboard/StatCard'
 import { QueryState } from '../components/shared/QueryState'
@@ -13,6 +14,7 @@ export function Dashboard() {
   const savings = useSavings()
   const rationalisation = useRationalisation()
   const auditFlags = useAuditFlags()
+  const redistribution = useRedistribution()
 
   return (
     <div className="flex-1 overflow-y-auto app-canvas p-8">
@@ -57,6 +59,22 @@ export function Dashboard() {
           <Card><QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} /></Card>
         ) : (
           <QueueBreakdown counts={summary.data.queue_by_group} />
+        )}
+      </section>
+
+      {/* Full width, above the rest. This is the only finding in the product that is
+          impossible without cross-organisation identity, so it does not sit in a corner. */}
+      <section className="mt-5">
+        {!redistribution.data ? (
+          <Card>
+            <QueryState
+              isLoading={redistribution.isLoading}
+              isError={redistribution.isError}
+              error={redistribution.error}
+            />
+          </Card>
+        ) : (
+          <RedistributionPanel data={redistribution.data} />
         )}
       </section>
 

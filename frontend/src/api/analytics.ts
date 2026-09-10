@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../lib/apiClient'
-import type { AnalyticsSummary, AuditFlagResult, RationalisationResult, SavingsResult } from './types'
+import type {
+  AnalyticsSummary,
+  AuditFlagResult,
+  RationalisationResult,
+  RedistributionReport,
+  SavingsResult,
+} from './types'
 
 export function useSummary() {
   return useQuery({
@@ -29,5 +35,15 @@ export function useAuditFlags(limit = 50) {
     queryKey: ['analytics', 'audit-flags', limit],
     queryFn: async () =>
       (await apiClient.get<AuditFlagResult>('/analytics/audit-flags', { params: { limit } })).data,
+  })
+}
+
+export function useRedistribution(idleDays = 365, limit = 50) {
+  return useQuery({
+    queryKey: ['analytics', 'redistribution', idleDays, limit],
+    queryFn: async () =>
+      (await apiClient.get<RedistributionReport>('/analytics/redistribution', {
+        params: { idle_days: idleDays, limit },
+      })).data,
   })
 }
