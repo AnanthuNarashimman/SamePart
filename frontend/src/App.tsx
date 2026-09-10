@@ -5,6 +5,7 @@ import { Import } from './pages/Import'
 import { ReconciliationDesk } from './pages/ReconciliationDesk'
 import { Questions } from './pages/Questions'
 import { DuplicateCheck } from './pages/DuplicateCheck'
+import { Insights } from './pages/Insights'
 import { RelationshipGraph } from './pages/RelationshipGraph'
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
         <Route path="/questions" element={<Questions />} />
         <Route path="/check" element={<DuplicateCheck />} />
         <Route path="/graph" element={<RelationshipGraph />} />
+        <Route path="/insights" element={<Insights />} />
       </Routes>
     </div>
   )

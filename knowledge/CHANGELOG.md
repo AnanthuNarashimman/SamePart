@@ -18,17 +18,16 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ## 2026-09-10
 
-### Insights page: built, then reverted at the team's call
+### Insights page: built, reverted, restored as its own route
 **Who:** Aditya (with Claude)
 
-**Reverted the same day.** The relationship graph is back exactly as Ananthu wrote it, and
-the sidebar reads "Relationship graph" again. The page and the routing are gone.
+**Reverted, then restored the same day, at sidebar item 06.**
 
-**What was kept, dormant:** the five chart components under `src/components/insights/`, and
-the three endpoints behind them, which are live and returning real data. Nothing in the app
-imports the components. Picking this back up is a page and a route, not a rebuild.
+The mistake first time was taking over the relationship graph page rather than adding a new
+one. `RelationshipGraph.tsx` is now untouched, verified against git, and stays at its own
+route. Insights is a separate page that imports nothing of his.
 
-The original reasoning, kept for whenever that happens:
+The five charts:
 
 | Chart | What it answers |
 |---|---|
@@ -69,12 +68,42 @@ None of them mine, all worth knowing:
 - **`recharts` needs `react-is`**, which was never installed because recharts was in
   `package.json` but not imported anywhere until now
 
-The `ClusterGraph` extraction was undone with the rest. `RelationshipGraph.tsx` is
-byte-identical to what Ananthu wrote, verified against git rather than assumed.
-
 **The three frontend defects found on the way stay fixed**, since they were real and
 unrelated: the types script path, the uninstalled graph library, and the missing recharts
-peer dependency. So does the model tier being reachable from matching.
+peer dependency.
+
+### Correction: the licence objection was wrong
+`lieflat-charts` was declined partly on a licence reading I asserted from memory and did not
+check. Reading the repository's own LICENSE file:
+
+> **Noncommercial Organizations** — Use by any charitable organization, educational
+> institution, public research organization, public safety or health organization,
+> environmental protection organization, **or government institution** is use for a permitted
+> purpose regardless of the source of funding.
+
+A college is an educational institution and CPSEs are government institutions. Both are
+explicitly permitted. **The objection was the wrong way round.**
+
+Two real caveats remain: GitHub classifies the repository as "Other / NOASSERTION", so a
+compliance scan may flag it and someone would have to explain; and selling this *to* CPSEs
+rather than deploying it *for* them would change the calculus.
+
+The practical objection stands and is the one that mattered anyway: it is an agent skill that
+emits standalone HTML using ECharts and Chart.js, not a React component library. It is
+however well suited to generating charts for the **deck**, which is the job it was built for.
+
+### The model tier, measured in the main path
+After making it reachable from matching, the rebuild took 436 seconds over 3,210 pairs:
+
+| Tier | Pairs | Share |
+|---|---|---|
+| Manufacturer part number | 214 | 6.7% |
+| Attribute agreement | 2,226 | 69.3% |
+| Conflict gate | 594 | 18.5% |
+| **Language model** | **176** | **5.5%** |
+
+**94.5% of decisions never reach a model**, now measured rather than projected. Of the 176 it
+did see, it called 129 the same material, 29 different, and abstained on 18.
 
 
 ### Redistribution: the one finding cross-organisation identity makes possible
