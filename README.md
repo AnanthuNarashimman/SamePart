@@ -24,6 +24,10 @@ cp .env.example .env          # fill in Azure values; not needed for stub mode
 PYTHONPATH=backend ./.venv/bin/uvicorn samepart.api.app:app --reload --port 8000
 ```
 
+That starts in **stub mode**, which is what you want while building the UI. To run against
+the real pipeline — and for anything you are going to show someone — see
+[Demo day](#demo-day) below, because the mode is silent and easy to get wrong.
+
 - Interactive docs: http://127.0.0.1:8000/docs
 - Machine-readable schema: http://127.0.0.1:8000/openapi.json
 - Health and current mode: http://127.0.0.1:8000/api/health
@@ -46,6 +50,67 @@ Cross-origin requests are open in development, so any Vite port works.
 The stub data is the five seeded demo cases, so what you build against is what gets
 demonstrated: a clean merge, a grade conflict, an incomplete record, a conditional
 substitute, and duplicate prevention.
+
+## Demo day
+
+Run these from the **repository root**, in this order.
+
+```bash
+cd /path/to/sih-2026                          # every path below is relative to the root
+export PYTHONPATH=backend SAMEPART_MODE=live SAMEPART_MODEL_MATCHING=1
+./.venv/bin/python -m samepart.cli seed       # builds the catalogues and runs the cascade
+./.venv/bin/python -m samepart.cli baseline   # works the queue, creating canonical materials
+./.venv/bin/uvicorn samepart.api.app:app --port 8000 &
+cd frontend && npm run dev                    # proxies /api to :8000
+```
+
+**`baseline` is not optional.** `seed` leaves the database with candidate pairs and no
+approved merges, so `canonical_materials` is 0, the relationship graph is empty, and the
+consolidation figures read zero. `baseline` plays a reviewer working the queue and is what
+gives the demo a populated starting point.
+
+`SAMEPART_MODEL_MATCHING=1` puts the language-model tier in the cascade. Without it every
+pair is settled deterministically, which sounds better than it is: the cascade chart reads
+100% with an empty model slice, and the point of the chart is that the cheap tiers carry
+94.5% and the model carries the 5.5% they cannot. It costs about two seconds a pair over
+roughly 176 pairs, so budget five to ten minutes for the two commands together.
+
+Then check the API is actually live before anyone is watching:
+
+```bash
+curl -s localhost:8000/api/health | python3 -m json.tool | head -14
+```
+
+`"mode": "live"` and eight entries under `live_services`. If it says `"mode": "stub"` and
+`"live_services": []`, stop and fix it — see below.
+
+### Three ways this goes wrong silently
+
+**Forgetting `SAMEPART_MODE=live`.** It defaults to `stub`, so every endpoint returns
+fixtures. Nothing errors and nothing warns: the pages render, the charts draw, the numbers
+are plausible. This was deliberate — it is what let the frontend be built before the
+pipeline existed — but it means a demo can run start to finish on fixture data without
+anyone noticing. `/api/health` is the only reliable tell, which is why it is the first
+thing to check.
+
+**Starting the server from `backend/`.** The database path is relative, so `cd backend &&
+uvicorn ...` creates a second, empty `backend/samepart.db` beside the real
+`./samepart.db` and every request 500s with `no such table: candidate_match`. Run from the
+root; if you already made the empty one, delete it.
+
+**Re-running `seed` on its own.** It drops and rebuilds every table, so on its own it
+*removes* the approved merges that `baseline` created. The pages still load and the charts
+still draw — they just quietly report no canonical materials and an empty graph. If you run
+`seed`, run `baseline` after it, every time. There are no flags to guard you here: the CLI
+ignores extra arguments, so even `seed --help` rebuilds the database.
+
+### Recognising stub mode mid-demo
+
+The fixtures are the five seeded demo cases, so the shapes look right. The quickest visual
+tell is the questions queue: stub always reports **228 blanks across 207 records**. Live
+reports whatever the last seed produced — around 165 blanks across 152 records. If you see
+exactly 228 and 207, you are on fixtures.
+
 
 ## Layout
 

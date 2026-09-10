@@ -35,14 +35,19 @@ Cross-origin requests are open in development. Interactive docs at `/docs`.
 `SAMEPART_MODE=live` uses the database. `stub` returns fixtures **in exactly the same
 shapes**, so you can build against either. `GET /api/health` reports which are live.
 
+**The variable defaults to `stub`, and nothing warns you.** Omit it and every endpoint
+returns fixtures that render perfectly well, which is fine while building and a hazard
+before an audience — see [Demo day](README.md#demo-day). The server also has to start from
+the repository root, or it creates an empty database beside the real one.
+
 | Service | Endpoints | Status |
 |---|---|---|
 | catalogue | `/orgs`, `/imports` | **live** |
 | review | `/queue`, `/matches/*`, decisions | **live** |
 | questions | `/questions`, `/records/*/answer`, `/unresolvable` | **live** |
 | analytics | `/analytics/*` | **live** |
-| prevention | `/check` | stub |
-| families | `/families` | stub |
+| prevention | `/check` | **live** |
+| families | `/families` | **live** |
 
 A stubbed endpoint will not change shape when it goes live. Build against it now.
 
