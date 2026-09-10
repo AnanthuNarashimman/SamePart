@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { fetchPassport } from '../../api/analytics'
 import type { GraphCluster } from '../../api/types'
 import { orgColourDark } from '../insights/tokens'
 
@@ -50,6 +52,26 @@ export function ProofPanel({
 
   const [head, ...rest] = (cluster.standardised_short ?? cluster.canonical_id).split(';')
   const subs = cluster.alternatives.length
+  const [saving, setSaving] = useState(false)
+
+  // The panel already shows the whole basis for this identity; the passport is the same
+  // content as something a person can send to a CPSE that is being asked to accept the code.
+  // Handing over a number and asking for trust is what stalls these programmes.
+  async function downloadPassport() {
+    setSaving(true)
+    try {
+      const passport = await fetchPassport(cluster.canonical_id)
+      const blob = new Blob([JSON.stringify(passport, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `passport_${passport.national_code ?? cluster.canonical_id}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl text-stone-100 shadow-sm"
@@ -80,6 +102,26 @@ export function ProofPanel({
             </span>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={downloadPassport}
+          disabled={saving}
+          className="mt-3.5 w-full rounded-lg border border-white/20 bg-white/[0.06] px-3 py-2
+                     text-left text-[12px] text-emerald-50/90 transition-colors
+                     hover:border-white/35 hover:bg-white/[0.12]
+                     focus-visible:outline focus-visible:outline-2
+                     focus-visible:outline-offset-2 focus-visible:outline-white/60
+                     disabled:opacity-50"
+        >
+          <span className="font-medium">
+            {saving ? 'Preparing…' : 'Download material passport'}
+          </span>
+          <span className="mt-0.5 block text-[10.5px] leading-relaxed text-emerald-200/45">
+            Every source code, the words each fact was read from, who approved it and when,
+            and whether that record has been altered since.
+          </span>
+        </button>
       </div>
 
       <div className="border-t border-white/10 px-5 py-4">

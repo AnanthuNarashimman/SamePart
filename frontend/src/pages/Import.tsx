@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useFamilies, useOrgs, useStartImport } from '../api/catalogue'
+import { MigrationPreview } from '../components/import/MigrationPreview'
 import { ColumnMapper } from '../components/import/ColumnMapper'
 import { ImportHistory } from '../components/import/ImportHistory'
 import { QueryState } from '../components/shared/QueryState'
@@ -154,6 +155,10 @@ export function Import() {
               Import failed: {startImport.error instanceof Error ? startImport.error.message : 'unknown error'}
             </div>
           )}
+
+          {/* The other half of the exchange. This page has always shown what a CPSE gives us;
+              it never showed what goes back, which is the part they actually have to approve. */}
+          {effectiveOrgCode && <MigrationPreview orgCode={effectiveOrgCode} />}
         </div>
 
         <ImportHistory importIds={importIds} />

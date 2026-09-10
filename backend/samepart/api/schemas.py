@@ -452,6 +452,103 @@ class MigrationPlan(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class PassportSource(BaseModel):
+    """One CPSE's code, exactly as it was received. Never altered by anything here."""
+    org_code: str
+    source_code: str
+    raw_description: str
+    base_uom: str | None = None
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+
+
+class PassportEvidence(BaseModel):
+    """One attribute, the value agreed for it, and who independently said so."""
+    key: str
+    label: str
+    value: str | None = None
+    unit: str | None = None
+    stated_by: list[str] = Field(default_factory=list)
+    differs: dict[str, str] = Field(
+        default_factory=dict,
+        description="Organisations that stated something else, and what they stated")
+    evidence: dict[str, str] = Field(
+        default_factory=dict,
+        description="Source code -> the exact words the value was read from")
+
+
+class PassportSubstitute(BaseModel):
+    org_code: str
+    source_code: str
+    raw_description: str
+    condition: str | None = None
+
+
+class PassportDecision(BaseModel):
+    at: datetime
+    actor: str
+    action: str
+    note: str | None = None
+    entry_hash: str | None = None
+
+
+class MaterialPassport(BaseModel):
+    """Everything known about one national identity, in one record a person can hand over.
+
+    The proof panel already renders all of this; the passport is the same content as a
+    portable artefact. A CPSE asked to accept a national code is entitled to the full basis
+    for it -- which codes it covers, which organisation independently stated each fact, the
+    words each fact was read from, who approved the merge and when, and whether that record
+    has been altered since. Handing over a number and asking for trust is what these
+    programmes usually do, and it is why they stall.
+    """
+    canonical_id: str
+    national_code: str | None = None
+    family: str
+    classification_code: str | None = None
+    standardised_short: str | None = None
+    standardised_long: str | None = None
+    issued_at: datetime
+
+    sources: list[PassportSource] = Field(default_factory=list)
+    evidence: list[PassportEvidence] = Field(default_factory=list)
+    substitutes: list[PassportSubstitute] = Field(default_factory=list)
+    decisions: list[PassportDecision] = Field(default_factory=list)
+
+    audit_chain_intact: bool = Field(
+        description="Whether the decision trail verified at the moment this was issued. A "
+                    "passport carrying decisions from a broken chain says so.")
+    audit_note: str = ""
+
+
+class MigrationChange(BaseModel):
+    org_code: str
+    source_code: str
+    action: str = Field(description="cross_reference | review | close_recommended")
+    national_code: str | None = None
+    reason: str = ""
+
+
+class MigrationPreview(BaseModel):
+    """What loading this into a CPSE's master would actually do, before anyone does it.
+
+    The number that matters is `fields_altered`, and it is zero by construction rather than by
+    policy: the export writes new columns beside a CPSE's own code and issues no update to any
+    field the CPSE already owns. That claim is the reason a plant team will run this at all, so
+    it is stated as a count they can check rather than a promise in a slide.
+    """
+    org_code: str | None = None
+    generated_at: datetime
+    codes_in_master: int
+    rows_added: int
+    fields_altered: int = 0
+    columns_written: list[str] = Field(default_factory=list)
+    columns_read_only: list[str] = Field(default_factory=list)
+    by_action: dict[str, int] = Field(default_factory=dict)
+    sample: list[MigrationChange] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class AuditEvent(BaseModel):
     id: int
     at: datetime

@@ -1648,6 +1648,51 @@ it at exactly that row and `verify` exits non-zero; restoring the file returns i
 
 ---
 
+## 2026-09-11 — Material passport, migration preview, and the last of the hardcoded families
+
+**The hardcoded-family sweep.** Three `hex_bolt` literals surfaced one at a time in
+screenshots after the four-family work, so the rest were found by grep. Six more, and the two
+worst were silent rather than visible:
+
+- The **duplicate-check API defaulted `family` to bolts**. Pasting a gasket description ran
+  bolt patterns, extracted nothing, found no duplicate, and said the code was safe to create —
+  the one answer that page must never get wrong.
+- The **import form sent no family at all**, so every catalogue brought in through the UI
+  landed as bolts regardless of content.
+
+Also: governance reported `automation_enabled` from bolts alone; model enrichment defaulted to
+bolts, so three quarters of records with blanks were never offered to the model; and the
+evidence table hid empty columns from a hardcoded set containing one bolt attribute. Both the
+import and check pages now carry a family picker fed by `GET /families`, which nothing in the
+UI had been using. `family` is required rather than defaulted on both paths.
+
+An import whose extraction yield falls below half an attribute per row now warns and names the
+available families — a file read as the wrong family is otherwise completely silent.
+
+**The pattern worth naming:** every one of these was a default that made a wrong answer look
+like a normal answer. `_mpn`, the empty proof panel and these all share that shape.
+
+**Material passport** (`GET /api/identities/{id}/passport`). Everything known about one
+identity as a portable record: every contributing source code, each attribute with the
+organisations that independently stated it and the exact words it was read from, the
+substitutes and their conditions, the full decision history with hashes, and whether the audit
+chain verified at the moment of issue. A CPSE asked to accept a national code is entitled to
+the basis for it; handing over a number and asking for trust is what stalls these programmes.
+Downloadable from the proof panel.
+
+**Migration preview** (`GET /api/export/migration-preview`). What loading this into a CPSE's
+master would actually do, before anyone does it. The figure the panel is built around is
+**zero existing fields altered**, and it is zero by construction rather than by policy: the
+export writes new columns beside a CPSE's own code and there is no path that issues an update
+to a field the CPSE owns. On BPCL: 409 codes examined, 297 rows added, 0 altered. It lives on
+the import page, because that is where a CPSE thinks about its own master and the honest
+sequence is "here is what you gave us" then "here is exactly what goes back".
+
+Capabilities 5 and 8 had been backend-only until now — cross-reference, migration plan and the
+MATMAS payload all existed with no way to see any of them.
+
+---
+
 ## Standing decisions that must not be quietly reversed
 
 These were each argued and settled. Reversing one is fine; doing it without an entry here is

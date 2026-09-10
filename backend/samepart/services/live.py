@@ -1310,6 +1310,169 @@ class LiveExport:
                 "Codes under review are those the system would not decide without a person.",
             ])
 
+    def passport(self, canonical_id: str) -> s.MaterialPassport:
+        """Everything known about one identity, in a record a CPSE can be handed.
+
+        The claim being made is that four organisations independently described the same
+        material, so the passport carries the independence: which organisation stated each
+        fact, and the exact words it was read from. A number with no basis is what a CPSE is
+        being asked to accept everywhere else in this problem space.
+        """
+        from samepart import audit
+
+        with session_scope() as db:
+            material = db.get(CanonicalMaterial, canonical_id)
+            if material is None:
+                raise KeyError(canonical_id)
+
+            family = self.dictionary.family(material.family)
+            labels = {a.key: a.label for a in family.attributes}
+            keys = [a.key for a in family.attributes
+                    if not a.is_derived and a.criticality.value in ("critical", "major")]
+
+            mappings = list(db.scalars(select(ApprovedMapping)
+                                       .where(ApprovedMapping.canonical_id == canonical_id)))
+            records = [db.get(SourceRecord, m.record_id) for m in mappings]
+            approved = {m.record_id: m for m in mappings}
+
+            sources = [
+                s.PassportSource(
+                    org_code=r.org.code, source_code=r.source_code,
+                    raw_description=r.raw_description, base_uom=r.base_uom,
+                    approved_by=approved[r.id].approved_by, approved_at=approved[r.id].at)
+                for r in records if r is not None
+            ]
+
+            # Per attribute: the value most sources state, who stated it, and who said
+            # otherwise. Silence and disagreement are kept apart -- a CPSE that never wrote a
+            # value has not contradicted anything.
+            evidence: list[s.PassportEvidence] = []
+            for key in keys:
+                stated: dict[str, str] = {}
+                words: dict[str, str] = {}
+                for r in records:
+                    if r is None:
+                        continue
+                    attr = next((a for a in r.attributes if a.key == key), None)
+                    if attr is None or attr.status in ("unknown", "unresolvable"):
+                        continue
+                    value = attr.value_text if attr.value_text is not None else (
+                        str(attr.value_number) if attr.value_number is not None else None)
+                    if value is None:
+                        continue
+                    stated[r.source_code] = value
+                    if attr.evidence:
+                        words[r.source_code] = attr.evidence
+                if not stated:
+                    continue
+
+                tally: dict[str, int] = {}
+                for v in stated.values():
+                    tally[v] = tally.get(v, 0) + 1
+                agreed = max(tally.items(), key=lambda kv: kv[1])[0]
+                by_code = {r.source_code: r.org.code for r in records if r is not None}
+
+                evidence.append(s.PassportEvidence(
+                    key=key, label=labels.get(key, key), value=agreed,
+                    unit=next((a.unit for r in records if r for a in r.attributes
+                               if a.key == key and a.unit), None),
+                    stated_by=sorted({by_code[c] for c, v in stated.items() if v == agreed}),
+                    differs={by_code[c]: v for c, v in stated.items() if v != agreed},
+                    evidence=words))
+
+            alt_ids: list[tuple[int, str]] = []
+            for r in records:
+                if r is None:
+                    continue
+                for alt in db.scalars(select(PossibleAlternative)):
+                    if alt.a_id == r.id:
+                        alt_ids.append((alt.b_id, alt.condition or ""))
+                    elif alt.b_id == r.id:
+                        alt_ids.append((alt.a_id, alt.condition or ""))
+            known = {r.id for r in records if r is not None}
+            substitutes = []
+            for rid, condition in alt_ids:
+                if rid in known:
+                    continue
+                known.add(rid)
+                other = db.get(SourceRecord, rid)
+                if other is not None:
+                    substitutes.append(s.PassportSubstitute(
+                        org_code=other.org.code, source_code=other.source_code,
+                        raw_description=other.raw_description, condition=condition or None))
+
+            decisions = [
+                s.PassportDecision(
+                    at=e.at, actor=e.actor, action=e.action,
+                    note=(e.payload or {}).get("note"), entry_hash=e.entry_hash)
+                for e in db.scalars(select(DecisionEvent)
+                                    .where(DecisionEvent.canonical_id == canonical_id)
+                                    .order_by(DecisionEvent.id))
+            ]
+
+            chain = audit.verify(db)
+
+            return s.MaterialPassport(
+                canonical_id=canonical_id,
+                national_code=registry.national_code(canonical_id,
+                                                     material.classification_code),
+                family=material.family,
+                classification_code=material.classification_code,
+                standardised_short=material.standardised_short,
+                standardised_long=material.standardised_long,
+                issued_at=datetime.now(timezone.utc),
+                sources=sources, evidence=evidence, substitutes=substitutes,
+                decisions=decisions,
+                audit_chain_intact=chain.intact,
+                audit_note=chain.reason or "Decision trail verified at time of issue.")
+
+    def migration_preview(self, org_code: str | None = None) -> s.MigrationPreview:
+        """What loading this into a CPSE's master would do, before anyone does it.
+
+        `fields_altered` is zero by construction, not by policy. The cross-reference writes new
+        columns beside a CPSE's own code; there is no code path here that issues an update to a
+        field the CPSE already owns. Stating it as a count a plant team can check is the whole
+        reason they would run this at all.
+        """
+        data = self.cross_reference(org_code, 50000)
+
+        by_action: dict[str, int] = {}
+        sample: list[s.MigrationChange] = []
+        for row in data.items:
+            action = ("cross_reference" if row.national_code
+                      else "review" if row.status != "dead" else "close_recommended")
+            by_action[action] = by_action.get(action, 0) + 1
+            if len(sample) < 8:
+                sample.append(s.MigrationChange(
+                    org_code=row.org_code, source_code=row.source_code, action=action,
+                    national_code=row.national_code,
+                    reason=("cross-referenced to a national identity" if row.national_code
+                            else "no decision yet; stays exactly as it is")))
+
+        written = ["national_code", "canonical_identity", "classification_code",
+                   "standardised_short", "base_uom", "status", "duplicate_of", "approved_by"]
+        read_only = ["org_code", "source_code", "the CPSE's own description",
+                     "the CPSE's own unit of measure", "every other field in the master"]
+
+        return s.MigrationPreview(
+            org_code=org_code,
+            generated_at=datetime.now(timezone.utc),
+            codes_in_master=len(data.items),
+            rows_added=sum(1 for r in data.items if r.national_code),
+            fields_altered=0,
+            columns_written=written,
+            columns_read_only=read_only,
+            by_action=dict(sorted(by_action.items(), key=lambda kv: -kv[1])),
+            sample=sample,
+            notes=[
+                "No existing field is written. The CPSE's own code, description and unit of "
+                "measure are read and never updated.",
+                "A cross-referenced code is not removed from the master. It gains a national "
+                "reference and keeps everything it had.",
+                "Codes with no decision yet appear here unchanged, so the preview accounts "
+                "for every code rather than only the ones the system acted on.",
+            ])
+
     def erp_payload(self, canonical_id: str) -> dict:
         """A material master payload shaped like the interface an SAP team expects.
 

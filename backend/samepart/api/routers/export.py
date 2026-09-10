@@ -51,6 +51,26 @@ def migration_plan(svc: ExportService = Depends(export_service)):
     return svc.migration_plan()
 
 
+@router.get("/export/migration-preview", response_model=s.MigrationPreview)
+def migration_preview(org_code: str | None = None,
+                      svc: ExportService = Depends(export_service)):
+    """What loading this into a CPSE's master would change, before anyone does it.
+
+    The number worth reading is `fields_altered`. It is zero because nothing here writes a
+    field the CPSE already owns, not because a policy says so.
+    """
+    return svc.migration_preview(org_code)
+
+
+@router.get("/identities/{canonical_id}/passport", response_model=s.MaterialPassport)
+def passport(canonical_id: str, svc: ExportService = Depends(export_service)):
+    """Everything known about one national identity, as a record a CPSE can be handed."""
+    try:
+        return svc.passport(canonical_id)
+    except KeyError:
+        raise HTTPException(404, f"no canonical material {canonical_id}")
+
+
 @router.get("/export/erp/{canonical_id}")
 def erp_payload(canonical_id: str, svc: ExportService = Depends(export_service)):
     """A material master payload shaped like the interface an SAP team expects."""

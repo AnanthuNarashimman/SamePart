@@ -82,3 +82,18 @@ export function useGraph(limit = 14, minOrgs = 2) {
       (await apiClient.get<GraphView>('/graph', { params: { limit, min_orgs: minOrgs } })).data,
   })
 }
+
+/** One identity's full basis, as a record a CPSE can be handed. Fetched on demand rather than
+ *  with the graph: nobody needs 455 passports, they need the one they are questioning. */
+export async function fetchPassport(canonicalId: string) {
+  const { data } = await apiClient.get(`/identities/${canonicalId}/passport`)
+  return data
+}
+
+export function useMigrationPreview(orgCode?: string) {
+  return useQuery({
+    queryKey: ['migration-preview', orgCode ?? 'all'],
+    queryFn: async () =>
+      (await apiClient.get('/export/migration-preview', { params: { org_code: orgCode } })).data,
+  })
+}
