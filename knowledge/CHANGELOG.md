@@ -72,6 +72,35 @@ pairing it in a grid row beside the tall price-spread card stretched an empty ca
 It is now full width, and the remaining grids use `items-start` so a short card never
 stretches to meet a tall neighbour.
 
+### Ported the price-spread chart from lieflat-charts
+**Who:** Aditya (with Claude) · **Asked for by:** Ananthu
+
+39 of that repository's 63 charts are **hand-written SVG**, which port to React almost
+directly: markup with values computed in a script becomes a component taking props. Only
+about 15 use ECharts or Chart.js, and those are not ports at all, they are a config object
+plus a megabyte of library.
+
+Took the **barcode lollipop** idiom for the price spread. Three techniques worth keeping:
+
+- **The field is drawn before the values.** A hairline the full width of the scale, so an eye
+  reads where the marks sit before it reads a number
+- **A stem under each mark.** A cluster of dots still reads as separate marks because each is
+  anchored down to the field
+- **Labels only where they cannot collide.** Their gallery keeps its top-3 labels at least six
+  days apart by construction. This is the fix to the problem I had, done properly
+
+**The insight I had missed: you do not need to identify every mark, only the ones carrying
+the story.** Here that is the cheapest and dearest buyer, anchored to opposite ends of the
+row where they cannot meet. Everything between them is on hover. Where the two ends are
+within a tenth of the row, the cheapest label stands down.
+
+Verified across all seven rows: gaps run 32% to 94%, so every row labels both ends and none
+can collide.
+
+Their charts read well because they are monochrome, hairline and sparse, not because of a
+library. Filled marks the dearest, hollow the cheapest, which is a second encoding that does
+not lean on colour.
+
 ### What did not change
 Every number. This was a design pass, not a data one.
 
