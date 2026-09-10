@@ -72,7 +72,7 @@ pairing it in a grid row beside the tall price-spread card stretched an empty ca
 It is now full width, and the remaining grids use `items-start` so a short card never
 stretches to meet a tall neighbour.
 
-### Ported the price-spread chart from lieflat-charts
+### Ported the price-spread chart from lieflat-charts, then reverted it
 **Who:** Aditya (with Claude) · **Asked for by:** Ananthu
 
 39 of that repository's 63 charts are **hand-written SVG**, which port to React almost
@@ -97,9 +97,13 @@ within a tenth of the row, the cheapest label stands down.
 Verified across all seven rows: gaps run 32% to 94%, so every row labels both ends and none
 can collide.
 
-Their charts read well because they are monochrome, hairline and sparse, not because of a
-library. Filled marks the dearest, hollow the cheapest, which is a second encoding that does
-not lean on colour.
+**Reverted the same day. The team did not like it**, and that is the end of it: the version
+with coloured dots and a legend is back.
+
+Two things are worth keeping from the exercise even so. Most of that repository is
+hand-written SVG, so porting is genuinely cheap if anyone wants another one. And the labelling
+rule — label only the marks carrying the story, at positions that cannot collide — is the
+correct fix for overlapping labels regardless of which chart it lands in.
 
 ### What did not change
 Every number. This was a design pass, not a data one.
