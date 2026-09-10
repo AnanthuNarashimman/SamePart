@@ -110,7 +110,9 @@ def match() -> None:
     d = dictionary()
     with session_scope() as db:
         present = sorted({r.family for r in db.scalars(select(SourceRecord))})
-    for name in present or ["hex_bolt"]:
+    # Nothing imported yet: fall back to every family that can generate, rather than to one
+    # named family, so `match` on an empty database says something true about all of them.
+    for name in present or sorted(f.family for f in d.families.values() if f.synthesis):
         print(f"\n── {name}")
         _report_match(LiveReview(d).build_matches(family_name=name))
 

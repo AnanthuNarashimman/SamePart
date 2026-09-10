@@ -117,6 +117,15 @@ class LiveCatalogue:
         status.rows_skipped = len(skipped)
         status.attributes_extracted = attributes
 
+        # A file imported against the wrong family is silent: the family's patterns match
+        # nothing, every row lands with no attributes, and the import reports success. The
+        # request carries a default family, so this is easy to do by accident from the UI.
+        if ingested and attributes / ingested < 0.5 and len(self.dictionary.families) > 1:
+            status.warnings.append(
+                f"Only {attributes} attributes were read from {ingested} rows as "
+                f"'{family.family}'. If these are not {family.label.lower()}, re-import under "
+                f"the right family: {', '.join(sorted(self.dictionary.families))}.")
+
         # Matching runs immediately, scoped to what just arrived, so an import is visible in
         # the queue without a separate manual step.
         if new_ids:
@@ -280,7 +289,7 @@ class LiveReview:
         self.dictionary = dictionary
 
     # -- building the queue -------------------------------------------------
-    def build_matches(self, family_name: str = "hex_bolt", verbose: bool = False,
+    def build_matches(self, family_name: str, verbose: bool = False,
                       only_records: set[int] | None = None) -> dict:
         """Retrieve candidates, run the cascade, persist a verdict for every pair.
 
@@ -687,7 +696,21 @@ class ModelEnrichment:
     def __init__(self, dictionary: Dictionary) -> None:
         self.dictionary = dictionary
 
-    def enrich(self, family_name: str = "hex_bolt", limit: int | None = None) -> dict:
+    def enrich(self, family_name: str | None = None, limit: int | None = None) -> dict:
+        """Second-pass extraction over every family, or one named family.
+
+        The default was the literal "hex_bolt", so with four families loaded three quarters of
+        the records carrying blanks were never offered to the model at all — silently, because
+        an unenriched record looks exactly like one the model declined to fill.
+        """
+        if family_name is None:
+            totals: dict = {"families": {}}
+            for name in sorted(self.dictionary.families):
+                totals["families"][name] = self.enrich(name, limit=limit)
+            return totals
+        return self._enrich_one(family_name, limit)
+
+    def _enrich_one(self, family_name: str, limit: int | None = None) -> dict:
         from samepart.model.client import get_model
         from samepart.model.extract import extract_missing
         from samepart.pipeline.extract import extract as regex_extract
@@ -1361,11 +1384,15 @@ class LiveGovernance:
 
     def info(self) -> s.GovernanceInfo:
         g = gov.load()
-        family = self.dictionary.families.get("hex_bolt")
+        # Any family, not one hardcoded family. This read `families.get("hex_bolt")`, so with
+        # four loaded, turning automation on for gaskets would leave the governance page still
+        # reporting that the system never merges without asking. The question a reader is
+        # asking is whether ANYTHING is being auto-merged.
         return s.GovernanceInfo(
             default_state=g.default_state,
             policy_change_requires=g.policy_change_role,
-            automation_enabled=bool(family and family.auto_merge.enabled),
+            automation_enabled=any(f.auto_merge.enabled
+                                   for f in self.dictionary.families.values()),
             roles=[s.RoleInfo(key=r.key, label=r.label, description=r.description,
                               permissions=sorted(r.permissions), scope=r.scope)
                    for r in g.roles.values()])

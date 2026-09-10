@@ -11,7 +11,9 @@ import { Separator } from '@/components/ui/separator'
 // exact substring it came from in every row at once, which is a far better argument for
 // evidence provenance than a paragraph explaining that we have it.
 
-const HIDDEN_WHEN_EMPTY = new Set(['thread_pitch_mm'])
+// A column nobody filled teaches nothing, whatever it is called. This was a hardcoded set
+// containing one bolt attribute, which did nothing at all for the other three families and
+// would have needed an entry per family forever.
 
 function Marked({ text, mark }: { text: string; mark: string | null }) {
   if (!mark) return <>{text}</>
@@ -48,9 +50,7 @@ export function EvidenceInspector({
   // is enough to see that the wording differs wildly while the attributes do not, which is the
   // entire argument this table makes.
   const paged = usePaged(rows, 8)
-  const keys = order.filter(
-    (k) => !(HIDDEN_WHEN_EMPTY.has(k) && rows.every((r) => value(r, k)?.value == null)),
-  )
+  const keys = order.filter((k) => rows.some((r) => value(r, k)?.value != null))
   const label = (k: string) =>
     rows.map((r) => value(r, k)?.label).find(Boolean) ?? k
   const short = (k: string) =>

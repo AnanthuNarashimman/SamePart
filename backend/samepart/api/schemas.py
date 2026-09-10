@@ -212,7 +212,11 @@ class ImportStatus(BaseModel):
 class CheckRequest(BaseModel):
     description: str
     org_code: str
-    family: str = "hex_bolt"
+    family: str = Field(
+        description="Which material family to read this description as. Required, and "
+                    "deliberately not defaulted: checking a gasket against a bolt's patterns "
+                    "extracts nothing, finds no duplicate, and cheerfully says the code is "
+                    "safe to create.")
     uom: str | None = None
     quantity: float | None = None
 

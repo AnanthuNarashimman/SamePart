@@ -46,7 +46,7 @@ async def preview_import(file: UploadFile = File(...), kind: str = Form("catalog
 async def start_import(
     file: UploadFile = File(...),
     org_code: str = Form(...),
-    family: str = Form("hex_bolt"),
+    family: str = Form(..., description="Material family; see GET /families"),
     column_map: str = Form("{}"),
     svc: CatalogueService = Depends(catalogue_service),
 ):

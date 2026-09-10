@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useOrgs, useStartImport } from '../api/catalogue'
+import { useFamilies, useOrgs, useStartImport } from '../api/catalogue'
 import { ColumnMapper } from '../components/import/ColumnMapper'
 import { ImportHistory } from '../components/import/ImportHistory'
 import { QueryState } from '../components/shared/QueryState'
@@ -21,6 +21,13 @@ function readHeaderRow(file: File): Promise<string[]> {
 export function Import() {
   const orgs = useOrgs()
   const startImport = useStartImport()
+  const families = useFamilies()
+  const [family, setFamily] = useState('')
+  // Whatever the dictionary loaded first, until the reader chooses. Never a literal:
+  // this form used to send no family at all and the API defaulted it to 'hex_bolt', so
+  // a gasket catalogue imported through the UI landed as bolts, matched nothing, and
+  // reported success.
+  const effectiveFamily = family || families.data?.[0]?.family || ''
 
   const [orgCode, setOrgCode] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -51,7 +58,7 @@ export function Import() {
       Object.entries(mapping).filter(([, field]) => field).map(([col, field]) => [field, col]),
     )
     startImport.mutate(
-      { file, orgCode: effectiveOrgCode, columnMap },
+      { file, orgCode: effectiveOrgCode, family: effectiveFamily, columnMap },
       { onSuccess: (status) => setImportIds((ids) => [status.import_id, ...ids]) },
     )
   }
@@ -80,6 +87,17 @@ export function Import() {
                 >
                   {orgs.data?.map((org) => (
                     <option key={org.code} value={org.code}>{org.name} ({org.code})</option>
+                  ))}
+                </select>
+
+                <select
+                  value={effectiveFamily}
+                  onChange={(e) => setFamily(e.target.value)}
+                  aria-label="Material family"
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
+                >
+                  {families.data?.map((f) => (
+                    <option key={f.family} value={f.family}>{f.label}</option>
                   ))}
                 </select>
 

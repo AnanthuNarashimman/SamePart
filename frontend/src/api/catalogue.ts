@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../lib/apiClient'
-import type { ImportStatus, Org } from './types'
+import type { FamilySummary, ImportStatus, Org } from './types'
 
 export function useOrgs() {
   return useQuery({
@@ -12,14 +12,24 @@ export function useOrgs() {
 interface StartImportInput {
   file: File
   orgCode: string
-  family?: string
+  family: string
   columnMap?: Record<string, string>
+}
+
+/** Every family the running dictionary carries. The import form needs it: a file brought in
+ *  under the wrong family extracts nothing and reports success. */
+export function useFamilies() {
+  return useQuery({
+    queryKey: ['families'],
+    queryFn: async () => (await apiClient.get<FamilySummary[]>('/families')).data,
+    staleTime: Infinity,
+  })
 }
 
 export function useStartImport() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ file, orgCode, family = 'hex_bolt', columnMap = {} }: StartImportInput) => {
+    mutationFn: async ({ file, orgCode, family, columnMap = {} }: StartImportInput) => {
       const form = new FormData()
       form.append('file', file)
       form.append('org_code', orgCode)

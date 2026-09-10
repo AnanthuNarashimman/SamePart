@@ -311,7 +311,9 @@ class StubAnalytics:
 
 class StubFamilies:
     def list_families(self):
-        return [s.FamilySummary(family="hex_bolt", label="Bolt, hex head",
+        # The fixture data is bolts, so the stub describes bolts. It says so rather than
+        # implying the product only supports one family.
+        return [s.FamilySummary(family="hex_bolt", label="Bolt, hex head (fixture)",
                                 attribute_count=10, gate_count=4,
                                 blocking_key=["thread_diameter_mm", "length_mm"])]
 

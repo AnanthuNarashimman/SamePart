@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useOrgs } from '../api/catalogue'
+import { useFamilies } from '../api/catalogue'
 import { useCheck } from '../api/prevention'
 import type { CheckResult } from '../api/types'
 import { MatchComparison } from '../components/shared/MatchComparison'
@@ -11,6 +12,12 @@ import { QueryState } from '../components/shared/QueryState'
 export function DuplicateCheck() {
   const orgs = useOrgs()
   const check = useCheck()
+  const families = useFamilies()
+  const [family, setFamily] = useState('')
+  // The API used to default this to bolts, so pasting a gasket description here
+  // matched none of the bolt patterns, found no duplicate, and cheerfully said the
+  // code was safe to create -- the one answer this page must never give wrongly.
+  const effectiveFamily = family || families.data?.[0]?.family || ''
 
   const [orgCode, setOrgCode] = useState<string | null>(null)
   const [description, setDescription] = useState('')
@@ -44,6 +51,18 @@ export function DuplicateCheck() {
               </select>
             )}
           </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-stone-500">Material family</label>
+            <select
+              value={effectiveFamily}
+              onChange={(e) => setFamily(e.target.value)}
+              className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
+            >
+              {families.data?.map((f) => (
+                <option key={f.family} value={f.family}>{f.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex-1">
             <label className="mb-1.5 block text-xs font-medium text-stone-500">Raw description</label>
             <input
@@ -56,8 +75,9 @@ export function DuplicateCheck() {
           </div>
           <button
             type="button"
-            disabled={!description.trim() || !effectiveOrgCode || check.isPending}
-            onClick={() => check.mutate({ description, org_code: effectiveOrgCode })}
+            disabled={!description.trim() || !effectiveOrgCode || !effectiveFamily || check.isPending}
+            onClick={() =>
+              check.mutate({ description, org_code: effectiveOrgCode, family: effectiveFamily })}
             className="rounded-lg bg-primary-500 px-5 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
           >
             {check.isPending ? 'Checking…' : 'Check'}
