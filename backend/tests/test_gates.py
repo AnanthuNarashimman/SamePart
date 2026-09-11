@@ -126,3 +126,28 @@ def test_automation_is_off_by_default_in_every_family():
     A family shipping with automation on would change that silently."""
     for name, family in dictionary().families.items():
         assert family.auto_merge.enabled is False, f"{name} ships with auto-merge enabled"
+
+
+def test_same_maker_different_part_number_is_not_merged():
+    """The identity signal read both ways.
+
+    Every stated attribute agrees and the finish is stated on neither side; before this the
+    attribute tier merged the pair. The part numbers say otherwise and come from the same
+    maker, and that is the highest-precision evidence a material master holds.
+    """
+    a = attrs(thread_diameter_mm=10, length_mm=45, grade="8.8", standard="DIN933",
+              manufacturer="TRD", manufacturer_part_number="HB-10-45-88-DIN933-PASSIVATED")
+    b = attrs(thread_diameter_mm=10, length_mm=45, grade="8.8", standard="DIN933",
+              manufacturer="TRD", manufacturer_part_number="HB-10-45-88-DIN933-ZINCPLATED")
+    result = cascade.run(FAMILY, a, b)
+    assert result.verdict is Verdict.DIFFERENT
+    assert result.decided_by == "identity"
+
+
+def test_different_makers_are_not_a_conflict():
+    """Two suppliers for one bolt is dual sourcing. The attribute tier decides, not identity."""
+    a = attrs(thread_diameter_mm=10, length_mm=45, grade="8.8", standard="DIN933",
+              manufacturer="TRD", manufacturer_part_number="TRD-1045")
+    b = attrs(thread_diameter_mm=10, length_mm=45, grade="8.8", standard="DIN933",
+              manufacturer="KSL", manufacturer_part_number="KSL-9982")
+    assert cascade.run(FAMILY, a, b).decided_by != "identity"

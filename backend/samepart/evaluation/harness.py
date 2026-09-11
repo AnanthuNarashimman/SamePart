@@ -188,9 +188,11 @@ def evaluate(db, *, family: str | None = None) -> Report:
     # not conflict: two records stating them are saying the same thing in two vocabularies.
     # Without this the count blames "standard" for merges whose real cause is elsewhere.
     equivalent = _equivalences()
+    informational = _informational()
     family_of = {x.id: x.family for x in records}
     indistinguishable = {p for p in (said_same - true_pairs)
-                         if not _has_conflict(p, attributes, equivalent.get(family_of[p[0]], {}))}
+                         if not _has_conflict(p, attributes, equivalent.get(family_of[p[0]], {}),
+                                              informational.get(family_of[p[0]], set()))}
 
     tp = len(said_same & true_pairs)
     fp = len(said_same - true_pairs)
@@ -300,18 +302,42 @@ def _attr_value(a: ExtractedAttribute) -> str | None:
 
 
 def _has_conflict(pair: Pair, attributes: dict[int, dict[str, str | None]],
-                  equivalent: dict[str, dict[str, str]] | None = None) -> bool:
-    """True when some attribute is stated on both records and the two values differ,
-    after mapping each value through the family's declared equivalences."""
+                  equivalent: dict[str, dict[str, str]] | None = None,
+                  ignore: set[str] | None = None) -> bool:
+    """True when some attribute that matters is stated on both records and differs, after
+    mapping each value through the family's declared equivalences."""
     a, b = attributes.get(pair[0], {}), attributes.get(pair[1], {})
     eq = equivalent or {}
+    skip = ignore or set()
 
     def canon(k: str, v: str) -> str:
         return eq.get(k, {}).get(v, v)
 
-    return any(a.get(k) is not None and b.get(k) is not None
-               and canon(k, a[k]) != canon(k, b[k])
-               for k in set(a) | set(b))
+    # Maker and part number are read together. Two makers for one bolt is dual sourcing, not
+    # a conflict; two part numbers from the *same* maker is one, and a strong one.
+    same_maker = (a.get("manufacturer") is not None and a.get("manufacturer") == b.get("manufacturer"))
+    mpn_conflict = (same_maker and a.get("manufacturer_part_number") is not None
+                    and b.get("manufacturer_part_number") is not None
+                    and a["manufacturer_part_number"] != b["manufacturer_part_number"])
+    skip = skip | {"manufacturer", "manufacturer_part_number"}
+
+    return mpn_conflict or any(
+        k not in skip and a.get(k) is not None and b.get(k) is not None
+        and canon(k, a[k]) != canon(k, b[k])
+        for k in set(a) | set(b))
+
+
+def _informational() -> dict[str, set[str]]:
+    """family -> attributes whose difference does not mean a different material.
+
+    Two suppliers for one bolt is the normal case, not a conflict; counting a manufacturer
+    difference as conflicting evidence would call every dual-sourced part a matcher error.
+    """
+    from samepart.api.deps import dictionary
+
+    return {name: {a.key for a in fam.attributes
+                   if getattr(a.criticality, "value", a.criticality) == "informational"}
+            for name, fam in dictionary().families.items()}
 
 
 def _equivalences() -> dict[str, dict[str, dict[str, str]]]:

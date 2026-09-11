@@ -83,6 +83,22 @@ def identity_match(family: Family, a: dict, b: dict) -> bool:
     return str(ma).strip().upper() == str(mb).strip().upper() and pa == pb
 
 
+def identity_conflict(family: Family, a: dict, b: dict) -> bool:
+    """Same maker, different part number. The identity signal, read in the other direction.
+
+    The identity tier used to be one-way: a matching part number established identity, but a
+    differing one from the same maker established nothing, and the attribute tier went on to
+    merge such pairs whenever every *stated* attribute agreed. At ten times the identity
+    density that merged 307 pairs of bolts that differed in a finish neither record wrote
+    down but both part numbers encoded. A maker does not issue two part numbers for one item.
+    """
+    ma, mb = a.get("manufacturer"), b.get("manufacturer")
+    pa, pb = _norm_mpn(family, a.get("manufacturer_part_number")), _norm_mpn(family, b.get("manufacturer_part_number"))
+    if not (ma and mb and pa and pb):
+        return False
+    return str(ma).strip().upper() == str(mb).strip().upper() and pa != pb
+
+
 def attribute_agreement(family: Family, a: dict, b: dict,
                         unresolvable_a: set[str] | None = None,
                         unresolvable_b: set[str] | None = None,
@@ -160,6 +176,14 @@ def run(family: Family, a: dict, b: dict,
             verdict=gate.verdict, decided_by="identity", score=1.0,
             proposal=Verdict.SAME, gate=gate,
             rationale="Same manufacturer and part number. Identity established without inference.",
+        )
+    if identity_conflict(family, a, b):
+        gate = evaluate(family, a, b, Verdict.DIFFERENT, settled)
+        return CascadeResult(
+            verdict=gate.verdict, decided_by="identity", score=0.0,
+            proposal=Verdict.DIFFERENT, gate=gate,
+            rationale="Same manufacturer, different part numbers. A maker does not issue two "
+                      "part numbers for one item.",
         )
 
     score, compared, disagreed, missing, unobtainable = attribute_agreement(

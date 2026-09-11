@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -22,11 +23,17 @@ from samepart.synth.generate import ORGS, generate
 from samepart.synth import procurement as po_synth
 
 DATA = Path("data/generated")
+# A scale run writes elsewhere so the frozen benchmark set is never overwritten by it.
+if os.getenv("SAMEPART_DATA_DIR"):
+    DATA = Path(os.environ["SAMEPART_DATA_DIR"])
 
 
 def seed(reset: bool = True) -> None:
+    args = sys.argv[2:]
+    scale = float(args[args.index("--scale") + 1]) if "--scale" in args else 1.0
     init_db(drop=reset)
-    info = generate(DATA)
+    DATA.mkdir(parents=True, exist_ok=True)
+    info = generate(DATA, scale=scale)
     print(f"generated {info['records']} records across {len(info['per_org'])} organisations")
 
     # One import per organisation per family. The generator writes ORG__family.csv, so this

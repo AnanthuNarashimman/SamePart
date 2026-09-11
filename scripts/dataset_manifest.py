@@ -22,7 +22,9 @@ sys.path.insert(0, str(ROOT / "backend"))
 from samepart.db.models import ExtractedAttribute, Organisation, SourceRecord  # noqa: E402
 from samepart.db.session import session_scope  # noqa: E402
 
-GEN = ROOT / "data" / "generated"
+import os  # noqa: E402
+
+GEN = Path(os.getenv("SAMEPART_DATA_DIR") or ROOT / "data" / "generated")
 OUT = GEN / "dataset_manifest.csv"
 
 COLUMNS = [

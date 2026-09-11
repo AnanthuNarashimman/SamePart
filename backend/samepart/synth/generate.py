@@ -122,11 +122,15 @@ def _part_number(synth, values: dict[str, Any]) -> str:
     part number and the identity tier merged them on fabricated evidence. Deriving it from the
     declared identity keys makes that class of defect impossible to reintroduce.
     """
+    # Whole tokens, joined with a separator. Truncating to six characters made ISO4017 and
+    # ISO4014 the same part number, and at ten times the identity density the identity tier
+    # merged 84 pairs of different bolts on that fabricated evidence. A part number must be
+    # injective over the identity keys or it is not a part number.
     parts = []
     for key in synth.identity_keys:
         token = re.sub(r"[^A-Z0-9]", "", str(values.get(key, "")).upper())
-        parts.append(token[:6] or "X")
-    return synth.part_number_prefix + "".join(parts)
+        parts.append(token or "X")
+    return synth.part_number_prefix + "-".join(parts)
 
 
 def _equivalence_map(fam) -> dict[str, dict[str, str]]:
@@ -203,8 +207,13 @@ def _price(synth, values: dict[str, Any]) -> float:
     return round(total, 2)
 
 
-def generate(out_dir: Path, seed: int = 20260909, dictionary=None) -> dict:
-    """Write one CSV per organisation per family, plus one labels file for all of them."""
+def generate(out_dir: Path, seed: int = 20260909, dictionary=None, scale: float = 1.0) -> dict:
+    """Write one CSV per organisation per family, plus one labels file for all of them.
+
+    `scale` multiplies every family's identity count. The benchmark set is sized to re-run
+    in a minute with every record labelled; a scale run answers the other question, whether
+    the same rules hold at a size a CPSE would actually hand over.
+    """
     from samepart.api.deps import dictionary as load_dictionary
 
     d = dictionary or load_dictionary()
@@ -223,6 +232,8 @@ def generate(out_dir: Path, seed: int = 20260909, dictionary=None) -> dict:
 
     for fam in families:
         synth = fam.synthesis
+        if scale != 1.0:
+            synth = synth.model_copy(update={"identities": max(1, round(synth.identities * scale))})
         idents = build_identities(synth, fam.family, rng, _equivalence_map(fam))
         per_family[fam.family] = len(idents)
 
