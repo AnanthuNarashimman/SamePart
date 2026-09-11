@@ -31,7 +31,7 @@ from samepart.db.models import (  # noqa: E402
 from samepart.db.session import session_scope  # noqa: E402
 
 OUT = ROOT / "data" / "generated" / "charts" / "convergence.png"
-IDENTITY = sys.argv[1] if len(sys.argv) > 1 else "IN-0000238-6"
+IDENTITY = sys.argv[1] if len(sys.argv) > 1 else "IN-0000137-0"
 
 # Same validated hues as the baseline charts, in the order the product uses for its CPSEs.
 ORG_HUE = {"BPCL": "#2a78d6", "CPCL": "#eb6834", "IOCL": "#1baf7a", "NTPC": "#eda100"}
@@ -83,7 +83,7 @@ def load():
             full = national_code(IDENTITY, code)
         except Exception as exc:
             print(f"full code not composed: {exc!r}", file=sys.stderr)
-        return sources, refused, full, recs[0].family
+        return sources, refused, full, recs[0].family, len(recs)
 
 
 def tidy(desc: str, width: int) -> str:
@@ -105,7 +105,7 @@ def chip(ax, x, y, text, colour):
 
 
 def main() -> int:
-    sources, refused, full, family = load()
+    sources, refused, full, family, total_codes = load()
 
     fig = plt.figure(figsize=(6.88, 3.86), dpi=300)
     ax = fig.add_axes([0, 0, 1, 1])
@@ -120,7 +120,7 @@ def main() -> int:
             "Critical conflicts always win.", fontsize=6.6, color=INK_2, ha="left", va="top")
 
     # ── left: four house styles, one material ──────────────────────────────────────────
-    ax.text(0.02, 0.775, "FOUR CATALOGUES, FOUR HOUSE STYLES", fontsize=5.4, color=INK_3,
+    ax.text(0.02, 0.775, "FOUR CATALOGUES, FOUR HOUSE STYLES  (one code shown per CPSE)", fontsize=5.4, color=INK_3,
             ha="left", va="bottom", fontweight="bold")
     n = len(sources)
     col_x, col_w = 0.02, 0.40
@@ -150,7 +150,7 @@ def main() -> int:
             ha="left", va="center", family=MONO)
     ax.text(id_x + 0.015, id_y + id_h - 0.19, family.replace("_", " ").upper(), fontsize=6,
             color=INK_2, ha="left", va="center")
-    ax.text(id_x + 0.015, id_y + 0.10, f"{n} CPSEs · {n}-way agreement", fontsize=6,
+    ax.text(id_x + 0.015, id_y + 0.10, f"{total_codes} codes · {n} CPSEs · {n}-way agreement", fontsize=6,
             color=INK_2, ha="left", va="center")
     ax.text(id_x + 0.015, id_y + 0.045, "each attribute traced to its evidence span", fontsize=5.6,
             color=INK_3, ha="left", va="center")

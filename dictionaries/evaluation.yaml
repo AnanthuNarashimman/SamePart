@@ -47,25 +47,25 @@ thresholds:
     min: 0.97
     why: >-
       Completeness is trivially buyable by comparing everything, so it is only meaningful
-      beside the share of comparisons avoided. Measured 0.9843.
+      beside the share of comparisons avoided. Measured 0.9939.
 
   # ── Decision ─────────────────────────────────────────────────────────────────────────
   decision.pairwise.precision:
     min: 0.95
     why: >-
-      Measured 0.9807. Tightened hard: precision is the axis that matters for a national
+      Measured 0.9927. Tightened hard: precision is the axis that matters for a national
       identifier, and a regression here means wrong merges are shipping.
   decision.pairwise.recall:
     min: 0.45
     why: >-
-      Measured 0.5511, and floored well below it on purpose. Recall was traded for precision
+      Measured 0.5419, and floored well below it on purpose. Recall was traded for precision
       when identity-defining attributes were made mandatory; the pairs given up became
       questions rather than disappearing. This bound exists to catch a matcher that abstains
       on everything, which would score perfectly on precision and be useless.
   decision.pairwise.f1:
     min: 0.65
     why: >-
-      Measured 0.7057. F1 weights recall and precision equally, which this system
+      Measured 0.7011. F1 weights recall and precision equally, which this system
       deliberately does not, so it is the least meaningful number here and is bounded
       loosely on purpose.
   decision.false_merges_with_conflicting_evidence:
@@ -73,17 +73,17 @@ thresholds:
     why: >-
       The one that matters. A false merge puts the wrong part in a pipeline, and this counts
       only pairs where some attribute was stated on both records and disagreed -- a real
-      matcher error, not a label artefact. Measured 6 of 830 same-material verdicts across four families (0.7%), down from 43.
+      matcher error, not a label artefact. Measured 1 of 1,772 same-material verdicts across four families, down from 43. Adding within-CPSE duplicates briefly pushed this to 22; every one traced to an extraction defect (the gasket ring read as the winding) or a demo fixture's made-up label, both fixed.
   decision.false_separations:
     max: 45
     why: >-
       Cheaper than a false merge -- it leaves a duplicate rather than creating a hazard -- so
-      the bound is looser on purpose. Measured 27.
+      the bound is looser on purpose. Measured 0.
   decision.abstention_rate:
     max: 0.30
     why: >-
       Abstaining is correct behaviour, but a matcher that abstains on everything is useless
-      while scoring perfectly on precision. This stops that. Measured 0.189.
+      while scoring perfectly on precision. This stops that. Measured 0.221.
 
   # ── Hard negatives ───────────────────────────────────────────────────────────────────
   hard_negatives.false_merge_rate:
@@ -91,17 +91,17 @@ thresholds:
     why: >-
       Pairs alike enough to be proposed but genuinely different: the pairs a text matcher
       merges. Performance here is the whole argument for typed attributes and conflict gates.
-      Measured 0.0028 across 5,640 such pairs, down from 0.0250.
+      Measured 0.0012 across 10,551 such pairs, down from 0.0250.
 
   # ── Outcome ──────────────────────────────────────────────────────────────────────────
   outcome.bcubed.f1:
     min: 0.80
-    why: Cluster-level quality, per-record rather than per-pair. Measured 0.8540; B-cubed recall carries the same deliberate trade.
+    why: Cluster-level quality, per-record rather than per-pair. Measured 0.8265; B-cubed recall carries the same deliberate trade.
   outcome.cluster_purity:
     min: 0.94
     why: >-
       Share of final clusters containing exactly one true identity. An impure cluster is one a
-      steward has to unpick by hand. Measured 0.9721: eleven impure clusters out of 394.
+      steward has to unpick by hand. Measured 0.9922: four impure clusters out of 515.
 
   # ── Cost ─────────────────────────────────────────────────────────────────────────────
   tiers.share_without_a_model:
@@ -114,7 +114,7 @@ thresholds:
 # Reported, deliberately un-thresholded:
 #   decision.indistinguishable_pairs   labelled different, no attribute disagrees. Nothing
 #                                      could separate these, so they measure the labels, not
-#                                      the matcher. Measured 10, down from 96 once the
+#                                      the matcher. Measured 12, down from 96 once the
 #                                      generator honoured its own equivalence rules.
 #
 # Known weak spot: bearing_ball scores worst of the four (precision 0.757, purity 0.750). It
