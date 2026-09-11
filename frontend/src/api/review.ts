@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { actorParams, reviewerFields, useActor } from '../lib/actor'
 import { apiClient } from '../lib/apiClient'
 import type { DecisionRequest, DecisionResult, MatchDetail, QueuePage } from './types'
@@ -11,6 +11,9 @@ export function useQueue(params: { group?: string; cursor?: string; limit?: numb
   return useQuery({
     queryKey: ['queue', scoped],
     queryFn: async () => (await apiClient.get<QueuePage>('/queue', { params: scoped })).data,
+    // Turning a page keeps the current one on screen until the next arrives, rather than
+    // emptying the list and re-drawing it.
+    placeholderData: keepPreviousData,
   })
 }
 

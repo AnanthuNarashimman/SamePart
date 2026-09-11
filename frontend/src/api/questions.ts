@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { reviewerFields, useActor } from '../lib/actor'
 import { apiClient } from '../lib/apiClient'
 import type { AnswerRequest, AnswerResult, QuestionPage, UnresolvableRequest } from './types'
@@ -10,6 +10,9 @@ export function useQuestions(params: { cursor?: string; limit?: number } = {}) {
   return useQuery({
     queryKey: ['questions', scoped],
     queryFn: async () => (await apiClient.get<QuestionPage>('/questions', { params: scoped })).data,
+    // Turning a page keeps the current one on screen until the next arrives, rather than
+    // emptying the list and re-drawing it.
+    placeholderData: keepPreviousData,
   })
 }
 
