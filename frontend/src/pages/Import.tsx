@@ -83,7 +83,7 @@ export function Import() {
           <div className="rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
             <h3 className="mb-3 text-sm font-semibold text-stone-900">1. Choose source and file</h3>
             {orgs.isLoading || orgs.isError ? (
-              <QueryState isLoading={orgs.isLoading} isError={orgs.isError} error={orgs.error} />
+              <QueryState isLoading={orgs.isLoading} isError={orgs.isError} error={orgs.error} loadingLabel="Finding the organisations" />
             ) : (
               // Wrapping, and each control given a floor. Adding the family select to a row
               // built for two pushed the file input past the edge of the card, where it

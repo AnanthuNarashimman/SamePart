@@ -30,7 +30,7 @@ export function Dashboard() {
       </header>
 
       {!summary.data ? (
-        <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} />
+        <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} loadingLabel="Reading the catalogue" />
       ) : (
         <section className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <StatCard label="Records imported" value={summary.data.records.toLocaleString('en-IN')} hint="Across connected sources" />
@@ -49,13 +49,13 @@ export function Dashboard() {
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {!savings.data ? (
-            <Card><QueryState isLoading={savings.isLoading} isError={savings.isError} error={savings.error} /></Card>
+            <Card><QueryState isLoading={savings.isLoading} isError={savings.isError} error={savings.error} loadingLabel="Pricing the clusters" /></Card>
           ) : (
             <SavingsPanel savings={savings.data} />
           )}
         </div>
         {!summary.data ? (
-          <Card><QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} /></Card>
+          <Card><QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} loadingLabel="Reading the catalogue" /></Card>
         ) : (
           <QueueBreakdown counts={summary.data.queue_by_group} />
         )}
@@ -79,12 +79,12 @@ export function Dashboard() {
 
       <section className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
         {!rationalisation.data ? (
-          <Card><QueryState isLoading={rationalisation.isLoading} isError={rationalisation.isError} error={rationalisation.error} /></Card>
+          <Card><QueryState isLoading={rationalisation.isLoading} isError={rationalisation.isError} error={rationalisation.error} loadingLabel="Counting the codes" /></Card>
         ) : (
           <RationalisationPanel data={rationalisation.data} />
         )}
         {!auditFlags.data ? (
-          <Card><QueryState isLoading={auditFlags.isLoading} isError={auditFlags.isError} error={auditFlags.error} /></Card>
+          <Card><QueryState isLoading={auditFlags.isLoading} isError={auditFlags.isError} error={auditFlags.error} loadingLabel="Checking the prices" /></Card>
         ) : (
           <AuditFlagsPanel data={auditFlags.data} />
         )}

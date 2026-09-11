@@ -34,7 +34,7 @@ export function IntegrityPanel() {
   if (report.isLoading || report.isError) {
     return (
       <div className="flex h-44 items-center justify-center rounded-2xl border border-stone-100 bg-white shadow-sm">
-        <QueryState isLoading={report.isLoading} isError={report.isError} error={report.error} />
+        <QueryState isLoading={report.isLoading} isError={report.isError} error={report.error} loadingLabel="Walking the audit chain" />
       </div>
     )
   }

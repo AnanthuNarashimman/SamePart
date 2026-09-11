@@ -84,7 +84,7 @@ export function RelationshipGraph() {
     <div className="flex-1 overflow-y-auto app-canvas p-8">
       {!graph.data || !stats ? (
         <Card className="flex h-64 items-center justify-center">
-          <QueryState isLoading={graph.isLoading} isError={graph.isError} error={graph.error} />
+          <QueryState isLoading={graph.isLoading} isError={graph.isError} error={graph.error} loadingLabel="Drawing the registry" />
         </Card>
       ) : (
         <>

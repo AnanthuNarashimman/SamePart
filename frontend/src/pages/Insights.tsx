@@ -15,7 +15,7 @@ import { QueryState } from '../components/shared/QueryState'
 function Placeholder({ q }: { q: { isLoading: boolean; isError: boolean; error: unknown } }) {
   return (
     <div className="flex h-72 items-center justify-center rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
-      <QueryState isLoading={q.isLoading} isError={q.isError} error={q.error} />
+      <QueryState isLoading={q.isLoading} isError={q.isError} error={q.error} loadingLabel="Measuring" />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../lib/auth'
+import { Diamond } from '../components/shared/Diamond'
 
 // The door. One field pair, one sentence about what a seat is, no marketing. The usernames are
 // listed because they are seats, not secrets; the passwords are not.
@@ -72,7 +73,11 @@ export function Login() {
           disabled={busy || !username || !password}
           className="w-full rounded-lg bg-primary-500 py-2.5 text-sm font-medium text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Diamond className="h-3.5 w-3.5" /> Signing in
+            </span>
+          ) : 'Sign in'}
         </button>
 
         <p className="mt-5 border-t border-stone-100 pt-4 text-[11px] leading-relaxed text-stone-400">

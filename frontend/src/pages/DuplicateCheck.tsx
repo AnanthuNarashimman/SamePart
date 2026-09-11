@@ -43,7 +43,7 @@ export function DuplicateCheck() {
           <div className="w-full sm:w-56">
             <label className="mb-1.5 block text-xs font-medium text-stone-500">Requesting org</label>
             {orgs.isLoading || orgs.isError ? (
-              <QueryState isLoading={orgs.isLoading} isError={orgs.isError} error={orgs.error} />
+              <QueryState isLoading={orgs.isLoading} isError={orgs.isError} error={orgs.error} loadingLabel="Finding the organisations" />
             ) : (
               <select
                 value={effectiveOrgCode}

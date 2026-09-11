@@ -1,3 +1,6 @@
+import { Diamond } from './Diamond'
+import { TextShimmer } from './TextShimmer'
+
 interface QueryStateProps {
   isLoading: boolean
   isError: boolean
@@ -12,9 +15,14 @@ function errorMessage(error: unknown): string {
 
 // Shared loading/error presentation so every panel talking to the live API fails the same
 // visible way instead of silently rendering nothing.
-export function QueryState({ isLoading, isError, error, loadingLabel = 'Loading…' }: QueryStateProps) {
+export function QueryState({ isLoading, isError, error, loadingLabel = 'Loading' }: QueryStateProps) {
   if (isLoading) {
-    return <div className="flex h-24 items-center justify-center text-sm text-stone-400">{loadingLabel}</div>
+    return (
+      <div className="flex h-24 items-center justify-center gap-2.5 text-sm text-stone-500">
+        <Diamond className="h-3.5 w-3.5 text-primary-500" />
+        <TextShimmer>{loadingLabel}</TextShimmer>
+      </div>
+    )
   }
   if (isError) {
     return (
