@@ -76,6 +76,7 @@ class Baseline:
     at_our_recall: Point | None = None
     at_our_precision: Point | None = None
     note: str = ""
+    curve: list[Point] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
@@ -83,6 +84,7 @@ class Baseline:
             "best_f1": self.best_f1.as_dict() if self.best_f1 else None,
             "at_our_recall": self.at_our_recall.as_dict() if self.at_our_recall else None,
             "at_our_precision": self.at_our_precision.as_dict() if self.at_our_precision else None,
+            "curve": [p.as_dict() for p in _thin(self.curve)],
         }
 
 
@@ -242,6 +244,25 @@ def _sweep(scores: np.ndarray, truth: np.ndarray, hard: np.ndarray,
     ]
 
 
+def _thin(curve: list[Point], limit: int = 250) -> list[Point]:
+    """The curve as something a chart can draw, without tens of thousands of points.
+
+    A trigram matcher has a distinct threshold for nearly every pair, so its full curve is a
+    file nobody wants. Keeping every point where recall or precision moves by at least a
+    quarter of a percent preserves the shape exactly at any size a slide can show.
+    """
+    if len(curve) <= limit:
+        return curve
+    kept = [curve[0]]
+    for p in curve[1:]:
+        last = kept[-1]
+        if abs(p.recall - last.recall) >= 0.0025 or abs(p.precision - last.precision) >= 0.0025:
+            kept.append(p)
+    if kept[-1] is not curve[-1]:
+        kept.append(curve[-1])
+    return kept
+
+
 def _at_least_recall(curve: list[Point], target: float) -> Point | None:
     """The safest point that still finds as much as we do — the tightest threshold clearing it."""
     reaching = [p for p in curve if p.recall >= target]
@@ -339,6 +360,7 @@ def compare(db, *, family: str | None = None, llm_sample: int = 0) -> Comparison
             note=("threshold chosen with the answers in hand; without our blocking its best "
                   f"precision falls to {best_unblocked.precision:.4f} "
                   f"({best_unblocked.false_merges:,} false merges)"),
+            curve=curve,
         ))
 
     if llm_sample:
