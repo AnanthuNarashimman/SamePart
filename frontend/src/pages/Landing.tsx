@@ -359,18 +359,44 @@ function Hero({ progress, reduced }: { progress: number; reduced: boolean }) {
                   <strong className="font-semibold text-stone-100">never touches anyone's own code</strong>.
                 </p>
 
-                <div className="mt-6 flex flex-wrap justify-center gap-2.5">
+                {/* Each carries the shape of what it does: an arrow leading out of the page for
+                    the one that signs you in, a chevron pointing down the page for the one that
+                    scrolls to the proof. */}
+                <div className="mt-7 flex flex-wrap justify-center gap-3">
                   <Link
                     to="/login"
-                    className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-brand-900 shadow-[0_10px_28px_-14px_rgba(114,242,148,0.9)] transition-colors hover:bg-brand-300"
+                    className="group inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-brand-900 shadow-[0_8px_22px_-16px_rgba(114,242,148,0.7)] transition-all hover:bg-brand-300 hover:shadow-[0_12px_28px_-16px_rgba(114,242,148,0.85)] focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:outline-none"
                   >
                     Enter the platform
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                    >
+                      <path d="M5 12h13M12 5l7 7-7 7" />
+                    </svg>
                   </Link>
+
                   <a
                     href="#evidence"
-                    className="rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-medium text-stone-200 transition-colors hover:border-white/35 hover:bg-white/10"
+                    className="group inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-stone-200 backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
                   >
                     See the evidence
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4 text-stone-400 transition-all duration-200 group-hover:translate-y-0.5 group-hover:text-stone-200"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
                   </a>
                 </div>
               </div>
