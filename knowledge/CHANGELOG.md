@@ -61,6 +61,49 @@ optional stands. What it corrects is the belief, recorded on 2026-09-10, that th
 six conflicting false merges were the label ceiling. They were not; two of them were the
 gasket extractor.
 
+### The benchmark at ten times the density
+**Who:** Aditya (with Claude) · **Prompted by:** Ananthu asking why we only use ~2,000 rows
+
+**From:** one dataset, sized to re-seed and evaluate in a minute with every record labelled.
+**To:** that dataset stays the frozen benchmark, and `cli seed --scale 10` (with
+`SAMEPART_DATA_DIR` and `SAMEPART_DB_URL` pointing elsewhere) produces a second one:
+**18,611 records, 41,446 purchase-order lines, 173 million possible comparisons**, seeded
+and matched in 3 min 45 s and reviewed in 2 min 20 s. `data/generated_scale/` holds it, with
+its own manifest and `all_material_masters.csv` (every record, organisation, family and
+truth identity in one file) for anyone who wants to open the thing being claimed.
+
+**What the first scale run found.** Blocking held (completeness 1.00, reduction 0.9948) and the
+hard-negative false-merge rate held (0.0013), but 391 merges carried conflicting evidence where
+the benchmark had one. Both causes were invisible at 2,141 records and structural at 18,611,
+where identities sit one attribute apart:
+
+- **The generated part number was not injective.** `_part_number` truncated each identity key
+  to six characters, so `ISO4017` and `ISO4014` shared a part number and the identity tier
+  merged 84 pairs of different bolts on fabricated evidence. Whole tokens now.
+- **The identity tier was one-way.** A matching part number established identity; a differing
+  one from the same maker established nothing, and the attribute tier merged 307 pairs whose
+  every *stated* attribute agreed and whose finish neither record wrote down but both part
+  numbers encoded. Same maker + different part number now forces `different`. Two makers for
+  one part is dual sourcing and is left alone. Two tests in `test_gates.py`.
+
+**Evidence, second run.** Conflicting-evidence false merges 391 → **0**. Precision 0.938,
+recall 0.516, hard-negative false-merge rate **0.0011**, cluster purity 0.925, 15.0%
+abstention, 100% decided without a model. Bearings, gaskets and valves hold precision at 1.000,
+0.998 and 1.000; bolts sit at 0.896.
+
+**What the remaining 970 false merges are, and why they are left.** Every one is
+*indistinguishable*: no stated attribute differs after equivalences. At this density that is
+almost entirely two bolts differing only in finish, on records where neither side states a
+finish. `hex_bolt.finish` is deliberately not required (see 2026-09-10), because requiring it
+sends a large share of real catalogues to a person over a fact that often does not matter.
+The scale run makes the cost of that choice visible — 0.896 precision on bolts — and it is
+recorded here rather than tuned away. A steward with the same two lines could not separate
+them either.
+
+**On the frozen benchmark nothing moved:** 0.9927, 0.0012, all twelve thresholds hold. That is
+the reason the small set stays the benchmark and the large set is reported beside it — the
+small one is fully verified, the large one shows where verification ends.
+
 ### Baselines: what fuzzy matching, embeddings and a bare model actually achieve
 **Who:** Aditya (with Claude) · **Prompted by:** the checklist's closing point that the
 biggest gap was evidence Meridian beats a straightforward implementation

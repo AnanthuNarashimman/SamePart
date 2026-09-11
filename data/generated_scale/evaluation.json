@@ -1,0 +1,73 @@
+{
+  "records": 18611,
+  "labelled": 18605,
+  "true_pairs": 28288,
+  "comparisons": 173063710,
+  "retrieval": {
+    "candidate_pairs": 902876,
+    "pairs_completeness": 1.0,
+    "reduction_ratio": 0.9948,
+    "true_pairs_missed": 0
+  },
+  "decision": {
+    "pairwise": {
+      "precision": 0.9377,
+      "recall": 0.516,
+      "f1": 0.6657,
+      "tp": 14596,
+      "fp": 970,
+      "fn": 13692
+    },
+    "false_merges": 970,
+    "false_merge_rate": 0.0623,
+    "false_merges_with_conflicting_evidence": 0,
+    "indistinguishable_pairs": 970,
+    "false_separations": 8,
+    "false_separation_rate": 0.0003,
+    "abstained": 135838,
+    "abstention_rate": 0.1505,
+    "possible_alternative": 114324,
+    "decided_pairs": 902876
+  },
+  "outcome": {
+    "records_mapped": 13291,
+    "clusters": 4396,
+    "true_clusters": 5724,
+    "bcubed": {
+      "precision": 0.9664,
+      "recall": 0.6827,
+      "f1": 0.8002
+    },
+    "impure_clusters": 329,
+    "cluster_purity": 0.9252
+  },
+  "hard_negatives": {
+    "pairs": 874588,
+    "wrongly_merged": 970,
+    "correctly_separated": 637140,
+    "sent_to_a_person": 236478,
+    "false_merge_rate": 0.0011
+  },
+  "price_flag": {
+    "threshold": 2.0,
+    "clusters_scored": 4394,
+    "flagged": 0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "tp": 0,
+    "fp": 0,
+    "fn": 329
+  },
+  "tiers": {
+    "by_tier": {
+      "attributes": 682495,
+      "gate": 154823,
+      "identity": 65558
+    },
+    "share_without_a_model": 1.0
+  },
+  "notes": [
+    "6 hand-authored demo fixtures excluded from the labelled set."
+  ]
+}
