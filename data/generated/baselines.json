@@ -11,8 +11,8 @@
     "false_merges": 13,
     "hard_negative_merges": 13,
     "hard_negative_rate": 0.0012,
-    "abstained": 3054,
-    "abstention_rate": 0.2214,
+    "abstained": 3010,
+    "abstention_rate": 0.2182,
     "model_share": 0.0
   },
   "baselines": [
@@ -13038,7 +13038,7 @@
     {
       "name": "llm_only",
       "what": "A model shown two raw descriptions, no attributes or gates",
-      "note": "160 of 160 sampled pairs answered (0 failed), balanced between true pairs and hard negatives. On the sample itself precision was 0.9365; the figure shown is that sample's recall and hard-negative rate rescaled to the catalogue's real 3,246/10,551 split, which is the only form comparable to the other rows. It also needs one model call per pair judged, where ours reaches a model on 0.0% of pairs in this run \u2014 the deterministic tiers settled every one of them.",
+      "note": "160 of 160 sampled pairs answered (0 failed), balanced between true pairs and hard negatives. On the sample itself precision was 0.9365; the figure shown is that sample's recall and hard-negative rate rescaled to the catalogue's real 3,246/10,551 split, which is the only form comparable to the other rows. It also needs one model call per pair judged, where ours reaches a model on 0.0% of pairs in this run \u2014 the deterministic tiers settled every one of them. Sampled on the run before the identity veto; that change altered no candidate pair, no label and no Meridian merge, only 44 abstentions, so the sample is unchanged.",
       "best_f1": {
         "threshold": NaN,
         "precision": 0.8194,
@@ -13055,6 +13055,6 @@
     }
   ],
   "notes": [
-    "No baseline abstains: a similarity score cannot represent a fact being absent, so every pair is forced to a yes or a no. Ours declines 3054 pairs and routes them to a person."
+    "No baseline abstains: a similarity score cannot represent a fact being absent, so every pair is forced to a yes or a no. Ours declines 3010 pairs and routes them to a person."
   ]
 }
