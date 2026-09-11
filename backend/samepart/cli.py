@@ -447,8 +447,95 @@ def stats() -> None:
             print(f"  {org.code:<6s} {n:>4d} records, {priced} with a base-unit price")
 
 
+def baselines() -> None:
+    """Run the obvious alternatives over the same data, so "why not just fuzzy match" has an answer.
+
+    `--llm N` additionally asks a model to judge N sampled pairs from the raw descriptions
+    alone. It is off by default because it is the only part of the evaluation that leaves the
+    machine, and because a sampled estimate should be an explicit choice rather than something
+    that happens quietly.
+    """
+    import json
+
+    from samepart.evaluation.baselines import compare
+
+    args = sys.argv[2:]
+    sample = int(args[args.index("--llm") + 1]) if "--llm" in args else 0
+    out_path = Path(args[args.index("--json") + 1]) if "--json" in args else None
+
+    with session_scope() as db:
+        c = compare(db, llm_sample=sample)
+
+    _print_comparison(c)
+
+    if out_path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(c.as_dict(), indent=2) + "\n")
+        print(f"\n  written to {out_path}")
+
+
+def _print_comparison(c) -> None:
+    print(f"\n{c.records} labelled records, {c.true_pairs:,} truly-matching pairs. "
+          f"Every baseline is given our {c.candidate_pairs:,} candidate pairs to judge, "
+          f"of which {c.hard_negatives:,} are hard negatives.")
+
+    if not c.baselines:
+        for n in c.notes:
+            print(f"  ! {n}")
+        return
+
+    def row(name: str, p) -> None:
+        if p is None:
+            print(f"    {name:<22s} {'—':>9} {'—':>9} {'—':>9} {'—':>9} {'—':>9}")
+            return
+        print(f"    {name:<22s} {p.precision:>9.4f} {p.recall:>9.4f} {p.f1:>9.4f} "
+              f"{p.false_merges:>9,} {p.hard_negative_rate:>9.4f}")
+
+    header = (f"    {'':<22s} {'precision':>9} {'recall':>9} {'F1':>9} "
+              f"{'merges✗':>9} {'hard FMR':>9}")
+
+    # Each baseline at its own best. Ours is not tuned this way -- its thresholds were frozen
+    # before this table existed -- so the comparison is deliberately unfair in their favour.
+    print("\nAT EACH BASELINE'S BEST F1  (threshold picked with the answers in hand)")
+    print(header)
+    for b in c.baselines:
+        row(b.name, b.best_f1)
+    row("MERIDIAN", _ours_point(c))
+
+    # The comparison that decides the argument: to find the duplicates we find, how many wrong
+    # parts would this approach have merged?
+    print(f"\nAT OUR RECALL ({c.ours['recall']:.4f})  what it costs to find as much as we do")
+    print(header)
+    for b in c.baselines:
+        row(b.name, b.at_our_recall)
+    row("MERIDIAN", _ours_point(c))
+
+    print(f"\nAT OUR PRECISION ({c.ours['precision']:.4f})  what it finds while staying as safe")
+    print(header)
+    for b in c.baselines:
+        row(b.name, b.at_our_precision)
+    row("MERIDIAN", _ours_point(c))
+
+    print("\nNOTES")
+    for b in c.baselines:
+        if b.note:
+            print(f"    {b.name}: {b.note}")
+    for n in c.notes:
+        print(f"    {n}")
+
+
+def _ours_point(c):
+    from samepart.evaluation.baselines import Point
+
+    o = c.ours
+    return Point(threshold=float("nan"), precision=o["precision"], recall=o["recall"],
+                 f1=o["f1"], merges=o["merges"], false_merges=o["false_merges"],
+                 hard_negative_merges=o["hard_negative_merges"],
+                 hard_negative_rate=o["hard_negative_rate"])
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "seed"
     {"seed": seed, "stats": stats, "match": match, "summary": summarise,
      "enrich": enrich, "baseline": baseline, "flis": flis,
-     "evaluate": evaluate, "verify": verify}[cmd]()
+     "evaluate": evaluate, "verify": verify, "baselines": baselines}[cmd]()

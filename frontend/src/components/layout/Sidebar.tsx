@@ -93,8 +93,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`relative flex h-screen shrink-0 flex-col gap-6 border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 py-5 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)] transition-[width] duration-300 ease-in-out ${
-        collapsed ? 'w-20 px-3' : 'w-72 px-5'
+      className={`relative flex h-screen shrink-0 flex-col border-r border-stone-200 bg-gradient-to-b from-brand-100 via-brand-400/30 to-brand-50 text-stone-900 shadow-[1px_0_0_0_rgba(0,0,0,0.02)] transition-[width] duration-300 ease-in-out ${
+        collapsed ? 'w-20' : 'w-72'
       }`}
     >
       <button
@@ -116,6 +116,20 @@ export function Sidebar() {
         </svg>
       </button>
 
+      {/* Everything except the collapse handle scrolls together.
+          The handle stays outside because this container has to clip horizontally — a box
+          that scrolls on one axis clips the other — and the handle deliberately hangs over
+          the sidebar's right edge.
+
+          Scrolling the column as a whole, rather than a region inside it, is the point. The
+          previous arrangement scrolled only the organisation card, which meant a long CPSE
+          name was cut off mid-word inside its own card with no indication anything was
+          hidden. A card is one object: it fits or the page moves. */}
+      <div
+        className={`scroll-clean flex h-full flex-col gap-6 overflow-y-auto py-5 ${
+          collapsed ? 'px-3' : 'px-5'
+        }`}
+      >
       <div
         // Full-bleed through the column's padding so the rule divides the whole sidebar.
         // The negative margin has to match the padding exactly and the padding has to match
@@ -133,16 +147,9 @@ export function Sidebar() {
         {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
       </div>
 
-      {/* Only the organisation card scrolls. The navigation does not.
-          Making the whole middle scrollable fixed the unreachable Start tour button and
-          introduced a worse fault: on a short window the last two nav items scrolled out of
-          sight, so two entire pages of the product looked as though they did not exist. A nav
-          that can hide its own destinations is not navigation. The card above it is the part
-          that can afford to be scrolled past. */}
-      <div className="scroll-clean -mx-1 flex min-h-0 flex-1 shrink flex-col gap-6 overflow-y-auto px-1">
       {/* Company context card — which CPSE this session is acting as */}
       {collapsed ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
+        <div className="flex shrink-0 flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
           {isLoading && <span className="h-8 w-8 animate-pulse rounded-full bg-stone-100" />}
           {activeOrg && (
             <span
@@ -154,7 +161,7 @@ export function Sidebar() {
           )}
         </div>
       ) : (
-        <div className="rounded-2xl bg-white p-4 text-stone-800 shadow-sm">
+        <div className="shrink-0 rounded-2xl bg-white p-4 text-stone-800 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[11px] font-medium uppercase tracking-wide text-stone-400">
               Acting as
@@ -167,7 +174,12 @@ export function Sidebar() {
           {isError && <p className="text-xs text-rose-500">Could not reach the API</p>}
           {activeOrg && (
             <>
-              <p className="text-base font-semibold leading-snug">{activeOrg.name}</p>
+              {/* Clamped rather than left to wrap: "Bharat Petroleum Corporation Limited" runs
+                  to three lines and pushed the card past the height it had. The full name is
+                  on the title so nothing is actually lost. */}
+              <p className="line-clamp-2 text-base font-semibold leading-snug" title={activeOrg.name}>
+                {activeOrg.name}
+              </p>
               <p className="mb-3 text-xs text-stone-400">
                 {activeOrg.code} · {activeOrg.record_count} records{activeOrg.simulated ? ' · simulated' : ''}
               </p>
@@ -189,7 +201,6 @@ export function Sidebar() {
           )}
         </div>
       )}
-      </div>
 
       <nav className="flex shrink-0 flex-col gap-2">
         {NAV_ITEMS.map((item) => (
@@ -232,7 +243,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="flex shrink-0 flex-col gap-3">
+      <div className="mt-auto flex shrink-0 flex-col gap-3 pt-2">
         {collapsed ? (
           <button
             type="button"
@@ -262,6 +273,7 @@ export function Sidebar() {
             </button>
           </div>
         )}
+      </div>
       </div>
 
       <PlatformTourModal open={tourOpen} onClose={() => setTourOpen(false)} />
