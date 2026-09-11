@@ -444,9 +444,10 @@ def _llm_only(db, records, truth_matrix, hard_matrix, sample: int, c: Comparison
         f"between true pairs and hard negatives. On the sample itself precision was "
         f"{sample_precision:.4f}; the figure shown is that sample's recall and hard-negative "
         f"rate rescaled to the catalogue's real {true_total:,}/{hard_total:,} split, which is "
-        f"the only form comparable to the other rows. It also needs one model call for every "
-        f"pair it judges, where ours reaches a model on "
-        f"{c.ours['model_share']:.1%} of them.")
+        f"the only form comparable to the other rows. It also needs one model call per pair "
+        f"judged, where ours reaches a model on {c.ours['model_share']:.1%} of pairs in this "
+        f"run" + (" — the deterministic tiers settled every one of them"
+                  if c.ours["model_share"] == 0 else "") + ".")
     return baseline
 
 
