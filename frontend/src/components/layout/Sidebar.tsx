@@ -162,6 +162,25 @@ export function Sidebar() {
           >
             {actor.role === 'steward' ? initials(actor.org) : 'IN'}
           </span>
+          <button
+            type="button"
+            onClick={logout}
+            title="Sign out"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5M21 12H9" />
+            </svg>
+          </button>
         </div>
       ) : (
         <div className="shrink-0 rounded-2xl bg-white p-4 text-stone-800 shadow-sm">
@@ -204,7 +223,7 @@ export function Sidebar() {
                 <button
                   type="button"
                   onClick={logout}
-                  className="text-[11px] font-medium text-stone-500 hover:text-stone-900"
+                  className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-500 hover:text-white"
                 >
                   Sign out
                 </button>
