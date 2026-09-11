@@ -21,3 +21,4 @@ SamePart_Project_Plan*.docx
 .agents/
 .claude/
 skills-lock.json
+samepart_scale.db
