@@ -98,6 +98,12 @@ attributes:
     label: Centring ring
     type: string
     criticality: major
+    # Identity-defining: it appears in synthesis.identity_keys, so two materials
+    # differing only in this are different stock items. Not knowing it therefore makes
+    # the pair undecidable rather than mergeable -- the same abstention principle the
+    # critical attributes already follow. Leaving it optional merged 43 pairs on the
+    # strength of everything ELSE agreeing while this went unstated.
+    required_for_decision: true
     values: [CS, SS304, NONE]
     aliases: [outer ring, centring ring, centering ring, guide ring]
     value_aliases:
@@ -111,6 +117,12 @@ attributes:
     label: Governing specification
     type: string
     criticality: major
+    # Identity-defining: it appears in synthesis.identity_keys, so two materials
+    # differing only in this are different stock items. Not knowing it therefore makes
+    # the pair undecidable rather than mergeable -- the same abstention principle the
+    # critical attributes already follow. Leaving it optional merged 43 pairs on the
+    # strength of everything ELSE agreeing while this went unstated.
+    required_for_decision: true
     values: [ASMEB16.20, API601]
     aliases: [standard, spec, specification, conforming to, as per]
     value_aliases:

@@ -129,7 +129,29 @@ def _part_number(synth, values: dict[str, Any]) -> str:
     return synth.part_number_prefix + "".join(parts)
 
 
-def build_identities(synth, family: str, rng: random.Random) -> list[Identity]:
+def _equivalence_map(fam) -> dict[str, dict[str, str]]:
+    """Values the family declares interchangeable, folded onto one representative.
+
+    The dictionary says DIN 931 was superseded by ISO 4014 and the two are dimensionally
+    interchangeable, so the gates treat a record citing either as citing the same
+    specification. The generator did not, and minted a separate identity for each — which
+    made every such pair look like a false merge when it was the labels disagreeing with the
+    domain rules the same file declares. A generator driven by the dictionary has to honour
+    all of it, not only the parts that are convenient.
+    """
+    out: dict[str, dict[str, str]] = {}
+    for group in fam.substitution_groups:
+        relation = getattr(group.relation, "value", group.relation)
+        if relation != "equivalent" or len(group.members) < 2:
+            continue
+        canonical = group.members[0]
+        out.setdefault(group.attribute, {}).update({m: canonical for m in group.members})
+    return out
+
+
+def build_identities(synth, family: str, rng: random.Random,
+                     equivalent: dict[str, dict[str, str]] | None = None) -> list[Identity]:
+    equivalent = equivalent or {}
     keys = [k for k in synth.pools]
     seen: set[tuple] = set()
     out: list[Identity] = []
@@ -148,7 +170,10 @@ def build_identities(synth, family: str, rng: random.Random) -> list[Identity]:
             source = values.get(rule["from"])
             values[key] = (rule.get("map") or {}).get(source)
 
-        signature = tuple(values[k] for k in synth.identity_keys)
+        # Two records differing only in values the family calls equivalent are one identity.
+        signature = tuple(
+            equivalent.get(k, {}).get(str(values[k]), values[k])
+            for k in synth.identity_keys)
         if signature in seen:
             continue
         seen.add(signature)
@@ -198,7 +223,7 @@ def generate(out_dir: Path, seed: int = 20260909, dictionary=None) -> dict:
 
     for fam in families:
         synth = fam.synthesis
-        idents = build_identities(synth, fam.family, rng)
+        idents = build_identities(synth, fam.family, rng, _equivalence_map(fam))
         per_family[fam.family] = len(idents)
 
         for org, _ in ORGS:

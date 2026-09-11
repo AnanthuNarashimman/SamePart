@@ -9,9 +9,23 @@
 # regression does not. They are floors and ceilings, not targets: beating them is expected.
 
 version: 1
-frozen_on: 2026-09-10
+frozen_on: 2026-09-11
 dataset: 1,636 records, 4 simulated CPSEs, 4 families, 664 true identities
 
+# RE-FROZEN AGAIN after investigating why our merges looked worse than a competitor's.
+# Every identity-defining attribute must now be KNOWN before a pair can merge, not merely
+# agree where stated. Leaving them optional let a pair merge on everything else agreeing while
+# the one thing distinguishing them went unwritten, which was the cause of all 43 genuine false
+# merges. Precision 0.880 -> 0.981, genuine false merges 43 -> 6, hard-negative false merge
+# rate 0.0250 -> 0.0028, cluster purity 0.890 -> 0.972.
+#
+# It is bought with recall: 0.709 -> 0.551. That is the Fellegi-Sunter three-way decision
+# working as designed, not a loss. Those pairs are not abandoned; they move into the clerical
+# band and become questions, and the stopping curve says a small number of answers clears most
+# of the queue. A false merge puts the wrong part in a pipeline; an abstention asks somebody.
+# The recall floor below is deliberately low: it is a tripwire against the matcher going
+# silent altogether, not a target.
+#
 # RE-FROZEN when the benchmark grew from one family to four. Several bounds are LOOSER than
 # the single-family set, and that is a dataset change rather than a regression being waved
 # through: gaskets, bearings and ball valves each carry more attributes that a description can
@@ -37,32 +51,39 @@ thresholds:
 
   # ── Decision ─────────────────────────────────────────────────────────────────────────
   decision.pairwise.precision:
-    min: 0.85
-    why: Measured 0.8891 across four families.
-  decision.pairwise.recall:
-    min: 0.66
+    min: 0.95
     why: >-
-      Measured 0.7047. Lower than the single-family 0.8245 because the newer families have
-      more omittable attributes, so more pairs correctly abstain rather than merging.
+      Measured 0.9807. Tightened hard: precision is the axis that matters for a national
+      identifier, and a regression here means wrong merges are shipping.
+  decision.pairwise.recall:
+    min: 0.45
+    why: >-
+      Measured 0.5511, and floored well below it on purpose. Recall was traded for precision
+      when identity-defining attributes were made mandatory; the pairs given up became
+      questions rather than disappearing. This bound exists to catch a matcher that abstains
+      on everything, which would score perfectly on precision and be useless.
   decision.pairwise.f1:
-    min: 0.75
-    why: Measured 0.7862 across four families.
+    min: 0.65
+    why: >-
+      Measured 0.7057. F1 weights recall and precision equally, which this system
+      deliberately does not, so it is the least meaningful number here and is bounded
+      loosely on purpose.
   decision.false_merges_with_conflicting_evidence:
-    max: 55
+    max: 15
     why: >-
       The one that matters. A false merge puts the wrong part in a pipeline, and this counts
       only pairs where some attribute was stated on both records and disagreed -- a real
-      matcher error, not a label artefact. Measured 35 of 1,181 same-material verdicts across four families (3.0%).
+      matcher error, not a label artefact. Measured 6 of 830 same-material verdicts across four families (0.7%), down from 43.
   decision.false_separations:
     max: 45
     why: >-
       Cheaper than a false merge -- it leaves a duplicate rather than creating a hazard -- so
       the bound is looser on purpose. Measured 27.
   decision.abstention_rate:
-    max: 0.25
+    max: 0.30
     why: >-
       Abstaining is correct behaviour, but a matcher that abstains on everything is useless
-      while scoring perfectly on precision. This stops that. Measured 0.109.
+      while scoring perfectly on precision. This stops that. Measured 0.189.
 
   # ── Hard negatives ───────────────────────────────────────────────────────────────────
   hard_negatives.false_merge_rate:
@@ -70,18 +91,17 @@ thresholds:
     why: >-
       Pairs alike enough to be proposed but genuinely different: the pairs a text matcher
       merges. Performance here is the whole argument for typed attributes and conflict gates.
-      Measured 0.0226 across 5,807 such pairs.
+      Measured 0.0028 across 5,640 such pairs, down from 0.0250.
 
   # ── Outcome ──────────────────────────────────────────────────────────────────────────
   outcome.bcubed.f1:
-    min: 0.84
-    why: Cluster-level quality, per-record rather than per-pair. Measured 0.8876.
+    min: 0.80
+    why: Cluster-level quality, per-record rather than per-pair. Measured 0.8540; B-cubed recall carries the same deliberate trade.
   outcome.cluster_purity:
-    min: 0.86
+    min: 0.94
     why: >-
       Share of final clusters containing exactly one true identity. An impure cluster is one a
-      steward has to unpick by hand. Measured 0.9077 -- TIGHTER than the single-family bound,
-      because adding families improved it.
+      steward has to unpick by hand. Measured 0.9721: eleven impure clusters out of 394.
 
   # ── Cost ─────────────────────────────────────────────────────────────────────────────
   tiers.share_without_a_model:
@@ -94,7 +114,8 @@ thresholds:
 # Reported, deliberately un-thresholded:
 #   decision.indistinguishable_pairs   labelled different, no attribute disagrees. Nothing
 #                                      could separate these, so they measure the labels, not
-#                                      the matcher. Measured 96. Watch it; do not gate on it.
+#                                      the matcher. Measured 10, down from 96 once the
+#                                      generator honoured its own equivalence rules.
 #
 # Known weak spot: bearing_ball scores worst of the four (precision 0.757, purity 0.750). It
 # has the fewest distinguishing attributes and its cage material is informational, so two

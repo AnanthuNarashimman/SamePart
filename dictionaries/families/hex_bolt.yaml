@@ -101,6 +101,11 @@ attributes:
     label: Governing specification
     type: enum
     criticality: major
+    # Identity-defining: it appears in synthesis.identity_keys, so two materials
+    # differing only in this are different stock items. Not knowing it therefore makes
+    # the pair undecidable rather than mergeable -- the same abstention principle the
+    # critical attributes already follow.
+    required_for_decision: true
     normalise: [upper, strip_spaces]
     aliases: [standard, spec, specification, governing spec, as per]
     values: [ISO4014, ISO4017, DIN931, DIN933, ASMEB18.2.1, IS1364]
