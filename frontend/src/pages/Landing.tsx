@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { Link } from 'react-router-dom'
 import { ConvergenceHero } from '../components/landing/ConvergenceHero'
 import {
@@ -60,12 +68,13 @@ const VERDICTS = [
 export function Landing() {
   const scroller = useRef<HTMLDivElement>(null)
   const navHidden = useHideOnScrollDown(scroller)
+  const { progress, reduced } = useIntroProgress(scroller)
 
   return (
     <div ref={scroller} className="scroll-clean h-full overflow-y-auto scroll-smooth bg-[#fbfaf7] text-stone-900">
       <Nav hidden={navHidden} />
-      <Hero />
-      <Divergence />
+      <Hero progress={progress} reduced={reduced} />
+      <Divergence scroller={scroller} />
       <Cost />
       <Cascade />
       <Verdicts />
@@ -78,6 +87,100 @@ export function Landing() {
     </div>
   )
 }
+
+/** How far the reader scrolls to play the hero's opening. The hero section carries exactly this
+ *  much height below its sticky viewport, so the intro finishes at the moment the card unsticks. */
+const INTRO_VH = 95
+
+/** 0 → 1 across that distance, clamped at both ends. Drives the hero's opening: the page starts
+ *  as the illustration alone and assembles into the hero as the reader scrolls.
+ *
+ *  Reads are coalesced into an animation frame, because a scroll handler that calls setState on
+ *  every event will fire several times per frame for nothing.
+ *
+ *  Under a reduced-motion preference the intro does not exist: progress is pinned at 1 and the
+ *  hero renders assembled, with no extra scroll to get through. */
+function useIntroProgress(ref: RefObject<HTMLDivElement | null>) {
+  const reduced =
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const [progress, setProgress] = useState(reduced ? 1 : 0)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || reduced) return
+    let frame = 0
+
+    const read = () => {
+      frame = 0
+      const distance = Math.max(320, (window.innerHeight * INTRO_VH) / 100)
+      setProgress(Math.min(1, Math.max(0, el.scrollTop / distance)))
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(read)
+    }
+
+    read()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [ref, reduced])
+
+  return { progress, reduced }
+}
+
+/** How far a section has travelled through its own sticky range, 0 → 1. Where `useIntroProgress`
+ *  measures from the top of the page, this measures a section wherever it happens to sit, so a
+ *  tall section with sticky contents can drive something as the reader scrolls through it.
+ *
+ *  The page scrolls inside a div that fills the viewport and starts at its top, so the section's
+ *  own `getBoundingClientRect().top` is already the distance scrolled into it. */
+function useSectionProgress(
+  scroller: RefObject<HTMLDivElement | null>,
+  section: RefObject<HTMLElement | null>,
+) {
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    const scrollEl = scroller.current
+    const el = section.current
+    if (!scrollEl || !el) return
+    let frame = 0
+
+    const read = () => {
+      frame = 0
+      const travel = Math.max(1, el.offsetHeight - window.innerHeight)
+      setProgress(Math.min(1, Math.max(0, -el.getBoundingClientRect().top / travel)))
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(read)
+    }
+
+    read()
+    scrollEl.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      scrollEl.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [scroller, section])
+
+  return progress
+}
+
+/** Progress remapped to 0-1 across a sub-range, so each element can start and finish at its own
+ *  point in the intro rather than all of them moving together. */
+const ramp = (p: number, from: number, to: number) =>
+  Math.min(1, Math.max(0, (p - from) / (to - from)))
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+/** Smoothstep. Eases both ends, so the illustration settles rather than stopping dead. */
+const ease = (t: number) => t * t * (3 - 2 * t)
 
 /** Hides the pill while the reader is moving down the page and brings it back on the first
  *  hint of movement back up. The thresholds are deliberately lopsided: it takes a real downward
@@ -119,7 +222,10 @@ function Nav({ hidden }: { hidden: boolean }) {
         hidden ? '-translate-y-24 opacity-0' : 'translate-y-0 opacity-100'
       }`}
     >
-      <header className="pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-full border border-stone-900/8 bg-white/75 py-2 pr-2 pl-4 shadow-[0_10px_34px_-14px_rgba(28,25,23,0.32)] backdrop-blur-xl">
+      {/* The pill floats over both the dark hero card and the light sections below it, so the
+          ground has to be near-opaque — at 75% the stone text was reading against whatever
+          happened to be behind it. */}
+      <header className="pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-full border border-stone-900/10 bg-white/92 py-2 pr-2 pl-4 shadow-[0_10px_34px_-14px_rgba(28,25,23,0.32)] backdrop-blur-xl">
         <a href="#top" className="flex shrink-0 items-center gap-2">
           <img src="/logo.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
           <span className="font-display text-lg tracking-tight">Meridian</span>
@@ -130,7 +236,7 @@ function Nav({ hidden }: { hidden: boolean }) {
             <a
               key={n.href}
               href={n.href}
-              className="rounded-full px-3 py-1.5 text-sm text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
+              className="rounded-full px-3 py-1.5 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
             >
               {n.label}
             </a>
@@ -148,89 +254,181 @@ function Nav({ hidden }: { hidden: boolean }) {
   )
 }
 
+// The opening. On load the card holds nothing but the illustration, sized up and sitting on the
+// card's centre line: four records converging through the mark into one code, and not a word of
+// prose anywhere. Scrolling assembles the hero around it — the illustration rises and settles to
+// its normal size while the headline, the copy and the figures arrive after it, each on its own
+// slice of the scroll.
+//
+// The section is taller than the viewport and its contents are sticky, so this plays out in
+// place rather than scrolling past. The extra height matches the intro distance exactly, which
+// means the illustration reaches its resting position at the same moment the card unsticks.
+//
 // The card's top gutter is deliberately smaller than the pill's own offset, so the pill lands
 // inside the card rather than above it.
-function Hero() {
+function Hero({ progress, reduced }: { progress: number; reduced: boolean }) {
+  // Everything below the illustration is measured rather than guessed. With the content block
+  // centred in the card, moving the illustration down by half that height would put it exactly on
+  // the card's centre line; it is held slightly short of that because the full distance makes for
+  // an uncomfortably long climb once the reader starts scrolling.
+  //
+  // Measured in a layout effect, not an ordinary one: the first paint has to already carry the
+  // offset, or the illustration is briefly drawn at its resting position and then jumps down.
+  const below = useRef<HTMLDivElement>(null)
+  const [shift, setShift] = useState(0)
+
+  useLayoutEffect(() => {
+    const el = below.current
+    if (!el) return
+    const measure = () => setShift(el.offsetHeight * 0.42)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const settle = ease(ramp(progress, 0, 0.72))
+  const artStyle = { '--p': settle, '--shift': `${shift}px` } as CSSProperties
+
+  const copy = ramp(progress, 0.34, 0.76)
+  const copyStyle: CSSProperties = {
+    opacity: copy,
+    transform: `translateY(${lerp(26, 0, ease(copy))}px)`,
+  }
+
+  const figures = ramp(progress, 0.58, 1)
+  const figureStyle: CSSProperties = {
+    opacity: figures,
+    transform: `translateY(${lerp(22, 0, ease(figures))}px)`,
+  }
+
   return (
-    <section id="top" className="px-3 pt-3 pb-4 sm:px-4 sm:pb-5 lg:px-5">
-      <div className="hero-card relative flex min-h-[calc(100dvh-1.75rem)] flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-white/8 px-4 pt-16 pb-7 text-center shadow-[0_30px_70px_-45px_rgba(13,39,24,0.7)] sm:min-h-[calc(100dvh-2rem)] sm:rounded-2xl sm:px-8 sm:pt-20 sm:pb-9">
-        <div className="hero-grid pointer-events-none absolute inset-0" />
-        <CornerDots corner="tl" />
-        <CornerDots corner="tr" />
-        <CornerDots corner="bl" />
-        <CornerDots corner="br" />
+    <section
+      id="top"
+      className="relative"
+      style={reduced ? undefined : { height: `calc(100dvh + ${INTRO_VH}vh)` }}
+    >
+      <div className="sticky top-0 h-dvh px-3 pt-3 pb-4 sm:px-4 sm:pb-5 lg:px-5">
+        <div className="hero-card relative flex h-full flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-white/8 px-4 pt-16 pb-10 text-center shadow-[0_30px_70px_-45px_rgba(13,39,24,0.7)] sm:rounded-2xl sm:px-8 sm:pt-16 sm:pb-12">
+          <div className="hero-grid pointer-events-none absolute inset-0" />
+          <CornerDots corner="tl" />
+          <CornerDots corner="tr" />
+          <CornerDots corner="bl" />
+          <CornerDots corner="br" />
 
-        <div className="relative w-full">
-          <ConvergenceHero />
+          {/* The name half-sunk in the card's bottom edge, the same treatment the closing
+              section ends on. It gives the opening screen something to sit above, and it goes
+              under completely as the hero assembles — by the time the figures arrive the card
+              is back to the resting layout, which carries no wordmark. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center overflow-hidden">
+            <span
+              className="font-sans text-[15vw] leading-none font-extrabold tracking-[0.03em] whitespace-nowrap text-white/8 select-none"
+              style={{ transform: `translateY(${lerp(30, 120, settle)}%)` }}
+            >
+              MERIDIAN
+            </span>
+          </div>
 
-          <div className="mx-auto mt-7 max-w-3xl sm:mt-9">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-brand-500 uppercase sm:text-xs">
-              SIH26099 · Material codes across CPSEs
-            </p>
+          <div className="relative w-full">
+            <div className="hero-art" style={artStyle}>
+              <ConvergenceHero captionOpacity={copy} assembled={settle} />
+            </div>
 
-            {/* The chip is kept to a tight line-height and light vertical padding so it stays
-                inside the headline's own line box instead of prising the two lines apart. */}
-            <h1 className="mt-5 font-display text-[1.95rem] leading-[1.22] tracking-tight text-white sm:mt-6 sm:text-[2.7rem] lg:text-[3.3rem]">
-              Different codes. One part.
-              <br />
-              One{' '}
-              <span className="inline-block rounded-xl bg-brand-500 px-3 py-0.5 leading-[1.05] tracking-normal text-brand-900 sm:rounded-2xl sm:px-4 sm:py-1">
-                Meridian
-              </span>
-              .
-            </h1>
+            {/* Padding rather than a margin, so the gap above counts toward the measured height. */}
+            <div ref={below} className="pt-5 sm:pt-6">
+              <div className="mx-auto max-w-3xl" style={copyStyle}>
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-brand-500 uppercase sm:text-xs">
+                  SIH26099 · Material codes across CPSEs
+                </p>
 
-            <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-stone-400 sm:mt-7 sm:text-[15px]">
-              Meridian finds the entries that are secretly the same part, gives each one a
-              national code, and{' '}
-              <strong className="font-semibold text-stone-100">never touches anyone's own code</strong>.
-            </p>
+                {/* The chip is kept to a tight line-height and light vertical padding so it stays
+                    inside the headline's own line box instead of prising the two lines apart. */}
+                <h1 className="mt-5 font-display text-[1.95rem] leading-[1.22] tracking-tight text-white sm:mt-6 sm:text-[2.7rem] lg:text-[3.3rem]">
+                  Different codes. One part.
+                  <br />
+                  One{' '}
+                  <span className="inline-block rounded-xl bg-brand-500 px-3 py-0.5 leading-[1.05] tracking-normal text-brand-900 sm:rounded-2xl sm:px-4 sm:py-1">
+                    Meridian
+                  </span>
+                  .
+                </h1>
 
-            <div className="mt-7 flex flex-wrap justify-center gap-2.5 sm:mt-8">
-              <Link
-                to="/login"
-                className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-brand-900 shadow-[0_10px_28px_-14px_rgba(114,242,148,0.9)] transition-colors hover:bg-brand-300"
+                <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-stone-400 sm:text-[15px]">
+                  Meridian finds the entries that are secretly the same part, gives each one a
+                  national code, and{' '}
+                  <strong className="font-semibold text-stone-100">never touches anyone's own code</strong>.
+                </p>
+
+                <div className="mt-6 flex flex-wrap justify-center gap-2.5">
+                  <Link
+                    to="/login"
+                    className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-brand-900 shadow-[0_10px_28px_-14px_rgba(114,242,148,0.9)] transition-colors hover:bg-brand-300"
+                  >
+                    Enter the platform
+                  </Link>
+                  <a
+                    href="#evidence"
+                    className="rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-medium text-stone-200 transition-colors hover:border-white/35 hover:bg-white/10"
+                  >
+                    See the evidence
+                  </a>
+                </div>
+              </div>
+
+              <dl
+                className="mx-auto mt-6 grid max-w-3xl grid-cols-2 gap-x-4 gap-y-4 border-t border-white/10 pt-4 sm:grid-cols-4"
+                style={figureStyle}
               >
-                Enter the platform
-              </Link>
-              <a
-                href="#evidence"
-                className="rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-medium text-stone-200 transition-colors hover:border-white/35 hover:bg-white/10"
-              >
-                See the evidence
-              </a>
+                {[
+                  ['18,611', 'records evaluated'],
+                  ['99.48%', 'of comparisons never run'],
+                  ['0', 'true pairs missed by blocking'],
+                  ['94.5%', 'decided without a model'],
+                ].map(([value, label]) => (
+                  <div key={label}>
+                    <dt className="font-display text-2xl leading-none tracking-tight text-white sm:text-[1.75rem]">
+                      {value}
+                    </dt>
+                    <dd className="mt-1.5 text-[11px] leading-snug text-stone-400">{label}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
 
-          <dl className="mx-auto mt-7 grid max-w-3xl grid-cols-2 gap-x-4 gap-y-4 border-t border-white/10 pt-5 sm:mt-8 sm:grid-cols-4">
-            {[
-              ['18,611', 'records evaluated'],
-              ['99.48%', 'of comparisons never run'],
-              ['0', 'true pairs missed by blocking'],
-              ['94.5%', 'decided without a model'],
-            ].map(([value, label]) => (
-              <div key={label}>
-                <dt className="font-display text-2xl leading-none tracking-tight text-white sm:text-[1.75rem]">
-                  {value}
-                </dt>
-                <dd className="mt-1.5 text-[11px] leading-snug text-stone-400">{label}</dd>
-              </div>
-            ))}
-          </dl>
         </div>
       </div>
     </section>
   )
 }
 
-function Divergence() {
+function Divergence({ scroller }: { scroller: RefObject<HTMLDivElement | null> }) {
+  // The stage locks in view with the screen dead, and the reader's own scrolling throws the
+  // switch partway through it.
+  //
+  // The toggle in the title bar still works, without the two fighting each other: a click records
+  // the scroll state it was made against, and that override applies only while the scroll state
+  // has not moved on. So a manual flip holds until the reader crosses the threshold, and then
+  // scrolling takes over again. Derived during render rather than synced in an effect, which
+  // would have meant writing state on every crossing.
+  const stage = useRef<HTMLDivElement>(null)
+  const stageProgress = useSectionProgress(scroller, stage)
+  const [override, setOverride] = useState<{ at: boolean; value: boolean } | null>(null)
+
+  const scrolledOn = stageProgress > 0.45
+  const on = override?.at === scrolledOn ? override.value : scrolledOn
+  const toggle = () => setOverride({ at: scrolledOn, value: !on })
+
+  // No `overflow-hidden` on the section, deliberately: it would become the scrolling ancestor for
+  // the sticky stage below and the lock would silently stop working. Nothing here overflows its
+  // bounds, so the clip was not buying anything.
   return (
     <section
       id="divergence"
-      className="stage-surface relative scroll-mt-24 overflow-hidden border-y border-stone-900/8"
+      className="stage-surface relative scroll-mt-24 border-y border-stone-900/8"
     >
       <FallingDots />
-      <div className="relative mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-20">
+      <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 lg:pt-20">
         <Eyebrow>01 — The problem</Eyebrow>
         <h2 className="mt-4 mb-6 max-w-3xl font-display text-4xl leading-[1.08] tracking-tight sm:text-5xl">
           The same bolt, written differently everywhere
@@ -241,12 +439,21 @@ function Divergence() {
           understood by its own stores team, which is exactly why nobody is going to abandon
           theirs. What no one can see is that it is the same bolt.
         </p>
+      </div>
 
-        <div className="mt-10">
-          <ProblemStage />
+      {/* Held in view long enough to be read off and then operated. Only from `lg`, where the
+          stage fits a viewport; narrower than that it is an ordinary block and the switch still
+          throws as the reader scrolls past it. */}
+      <div ref={stage} className="relative lg:h-[calc(100dvh+80vh)]">
+        <div className="mx-auto max-w-6xl px-5 pt-10 sm:px-8 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:items-center lg:pt-0">
+          <div className="w-full">
+            <ProblemStage on={on} onToggle={toggle} />
+          </div>
         </div>
+      </div>
 
-        <p className="mx-auto mt-12 max-w-2xl text-center text-[15px] leading-relaxed text-stone-600">
+      <div className="relative mx-auto max-w-6xl px-5 pb-16 sm:px-8 lg:pb-20">
+        <p className="mx-auto max-w-2xl text-center text-[15px] leading-relaxed text-stone-600">
           The messy text is not the problem. The messy text is why the problem exists.{' '}
           <strong className="font-semibold text-stone-900">
             The problem is the invisibility

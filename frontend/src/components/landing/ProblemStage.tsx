@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 // The problem and the product in one object the reader operates themselves.
 //
 // The four sources are drawn as the things a material master actually lives in — a phosphor
@@ -65,9 +63,9 @@ const BASE_STRIP = 'h-4'
  *  give the four objects different heights. */
 const BODY = 'flex-1 min-h-[76px] sm:min-h-[84px]'
 
-export function ProblemStage() {
-  const [on, setOn] = useState(false)
-
+/** Controlled, because the section above owns the switch: it is thrown by scrolling the stage
+ *  through its locked view, and by the toggle in the window's own title bar. */
+export function ProblemStage({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
@@ -119,12 +117,12 @@ export function ProblemStage() {
         </svg>
       </div>
 
-      <Window on={on} onToggle={() => setOn((v) => !v)} />
+      <Window on={on} onToggle={onToggle} />
 
       <p className="mt-4 text-center text-xs text-stone-400">
         {on
           ? 'Every source code is still there, untouched. Switch it off to see today.'
-          : 'Use the switch in the window to turn Meridian on.'}
+          : 'Keep scrolling, or use the switch in the window, to turn Meridian on.'}
       </p>
     </div>
   )
@@ -241,7 +239,7 @@ function IndexCard({ s }: { s: Source }) {
 
 function Window({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
-    <div className="mx-auto max-w-2xl overflow-hidden rounded-xl border border-stone-300 shadow-[0_26px_60px_-32px_rgba(28,25,23,0.55)]">
+    <div className="mx-auto max-w-xl overflow-hidden rounded-xl border border-stone-300 shadow-[0_26px_60px_-32px_rgba(28,25,23,0.55)]">
       {/* Window chrome stays light in both states, so the switch reads as one machine changing
           what it runs rather than as two different screenshots. */}
       <div className="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-100 px-3 py-2">

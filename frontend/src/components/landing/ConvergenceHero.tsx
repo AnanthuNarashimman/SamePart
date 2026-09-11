@@ -26,20 +26,45 @@ const SOURCES: { org: string; code: string; colour: string; art: ReactNode }[] =
 
 const TRACKS = [125, 375, 625, 875]
 
-export function ConvergenceHero() {
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+/**
+ * `assembled` runs 0 → 1 as the hero's opening resolves into its resting layout, and
+ * `captionOpacity` holds the caption back while it does — on first load the illustration is
+ * meant to stand alone, with no prose anywhere on the screen.
+ *
+ * At 0 the convergence point is the Meridian mark, which is what the opening is about. At 1 the
+ * mark has given way to the small node the resting layout uses. They cross-fade in a box whose
+ * height interpolates between the two, so the code below slides up with them rather than
+ * jumping when one is swapped for the other.
+ */
+export function ConvergenceHero({
+  captionOpacity = 1,
+  assembled = 1,
+}: {
+  captionOpacity?: number
+  assembled?: number
+}) {
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
+      {/* The tiles stand further apart while the opening holds them on their own, and close up
+          as the hero assembles around them. Scaling the whole illustration alone would have kept
+          the gaps in proportion to the tiles, which is exactly what made the opening feel
+          cramped: four large objects with the spacing of four small ones. */}
+      <div
+        className="grid grid-cols-2 sm:grid-cols-4"
+        style={{ gap: `${lerp(18, 11, assembled)}px` }}
+      >
         {SOURCES.map((s) => (
           <div
             key={s.org}
-            className="flex flex-col items-center rounded-xl border border-white/15 bg-white/10 px-2 py-2.5 backdrop-blur-sm"
+            className="flex flex-col items-center rounded-xl border border-white/15 bg-white/10 px-2.5 py-3 backdrop-blur-sm"
           >
             <span style={{ color: s.colour }}>{s.art}</span>
-            <span className="mt-1.5 font-mono text-[10px] font-semibold tracking-wide text-white">
+            <span className="mt-2 font-mono text-[10px] font-semibold tracking-wide text-white">
               {s.org}
             </span>
-            <span className="font-mono text-[9px] text-stone-300">{s.code}</span>
+            <span className="mt-0.5 font-mono text-[9px] text-stone-300">{s.code}</span>
           </div>
         ))}
       </div>
@@ -49,6 +74,7 @@ export function ConvergenceHero() {
         preserveAspectRatio="none"
         aria-hidden="true"
         className="hidden h-9 w-full sm:block"
+        style={{ marginTop: `${lerp(8, 0, assembled)}px` }}
       >
         {TRACKS.map((x, i) => {
           const d = `M ${x} 0 C ${x} 52, 500 42, 500 96`
@@ -77,14 +103,35 @@ export function ConvergenceHero() {
         </svg>
       </div>
 
+      {/* The lines converge into the mark and one code comes out the other side. */}
       <div className="flex flex-col items-center">
-        <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-        <div className="mt-2 rounded-lg bg-brand-500 px-3.5 py-2.5 shadow-[0_10px_30px_-14px_rgba(114,242,148,0.85)]">
+        <div
+          className="relative flex items-center justify-center"
+          style={{ height: `${lerp(56, 6, assembled)}px` }}
+        >
+          <span
+            className="absolute flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/10 shadow-[0_0_20px_-10px_rgba(114,242,148,0.35)] backdrop-blur-sm"
+            style={{ opacity: 1 - assembled, transform: `scale(${lerp(1, 0.3, assembled)})` }}
+          >
+            <img src="/logo.png" alt="Meridian" className="h-10 w-10 object-contain" />
+          </span>
+          <span
+            className="absolute h-1.5 w-1.5 rounded-full bg-brand-500"
+            style={{ opacity: assembled }}
+          />
+        </div>
+        <span
+          className="w-px bg-gradient-to-b from-white/25 to-brand-500"
+          style={{ height: `${lerp(16, 8, assembled)}px`, opacity: 1 - assembled }}
+        />
+        <div className="rounded-lg bg-brand-500 px-3.5 py-2.5 shadow-[0_6px_18px_-14px_rgba(114,242,148,0.45)]">
           <span className="font-mono text-xs font-semibold tracking-wide text-brand-900 sm:text-sm">
             IN-31161600-0000417-3
           </span>
         </div>
-        <p className="mt-2.5 text-xs text-stone-400">One national code. Every source code kept.</p>
+        <p className="mt-2.5 text-xs text-stone-400" style={{ opacity: captionOpacity }}>
+          One national code. Every source code kept.
+        </p>
       </div>
     </div>
   )
