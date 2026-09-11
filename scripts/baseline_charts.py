@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib
@@ -172,7 +173,7 @@ def false_merges(data: dict) -> Path:
     rows.append(("Meridian", ours["false_merges"], INK, "ours"))
 
     fig, ax = plt.subplots(figsize=(6.1, 3.1), dpi=300)
-    fig.subplots_adjust(left=0.21, right=0.95, top=0.72, bottom=0.17)
+    fig.subplots_adjust(left=0.21, right=0.95, top=0.72, bottom=0.23)
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
     ax.set_axisbelow(True)
@@ -210,6 +211,18 @@ def false_merges(data: dict) -> Path:
              f"The best string matcher makes {ratio:.0f}× more false merges\n"
              "to find the same duplicates. Hatched: LLM-only at its own operating point, sampled.",
              fontsize=7.2, color=INK_2, ha="left", va="top", linespacing=1.35)
+
+    # Provenance, because a bar chart of round numbers looks exactly like one somebody made
+    # up. This is one real run over the whole labelled catalogue, and anyone with the repo can
+    # produce the same picture.
+    run_date = datetime.fromtimestamp(SRC.stat().st_mtime).strftime("%d %b %Y")
+    fig.text(0.02, 0.035,
+             f"Measured, not modelled: a single real run on {run_date} over all "
+             f"{data['records']:,} labelled records and {data['candidate_pairs']:,} candidate "
+             "pairs, the matcher never shown the labels.\n"
+             "Reproducible with `samepart.cli baselines`; every figure here is in "
+             "data/generated/baselines.json.",
+             fontsize=6.3, color=INK_2, ha="left", va="bottom", linespacing=1.35)
 
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "false_merges.png"
