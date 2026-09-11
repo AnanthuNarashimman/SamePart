@@ -81,6 +81,10 @@ def create_app() -> FastAPI:
                                             and external_allowed()),
             },
             "egress": LEDGER.summary(),
+            # Visible from a browser, so a host running on development passwords is not a
+            # secret it keeps to itself.
+            "credentials": ("development" if auth_module.using_default_credentials()
+                            else "configured"),
             "note": "services not listed as live return fixtures in the same shape",
         }
 
