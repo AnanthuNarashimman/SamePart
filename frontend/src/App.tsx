@@ -7,8 +7,12 @@ import { Questions } from './pages/Questions'
 import { DuplicateCheck } from './pages/DuplicateCheck'
 import { Insights } from './pages/Insights'
 import { RelationshipGraph } from './pages/RelationshipGraph'
+import { Login } from './pages/Login'
+import { useAuth } from './lib/auth'
 
 function App() {
+  const { session } = useAuth()
+  if (!session) return <Login />
   return (
     <div className="flex h-screen w-screen app-canvas">
       <Sidebar />

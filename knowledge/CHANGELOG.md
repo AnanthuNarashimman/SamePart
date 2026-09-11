@@ -61,6 +61,33 @@ optional stands. What it corrects is the belief, recorded on 2026-09-10, that th
 six conflicting false merges were the label ceiling. They were not; two of them were the
 gasket extractor.
 
+### Sign-in: one account per seat, and the role comes from the token
+**Who:** Aditya (with Claude) · **Prompted by:** Ananthu — "I don't want anyone to be able to
+input stuff in there"
+
+**From:** a seat switcher anyone could set. It said who was acting; it did not prove it.
+**To:** a login. Five accounts — `bpcl`, `cpcl`, `iocl`, `ntpc`, `national` — one per seat, so
+signing in *is* choosing the seat. Every request under `/api` needs the HMAC-signed token
+(health and login excepted), and the review, question and import routers take the role from
+the token and overwrite whatever the body claims. A steward who sends
+`reviewer_role=national_approver` is still a steward when the ruling is made; a steward
+importing for another organisation gets a 403.
+
+**Why hardcoded credentials are acceptable here and how they are not hardcoded.** The
+credentials come from `SAMEPART_USERS` ("bpcl:secret,national:secret"), never from source;
+development defaults exist so a fresh checkout runs, and start-up logs a warning whenever
+they are in use. `SAMEPART_SECRET` signs tokens; unset, each restart signs with a fresh random
+key and signs everyone out, which is fine on a laptop and must be set on a host.
+
+**What it reversed.** The `?actor=` URL override from earlier today — a link cannot choose a
+seat any more, because a seat is now something you prove.
+
+**Evidence.** `test_auth.py`: correct password → token for that seat; wrong password, tampered
+signature, expired token → refused; the API returns 401 unsigned and 200 signed; the body
+cannot promote a steward. Probed live: no token 401; `bpcl` asking for the approver's queue
+gets BPCL's; `bpcl` claiming `national_approver` on a BPCL–NTPC pair gets the governance
+sentence; `bpcl` importing for NTPC gets 403.
+
 ### "Acting as" becomes a real seat, and the two-tier rule finally fires
 **Who:** Aditya (with Claude) · **Prompted by:** Ananthu asking what the sidebar card meant
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useOrgs } from '../../api/catalogue'
-import { NATIONAL, actorRoleLabel, useActor, type Actor } from '../../lib/actor'
+import { actorRoleLabel, useActor } from '../../lib/actor'
+import { useAuth } from '../../lib/auth'
 import { PlatformTourModal } from './PlatformTourModal'
 
 const ICONS = {
@@ -73,7 +74,8 @@ const initials = (code: string) => code.slice(0, 2)
 
 export function Sidebar() {
   const { data: orgs, isLoading, isError } = useOrgs()
-  const { actor, setActor } = useActor()
+  const { actor } = useActor()
+  const { logout } = useAuth()
   const activeOrg = actor.role === 'steward' ? orgs?.find((o) => o.code === actor.org) : undefined
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -149,9 +151,9 @@ export function Sidebar() {
         {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
       </div>
 
-      {/* Who is acting. A session, not a login: the demo key gets you in, this says who you
-          are, and the server rules on every write against the role declared here. Switching
-          refetches the queue and the questions, because both are scoped to the actor. */}
+      {/* The signed-in seat. One account per seat, so this is who the server knows you to be:
+          every write is ruled on and signed with this role. Changing seat is signing out and
+          in again as someone else. */}
       {collapsed ? (
         <div className="flex shrink-0 flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
           <span
@@ -175,23 +177,9 @@ export function Sidebar() {
           {isError && <p className="text-xs text-rose-500">Could not reach the API</p>}
           {orgs && (
             <>
-              <label className="sr-only" htmlFor="acting-as">Acting as</label>
-              <select
-                id="acting-as"
-                value={actor.role === 'steward' ? actor.org : 'national'}
-                onChange={(e) => {
-                  const next: Actor = e.target.value === 'national'
-                    ? NATIONAL
-                    : { role: 'steward', org: e.target.value }
-                  setActor(next)
-                }}
-                className="mb-1.5 w-full rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-sm font-semibold text-stone-900 focus:border-primary-300 focus:outline-none"
-              >
-                {orgs.map((org) => (
-                  <option key={org.code} value={org.code}>{org.code} · {org.name.replace(' (simulated)', '')}</option>
-                ))}
-                <option value="national">National Codification Approver</option>
-              </select>
+              <p className="line-clamp-2 text-base font-semibold leading-snug" title={activeOrg?.name}>
+                {actor.role === 'steward' ? (activeOrg?.name.replace(' (simulated)', '') ?? actor.org) : 'National Codification Approver'}
+              </p>
               <p className="mb-3 text-xs text-stone-400">
                 {actor.role === 'steward'
                   ? `${activeOrg?.record_count ?? '—'} records · decides within ${actor.org} only`
@@ -213,7 +201,13 @@ export function Sidebar() {
                     </span>
                   ))}
                 </div>
-                <span className="text-[11px] text-stone-400">{orgs.length} CPSEs connected</span>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="text-[11px] font-medium text-stone-500 hover:text-stone-900"
+                >
+                  Sign out
+                </button>
               </div>
             </>
           )}

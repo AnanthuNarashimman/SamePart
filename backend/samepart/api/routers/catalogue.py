@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 
 from samepart.api import schemas as s
 from samepart.api.deps import catalogue_service
@@ -44,12 +44,17 @@ async def preview_import(file: UploadFile = File(...), kind: str = Form("catalog
 
 @router.post("/imports", response_model=s.ImportStatus, status_code=202)
 async def start_import(
+    request: Request,
     file: UploadFile = File(...),
     org_code: str = Form(...),
     family: str = Form(..., description="Material family; see GET /families"),
     column_map: str = Form("{}"),
     svc: CatalogueService = Depends(catalogue_service),
 ):
+    # A steward loads their own master and nobody else's.
+    p = getattr(request.state, "principal", None)
+    if p is not None and p.role == "steward" and p.org != org_code:
+        raise HTTPException(403, f"{p.label} may import for {p.org} only, not {org_code}.")
     try:
         mapping = json.loads(column_map)
     except json.JSONDecodeError:

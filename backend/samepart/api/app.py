@@ -6,12 +6,15 @@ real implementation touches one file.
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from samepart import auth as auth_module
 
 from samepart.api.deps import live_services, mode
-from samepart.api.routers import (analytics, catalogue, export, families, governance,
-                                  prevention, questions, review)
+from samepart.api.routers import (analytics, auth, catalogue, export, families,
+                                  governance, prevention, questions, review)
 
 DESCRIPTION = """
 Cross-organisation material identity resolution.
@@ -41,7 +44,24 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    for r in (catalogue, review, questions, prevention, analytics, export,
+    # Everything under /api needs a signed token except the door itself and the health
+    # check. The principal is attached to the request; routers that write take the role
+    # from it and never from the body.
+    OPEN = {"/api/health", "/api/auth/login"}
+
+    @app.middleware("http")
+    async def require_signed_in(request: Request, call_next):
+        path = request.url.path
+        if path.startswith("/api") and path not in OPEN and request.method != "OPTIONS":
+            header = request.headers.get("authorization", "")
+            principal = auth_module.verify(header.removeprefix("Bearer ").strip()) if header else None
+            if principal is None:
+                return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
+            request.state.principal = principal
+        return await call_next(request)
+
+    auth_module.announce()
+    for r in (auth, catalogue, review, questions, prevention, analytics, export,
               governance, families):
         app.include_router(r.router, prefix="/api")
 

@@ -84,6 +84,32 @@ curl -s localhost:8000/api/health | python3 -m json.tool | head -14
 `"mode": "live"` and eight entries under `live_services`. If it says `"mode": "stub"` and
 `"live_services": []`, stop and fix it — see below.
 
+### Signing in
+
+The API refuses everything except `/api/health` and `/api/auth/login` without a signed token,
+so the first screen is a login. There is one account per seat, and the seat is what the
+server rules on — a steward cannot become the approver by editing a request:
+
+| username | seat |
+|---|---|
+| `bpcl`, `cpcl`, `iocl`, `ntpc` | that CPSE's data steward: answers its own questions, decides within its own codes, imports its own master |
+| `national` | National Codification Approver: confirms identity across CPSEs and mints national codes |
+
+Passwords come from the environment and are never in source:
+
+```bash
+export SAMEPART_USERS="bpcl:…,cpcl:…,iocl:…,ntpc:…,national:…"   # set this on any host
+export SAMEPART_SECRET="a long random string"                     # signs tokens; unset = everyone signed out on restart
+```
+
+Unset, the backend falls back to development passwords (`meridian-<username>`) and logs a
+warning at start-up. Do not expose a host in that state.
+
+For the demo, the moment to show is the seat changing: sign in as `bpcl`, answer a bearing
+question only BPCL can answer; sign out, sign in as `national`, and the desk reorders to the
+cross-CPSE confirmations — approve one and the audit trail shows `national-approver` on that
+event and `BPCL-steward` on the one before.
+
 ### Three ways this goes wrong silently
 
 **Forgetting `SAMEPART_MODE=live`.** It defaults to `stub`, so every endpoint returns
