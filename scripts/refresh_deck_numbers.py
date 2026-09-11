@@ -33,15 +33,16 @@ def figures() -> dict:
         r = evaluate(db)
         events = db.scalar(select(func.count(DecisionEvent.id)))
     b = json.loads(BASELINES.read_text())
-    strongest = max((x for x in b["baselines"] if x.get("at_our_recall")),
-                    key=lambda x: x["at_our_recall"]["recall"])
+    # The most favourable baseline: the one that makes the fewest false merges to find as much
+    # as we do. Quoting any other would be picking the weakest opponent.
+    strongest = min((x for x in b["baselines"] if x.get("at_our_recall")),
+                    key=lambda x: x["at_our_recall"]["false_merges"])
     fuzzy_false = strongest["at_our_recall"]["false_merges"]
     ours_false = b["ours"]["false_merges"]
     return {
         "pairs": r.decision["decided_pairs"],
         "rr_pct": f"{r.retrieval['reduction_ratio'] * 100:.1f}",
         "hard_fmr": f"{r.hard_negatives['false_merge_rate']:.4f}",
-        "families": len({*[]}) or 4,
         "fuzzy_false": fuzzy_false,
         "ours_false": ours_false,
         "ratio": round(fuzzy_false / max(ours_false, 1)),

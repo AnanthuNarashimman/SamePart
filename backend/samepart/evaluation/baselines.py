@@ -283,7 +283,11 @@ def compare(db, *, family: str | None = None, llm_sample: int = 0) -> Comparison
 
     c = Comparison()
 
-    records = [x for x in db.scalars(select(SourceRecord)) if x.truth_identity]
+    # The same labelled set the harness scores: hand-authored demo fixtures carry made-up
+    # identities and are set aside there, so they are set aside here too, or the two would
+    # disagree about how many pairs exist.
+    records = [x for x in db.scalars(select(SourceRecord))
+               if x.truth_identity and not x.truth_identity.startswith("DEMO-")]
     if family:
         records = [x for x in records if x.family == family]
     records.sort(key=lambda x: x.id)

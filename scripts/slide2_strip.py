@@ -38,8 +38,8 @@ def figures() -> list[tuple[str, str, str]]:
     return [
         (f"{r.records:,} → {r.outcome['clusters']:,}", "source codes to national identities",
          "measured"),
-        (f"{r.decision['pairwise']['precision'] * 100:.1f}%", "precision on 7,117 candidate pairs",
-         "measured"),
+        (f"{r.decision['pairwise']['precision'] * 100:.1f}%",
+         f"precision on {r.decision['decided_pairs']:,} candidate pairs", "measured"),
         (f"{model_calls:,}", "model calls needed to decide them", "measured"),
         (f"{altered:,}", "existing fields altered in a CPSE master", "by construction"),
     ]

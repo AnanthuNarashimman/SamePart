@@ -6,7 +6,6 @@ the length of what it replaces wherever possible, because this machine has no Li
 so the result cannot be rendered and checked — a longer line could overflow its box unseen.
 """
 import copy
-import sys
 
 from pptx import Presentation
 from pptx.util import Inches

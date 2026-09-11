@@ -16,6 +16,95 @@ evidence. "It seemed better" is not evidence. If you reversed something in here,
 
 ---
 
+## 2026-09-11
+
+### The benchmark gains within-CPSE duplicates, and two defects come out of hiding
+**Who:** Aditya (with Claude) · **Prompted by:** Ananthu noticing every dot in the consensus
+matrix was the same size
+
+**From:** the generator emitted exactly one code per holding organisation, so no CPSE ever
+held the same material under two of its own codes and the matrix had nothing bigger to draw.
+**To:** `synthesis.duplicate_within_org` re-emits an identity inside an organisation with its
+own draw of wording, blanks, unit and price — same house style, not a copy — at a rate set per
+family (bolts 0.30, bearings 0.28, gaskets 0.18, valves 0.12). 2,141 records, 664 identities;
+217 of the 515 resolved identities now carry a second code from one CPSE.
+
+**Why it mattered beyond the picture.** The larger pair set tripped one frozen threshold
+(conflicting-evidence false merges: 22 against a max of 15). Pulling the 22 apart found two
+things that had been wrong at the smaller size and simply had fewer pairs to show up in:
+
+- **The gasket extractor read the centring ring's material as the winding.** Both attributes
+  accept SS304; the bare-value scan returned the first listed value found anywhere in the
+  line, so `MONEL  MICA  SS304 RING` extracted as an SS304 winding and gaskets with different
+  windings merged as identical. All 18 gasket false merges were this one defect. Bare enum
+  values are now resolved across the family (`_resolve_enums`): a value adjacent to one of an
+  attribute's own names belongs to that attribute, longer surface forms beat shorter, and a
+  span once claimed is unavailable to anyone else. The scan also stopped finding values inside
+  words — which is what let `CS` be read out of `CLASS`, and, it turned out, `HEX` out of
+  `HEXAGON`, which the verbose house style had been relying on; `HEXAGON` is now declared.
+  Nine regression tests in `backend/tests/test_extract.py` pin the lines that failed.
+- **A demo fixture's made-up label counted a correct merge as a false one.** `DEMO-CONFLICT-A`
+  is by design a real M20×100 8.8 DIN 931 bolt the generator also produces. The harness and
+  the baselines now set the six hand-authored fixtures aside and print the count.
+
+The harness also counted ISO 4014 against DIN 931 as *conflicting* when the dictionary
+declares them equivalent, blaming `standard` for merges whose real cause was elsewhere; it
+maps values through declared equivalences before calling anything a conflict.
+
+**Evidence.** Precision 0.9807 → **0.9927**; hard-negative false-merge rate 0.0028 →
+**0.0012** over 10,551 pairs; cluster purity 0.972 → **0.992**; conflicting-evidence false
+merges 6 → **1**; recall 0.551 → 0.542; all twelve thresholds hold. Unknown attributes rose
+from 21.3% to 21.9%, the honest cost of no longer reading part of a word.
+
+**What this reversed.** Nothing in design; the earlier decision to keep `hex_bolt.finish`
+optional stands. What it corrects is the belief, recorded on 2026-09-10, that the remaining
+six conflicting false merges were the label ceiling. They were not; two of them were the
+gasket extractor.
+
+### Baselines: what fuzzy matching, embeddings and a bare model actually achieve
+**Who:** Aditya (with Claude) · **Prompted by:** the checklist's closing point that the
+biggest gap was evidence Meridian beats a straightforward implementation
+
+`cli baselines` runs exact text, token Jaccard, character-trigram Jaccard, a sentence
+embedding and a bare model over the same records, labels and metrics as the harness. Three
+choices keep it from being a strawman: every baseline is swept across its whole threshold
+range and reported at its own best F1 (a threshold chosen with the answers in hand; ours was
+frozen before the table existed); each is compared at matched operating points, because a
+matcher can always trade precision for recall; and each is handed our candidate pairs — turned
+loose on all 2.3 million a trigram matcher merges bolts with bearings, which flatters us and
+proves nothing. The unblocked figure is still printed as a note.
+
+The LLM arm needed two corrections before it was honest. At `max_tokens=64` a reasoning model
+spends the budget thinking and returns nothing: 35% of calls failed, and the failures were the
+hard pairs, so the survivors scored 0.954. At 400 all 160 answer. And its sample is balanced
+while the catalogue is four-fifths hard negatives, so its precision is rescaled to the real
+prevalence before it sits in a column beside ours.
+
+**Evidence** (`data/generated/baselines.json`, 2,135 labelled records, 13,797 candidate
+pairs, thresholds tuned in each baseline's favour):
+
+| | precision | recall | false merges | hard-negative FMR |
+|---|---|---|---|---|
+| exact text | 1.000 | 0.003 | 0 | 0.000 |
+| fuzzy, tokens (best F1) | 0.301 | 0.837 | 6,294 | 0.597 |
+| fuzzy, trigrams (best F1) | 0.321 | 0.814 | 5,585 | 0.529 |
+| embedding (best F1) | 0.287 | 0.842 | 6,794 | 0.644 |
+| LLM only (sampled, prevalence-corrected) | 0.819 | 0.738 | 528 | 0.050 |
+| **Meridian** | **0.993** | 0.542 | **13** | **0.0012** |
+
+At our recall the best string matcher (trigrams) makes **3,341 false merges to our 13** —
+257×. At our precision the best baseline finds 0.7% of duplicates; we find 54%. Exact text
+matching finds 10 of 3,246 true pairs, which is the honest size of the part of this problem
+that needs no intelligence. The baselines are better than us on recall and it is said on the
+slide: we trade recall for a false-merge rate two orders of magnitude lower and 22% of pairs
+routed to a person instead of guessed at.
+
+The charts on slides 4 and 5 are drawn from that file by `scripts/baseline_charts.py`; a
+footnote on each states the run date and that the figures are measured, not modelled.
+
+---
+
+
 ## 2026-09-10
 
 ### Relationship graph rebuilt as compression, on a dark analytical surface

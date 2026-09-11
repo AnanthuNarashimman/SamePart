@@ -89,7 +89,7 @@ def provenance(data: dict, width: int = 120) -> str:
 def precision_recall(data: dict) -> Path:
     ours = data["ours"]
     fig, ax = plt.subplots(figsize=(3.8, 3.96), dpi=300)
-    fig.subplots_adjust(left=0.15, right=0.97, top=0.80, bottom=0.215)
+    fig.subplots_adjust(left=0.15, right=0.97, top=0.78, bottom=0.215)
 
     ax.set_axisbelow(True)
     ax.grid(axis="y", color=GRID, linewidth=0.5)
@@ -132,9 +132,12 @@ def precision_recall(data: dict) -> Path:
                 xytext=(ours["recall"] + 0.03, ours["precision"] + 0.008), fontsize=7.2,
                 color=INK, fontweight="bold", ha="left", va="bottom")
 
-    # Exact matching found nothing at all, which is worth a sentence where its point would be.
-    ax.text(0.985, 0.03, "Exact text match: 0 of 1,477 pairs found", fontsize=6.4,
-            color=INK_2, ha="right", va="bottom")
+    # Exact matching is a single point at the origin; it gets a sentence instead.
+    exact = next((b for b in data["baselines"] if b["name"] == "exact_text" and b["best_f1"]), None)
+    if exact:
+        found = round(exact["best_f1"]["recall"] * data["true_pairs"])
+        ax.text(0.985, 0.03, f"Exact text match: {found:,} of {data['true_pairs']:,} pairs found",
+                fontsize=6.4, color=INK_2, ha="right", va="bottom")
 
     ax.set_xlim(0, 1.0)
     ax.set_ylim(0, 1.05)
@@ -148,12 +151,22 @@ def precision_recall(data: dict) -> Path:
 
     fig.text(0.02, 0.965, "Same pairs, every threshold", fontsize=9.5, color=INK,
              fontweight="bold", ha="left", va="top")
+    # What a baseline can find while being as safe as we are. If none can, say so; if one can
+    # only at a sliver of recall, say that — it is the stronger statement and it is the truth.
+    safe = [b["at_our_precision"]["recall"] for b in data["baselines"]
+            if b.get("at_our_precision") and b["name"] != "exact_text"]
+    if safe:
+        best_safe = max(safe)
+        claim = (f"At our precision the best baseline finds {best_safe * 100:.1f}% of "
+                 f"duplicates; we find {ours['recall'] * 100:.0f}%.")
+    else:
+        claim = "None reaches our precision at any threshold."
     fig.text(0.02, 0.905,
-             f"{data['records']:,} simulated records, {data['candidate_pairs']:,} candidate pairs. "
-             "Each baseline is\nshown at every threshold; none reaches our precision at any.",
-             fontsize=6.6, color=INK_2, ha="left", va="top", linespacing=1.35)
+             textwrap.fill(f"{data['records']:,} simulated records, {data['candidate_pairs']:,} "
+                           f"candidate pairs, each baseline shown at every threshold. {claim}", 66),
+             fontsize=6.4, color=INK_2, ha="left", va="top", linespacing=1.35)
 
-    leg = ax.legend(loc="upper left", bbox_to_anchor=(0.01, 0.86), fontsize=6.2, frameon=False,
+    leg = ax.legend(loc="center", bbox_to_anchor=(0.60, 0.50), fontsize=6.2, frameon=False,
                     handlelength=1.6, borderaxespad=0.2, labelspacing=0.35)
     for t in leg.get_texts():
         t.set_color(INK_2)
@@ -188,7 +201,7 @@ def false_merges(data: dict) -> Path:
     rows.append(("Meridian", ours["false_merges"], INK, "ours"))
 
     fig, ax = plt.subplots(figsize=(6.1, 3.1), dpi=300)
-    fig.subplots_adjust(left=0.21, right=0.95, top=0.72, bottom=0.23)
+    fig.subplots_adjust(left=0.21, right=0.95, top=0.72, bottom=0.30)
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
     ax.set_axisbelow(True)
@@ -218,7 +231,10 @@ def false_merges(data: dict) -> Path:
     ax.tick_params(axis="x", labelsize=7.4, length=2)
     ax.set_xlabel("False merges  (log scale)", fontsize=7.6)
 
-    ratio = rows[0][1] / max(ours["false_merges"], 1)
+    # Against the baseline that does best at our recall, not the worst; the deck quotes the
+    # same figure and quoting the weakest opponent would be the cheap version of this chart.
+    matched = [n for (_, n, _, kind) in rows if kind == "matched"]
+    ratio = min(matched) / max(ours["false_merges"], 1) if matched else 0
     fig.text(0.02, 0.96, "What it costs to find what we find", fontsize=10.5, color=INK,
              fontweight="bold", ha="left", va="top")
     fig.text(0.02, 0.875,
@@ -228,7 +244,7 @@ def false_merges(data: dict) -> Path:
              fontsize=7.2, color=INK_2, ha="left", va="top", linespacing=1.35)
 
     # Provenance, because a bar chart of round numbers looks exactly like one somebody made up.
-    fig.text(0.02, 0.035, provenance(data), fontsize=6.3, color=INK_2, ha="left", va="bottom",
+    fig.text(0.02, 0.025, provenance(data), fontsize=6.3, color=INK_2, ha="left", va="bottom",
              linespacing=1.35)
 
     OUT.mkdir(parents=True, exist_ok=True)
