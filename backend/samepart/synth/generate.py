@@ -234,7 +234,10 @@ def generate(out_dir: Path, seed: int = 20260909, dictionary=None) -> dict:
             holders = rng.sample([o for o, _ in ORGS], k=rng.choice([1, 2, 2, 3, 3, 4]))
             true_price = _price(synth, ident.values)
 
-            for org in holders:
+            # Bound as defaults, not closed over: the helper is called inside this iteration
+            # only, but binding makes that a property of the code rather than of the caller.
+            def emit(org: str, *, synth=synth, ident=ident, true_price=true_price,
+                     fam=fam) -> None:
                 drop = {k for k, p in synth.drop.items() if rng.random() < p}
                 desc = _describe(synth, ident, STYLE_OF[org], rng, drop)
                 uom = rng.choice(synth.uom_choices)
@@ -272,6 +275,18 @@ def generate(out_dir: Path, seed: int = 20260909, dictionary=None) -> dict:
                     last_issue_date=last_issue,
                 ))
                 labels.append((org, code, ident.identity_id))
+
+            for org in holders:
+                emit(org)
+                # A second plant, a later era, a re-keyed spares list: the same organisation
+                # entering the same item again under a new code. Same house style, because it
+                # is the same organisation, but its own draw of wording, blanks, unit and
+                # price — which is what makes these hard rather than exact-text duplicates.
+                extras = 0
+                while (extras < synth.duplicate_within_org_max
+                       and rng.random() < synth.duplicate_within_org):
+                    emit(org)
+                    extras += 1
 
     if "hex_bolt" in {f.family for f in families}:
         _seed_demo_cases(catalogues, labels, counters, rng)

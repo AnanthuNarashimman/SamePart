@@ -124,8 +124,16 @@ def evaluate(db, *, family: str | None = None) -> Report:
         records = [x for x in records if x.family == family]
     r.records = len(records)
 
-    truth = {x.id: x.truth_identity for x in records if x.truth_identity}
+    # Hand-authored walkthrough fixtures carry their own made-up identities. One of them is,
+    # by design, a real bolt that the generator also produced, so scoring it counts a correct
+    # merge as a false one. They are for the demo, not the benchmark, and are set aside here
+    # with the count printed rather than silently.
+    demo = [x for x in records if x.truth_identity and x.truth_identity.startswith("DEMO-")]
+    truth = {x.id: x.truth_identity for x in records
+             if x.truth_identity and not x.truth_identity.startswith("DEMO-")}
     r.labelled = len(truth)
+    if demo:
+        r.notes.append(f"{len(demo)} hand-authored demo fixtures excluded from the labelled set.")
     if not truth:
         r.notes.append("No labelled records. Run `cli seed`, which writes truth_identity.")
         return r
@@ -176,8 +184,13 @@ def evaluate(db, *, family: str | None = None) -> Report:
     # as a ceiling. This is not an excuse -- a pair only qualifies when NO stated attribute
     # disagrees, which is a strict test, and the count is printed whether it flatters us or
     # not.
+    # Declared equivalences (ISO 4014 and DIN 931; ASME B16.20 and API 601) are agreement,
+    # not conflict: two records stating them are saying the same thing in two vocabularies.
+    # Without this the count blames "standard" for merges whose real cause is elsewhere.
+    equivalent = _equivalences()
+    family_of = {x.id: x.family for x in records}
     indistinguishable = {p for p in (said_same - true_pairs)
-                         if not _has_conflict(p, attributes)}
+                         if not _has_conflict(p, attributes, equivalent.get(family_of[p[0]], {}))}
 
     tp = len(said_same & true_pairs)
     fp = len(said_same - true_pairs)
@@ -286,11 +299,33 @@ def _attr_value(a: ExtractedAttribute) -> str | None:
     return str(a.value_number) if a.value_number is not None else None
 
 
-def _has_conflict(pair: Pair, attributes: dict[int, dict[str, str | None]]) -> bool:
-    """True when some attribute is stated on both records and the two values differ."""
+def _has_conflict(pair: Pair, attributes: dict[int, dict[str, str | None]],
+                  equivalent: dict[str, dict[str, str]] | None = None) -> bool:
+    """True when some attribute is stated on both records and the two values differ,
+    after mapping each value through the family's declared equivalences."""
     a, b = attributes.get(pair[0], {}), attributes.get(pair[1], {})
-    return any(a.get(k) is not None and b.get(k) is not None and a[k] != b[k]
+    eq = equivalent or {}
+
+    def canon(k: str, v: str) -> str:
+        return eq.get(k, {}).get(v, v)
+
+    return any(a.get(k) is not None and b.get(k) is not None
+               and canon(k, a[k]) != canon(k, b[k])
                for k in set(a) | set(b))
+
+
+def _equivalences() -> dict[str, dict[str, dict[str, str]]]:
+    """family -> attribute -> value -> canonical member, from `relation: equivalent` groups."""
+    from samepart.api.deps import dictionary
+
+    out: dict[str, dict[str, dict[str, str]]] = {}
+    for name, fam in dictionary().families.items():
+        for g in fam.substitution_groups:
+            if getattr(g.relation, "value", g.relation) != "equivalent" or len(g.members) < 2:
+                continue
+            out.setdefault(name, {}).setdefault(g.attribute, {}).update(
+                {m: g.members[0] for m in g.members})
+    return out
 
 
 def _cluster_records(mapping: dict[int, str]) -> dict[str, set[int]]:

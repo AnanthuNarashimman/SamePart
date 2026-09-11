@@ -96,6 +96,13 @@ attributes:
     normalise: [upper, strip_spaces]
     aliases: [head, head style, drive]
     values: [HEX, HEXFLANGE, SOCKET, COUNTERSUNK, CARRIAGE]
+    # Written out in full by the verbose house style. The extractor used to find HEX inside
+    # HEXAGON by accident; now that it will not read part of a word, the word is declared.
+    value_aliases:
+      "HEXAGON": HEX
+      "HEXAGONAL": HEX
+      "HEX HD": HEX
+      "HEXAGON HEAD": HEX
 
   - key: standard
     label: Governing specification
@@ -249,6 +256,7 @@ substitution_groups:
 # governing specifications. Generation invents wording, never a value.
 synthesis:
   identities: 260
+  duplicate_within_org: 0.3
   part_number_prefix: HB
   identity_keys: [thread_diameter_mm, length_mm, grade, standard, finish]
 

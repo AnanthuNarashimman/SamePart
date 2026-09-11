@@ -181,6 +181,14 @@ class Synthesis(BaseModel):
     part_number_prefix: str = "XX"
     price: PriceModel = Field(default_factory=PriceModel)
     uom_choices: list[str] = Field(default_factory=lambda: ["EA"])
+    # The problem statement is as much about one CPSE holding the same item under several of
+    # its own codes as it is about codes across CPSEs; a generator that emits exactly one code
+    # per holder never produces that case, and a benchmark built on it never tests it.
+    duplicate_within_org: float = Field(
+        0.0, ge=0.0, lt=1.0,
+        description="Chance that a holding organisation carries one more code for the same "
+                    "identity; applied again for each extra, so extras are geometric.")
+    duplicate_within_org_max: int = Field(3, ge=0)
 
 
 class Family(BaseModel):

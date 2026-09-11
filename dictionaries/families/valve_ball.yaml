@@ -201,6 +201,7 @@ substitution_groups:
 
 synthesis:
   identities: 130
+  duplicate_within_org: 0.12
   part_number_prefix: BV
   identity_keys: [nominal_size_mm, pressure_class, body_material, bore_type, end_connection,
                   seat_material]

@@ -63,6 +63,7 @@ attributes:
     label: Winding material
     type: string
     criticality: critical
+    required_for_decision: true
     values: [SS304, SS316, MONEL]
     aliases: [winding, wind, metal, strip]
     value_aliases:
@@ -81,6 +82,7 @@ attributes:
     label: Filler material
     type: string
     criticality: critical
+    required_for_decision: true
     values: [GRAPHITE, PTFE, MICA, CERAMIC]
     aliases: [filler, fill, soft filler]
     value_aliases:
@@ -105,11 +107,14 @@ attributes:
     # strength of everything ELSE agreeing while this went unstated.
     required_for_decision: true
     values: [CS, SS304, NONE]
-    aliases: [outer ring, centring ring, centering ring, guide ring]
+    aliases: [outer ring, centring ring, centering ring, guide ring, ring]
     value_aliases:
       "CARBON STEEL": CS
       "CARBON STEEL RING": CS
       "CS RING": CS
+      "SS 304": SS304
+      "304 SS": SS304
+      "AISI 304": SS304
       "NO OUTER RING": NONE
       "WITHOUT OUTER RING": NONE
 
@@ -218,6 +223,7 @@ substitution_groups:
 # never a value.
 synthesis:
   identities: 150
+  duplicate_within_org: 0.18
   part_number_prefix: SW
   identity_keys: [nominal_size_mm, pressure_class, winding_material, filler, outer_ring,
                   standard]
