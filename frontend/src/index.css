@@ -5,6 +5,10 @@
     "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono:
     "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* Display face, used on the landing page only. High-contrast editorial serif against Inter:
+     the app itself stays entirely on Inter, so nothing inside the product shifts. */
+  --font-display:
+    "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
 
   /* "Youre as sour as a lemon..." palette — brand = green/mint/teal, primary = orange, khaki = warning */
   --color-brand-50: #eefee5;
@@ -99,6 +103,149 @@ body {
 
 .scroll-clean::-webkit-scrollbar-thumb:hover {
   background-color: #a8a29e;
+}
+
+/* Landing-page motion. One dash chasing each line into the convergence point. The paths carry
+   pathLength="100", so the dash pattern is in percent and every path — long outer curve or
+   short inner one — runs at the same apparent speed. Ambient only, so it yields entirely to a
+   reduced-motion preference. */
+@keyframes mrd-flow {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.mrd-flow {
+  stroke-dasharray: 7 93;
+  animation: mrd-flow 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mrd-flow {
+    animation: none;
+    stroke-dasharray: none;
+    opacity: 0.65;
+  }
+}
+
+/* The hero card's own ground: deep pine, lifted by a mint glow at one corner and a warm amber
+   one at the other so it reads as depth rather than as a flat dark panel. Dark here is doing
+   work — the white part tiles and the mint national code are the brightest things on the page,
+   which is the order they should be read in. */
+.hero-card {
+  background:
+    radial-gradient(860px circle at 10% -10%, rgba(114, 242, 148, 0.18) 0%, transparent 58%),
+    radial-gradient(700px circle at 92% -2%, rgba(242, 183, 123, 0.16) 0%, transparent 52%),
+    radial-gradient(900px circle at 50% 116%, rgba(111, 214, 175, 0.14) 0%, transparent 56%),
+    linear-gradient(162deg, #16402a 0%, #0d2718 52%, #112f1e 100%);
+}
+
+/* The problem section's ground. The four objects are pale and the window is white, so they need
+   a surface to sit on rather than the page's own near-white, which left them floating. */
+.stage-surface {
+  background:
+    radial-gradient(640px circle at 14% 0%, rgba(47, 184, 94, 0.09) 0%, transparent 55%),
+    radial-gradient(580px circle at 88% 6%, rgba(214, 127, 40, 0.09) 0%, transparent 50%),
+    linear-gradient(180deg, #f5f3ed 0%, #efece3 55%, #f2efe8 100%);
+}
+
+.stage-grid {
+  background-image: radial-gradient(rgba(28, 25, 23, 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 78%);
+}
+
+/* The cost section. Warm rather than alarming: amber at the corners with one rose wash, so the
+   money reads as money leaking away instead of as a system error. */
+.cost-surface {
+  background:
+    radial-gradient(640px circle at 4% -6%, rgba(214, 127, 40, 0.16) 0%, transparent 56%),
+    radial-gradient(560px circle at 98% 10%, rgba(208, 59, 59, 0.1) 0%, transparent 52%),
+    radial-gradient(760px circle at 52% 112%, rgba(242, 183, 123, 0.16) 0%, transparent 55%),
+    #fffdf9;
+}
+
+/* One drift used by everything that floats behind a section — the rupee marks over the cost
+   figures and the part drawings behind the evidence. Each element supplies its own duration,
+   delay and resting tilt, so nothing falls into step with anything else. */
+@keyframes soft-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-20px) rotate(calc(var(--tilt, 0deg) + 5deg));
+  }
+}
+
+.soft-float {
+  animation: soft-drift var(--dur, 10s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soft-float {
+    animation: none;
+  }
+}
+
+/* The evidence section: lifted off near-black to a green that still reads as dark but no longer
+   swallows the charts sitting on it. */
+.evidence-surface {
+  background:
+    radial-gradient(820px circle at 8% -8%, rgba(114, 242, 148, 0.14) 0%, transparent 55%),
+    radial-gradient(700px circle at 94% 4%, rgba(242, 183, 123, 0.1) 0%, transparent 50%),
+    radial-gradient(900px circle at 50% 112%, rgba(111, 214, 175, 0.12) 0%, transparent 55%),
+    linear-gradient(168deg, #1d5234 0%, #16412a 52%, #1a4a30 100%);
+}
+
+/* Diagonal rule hatching, faded in from one corner. */
+.line-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.12) 0 1px,
+    transparent 1px 11px
+  );
+}
+
+.hatch-tr {
+  -webkit-mask-image: radial-gradient(ellipse 92% 92% at 100% 0%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 92% 92% at 100% 0%, #000 0%, transparent 72%);
+}
+
+.hatch-bl {
+  -webkit-mask-image: radial-gradient(ellipse 92% 92% at 0% 100%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 92% 92% at 0% 100%, #000 0%, transparent 72%);
+}
+
+/* Phosphor scanlines for the terminal illustration. */
+.crt-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.055) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* Ruled paper for the register and index-card illustrations. */
+.ruled-blue {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 15px,
+    rgba(37, 99, 165, 0.16) 15px 16px
+  );
+}
+
+/* A faint engineering dot grid that fades out before it reaches the headline. */
+.hero-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 72% 58% at 50% 0%, #000 0%, transparent 76%);
+  mask-image: radial-gradient(ellipse 72% 58% at 50% 0%, #000 0%, transparent 76%);
 }
 
 .app-canvas {
