@@ -61,6 +61,36 @@ optional stands. What it corrects is the belief, recorded on 2026-09-10, that th
 six conflicting false merges were the label ceiling. They were not; two of them were the
 gasket extractor.
 
+### "Acting as" becomes a real seat, and the two-tier rule finally fires
+**Who:** Aditya (with Claude) · **Prompted by:** Ananthu asking what the sidebar card meant
+
+**From:** a card that said "Acting as BPCL · Reviewer" and did nothing — it showed whichever
+organisation came first in the list, no screen read it, and every write reached the API as the
+default `national_approver`. The backend had enforced the two-tier rule (`governance.may_decide`)
+for some time; the frontend never said who was asking, so it never fired.
+**To:** a switcher with five seats — the four CPSE stewards and the National Codification
+Approver — that drives three things: which queue and which questions you see (server-side,
+counts included), what the server lets you do, and whose name goes on the audit event
+(`BPCL-steward`, `national-approver`). A steward's Import and Duplicate-check pages are locked
+to their own organisation. `?actor=BPCL` or `?actor=national` on any URL opens in that seat,
+so a judge's link can land them where the story starts.
+
+The queue is ordered in SQL by seat: a steward opens on the questions only they can answer,
+the approver on the cross-CPSE confirmations only they can give. The first version sorted the
+fetched page instead, and with three thousand questions ahead of them the twenty-five
+confirmations never reached a page.
+
+**What it is not.** A session, not a login. Anyone who opens the URL can choose the approver's
+seat; the switcher is honest about who is acting, it does not prove it. On a public host the
+shared write key sits underneath it (no key, no writes, whatever the seat says); binding seats
+to real accounts is a CPSE-deployment item.
+
+**Evidence.** As BPCL's steward the desk shows 517 within-BPCL pairs and 1,386 questions and
+none of the cross-CPSE confirmations; the approver sees all 25. A steward approving a
+BPCL–NTPC pair receives a 403 with the governance sentence, shown on the desk as the ruling
+rather than as an error. `test_governance.py` covers the rulings, including `may_answer`,
+which is new: a steward answers only for their own records.
+
 ### The benchmark at ten times the density
 **Who:** Aditya (with Claude) · **Prompted by:** Ananthu asking why we only use ~2,000 rows
 

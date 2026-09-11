@@ -5,6 +5,7 @@ import { useCheck } from '../api/prevention'
 import type { CheckResult } from '../api/types'
 import { MatchComparison } from '../components/shared/MatchComparison'
 import { QueryState } from '../components/shared/QueryState'
+import { useActor } from '../lib/actor'
 
 // Single-record check reusing the same pipeline against the full canonical set — no queue,
 // no grouping, one session, one verdict. Per knowledge/08-ranked-additions.md, arguably the
@@ -22,7 +23,11 @@ export function DuplicateCheck() {
   const [orgCode, setOrgCode] = useState<string | null>(null)
   const [description, setDescription] = useState('')
 
-  const effectiveOrgCode = orgCode ?? orgs.data?.[0]?.code ?? ''
+  // A steward acts for their own organisation and cannot choose another; the national
+  // approver may act for any.
+  const { actor } = useActor()
+  const lockedOrg = actor.role === 'steward' ? actor.org : null
+  const effectiveOrgCode = lockedOrg ?? orgCode ?? orgs.data?.[0]?.code ?? ''
 
   return (
     <div className="flex-1 overflow-y-auto app-canvas p-8">
@@ -43,6 +48,8 @@ export function DuplicateCheck() {
               <select
                 value={effectiveOrgCode}
                 onChange={(e) => setOrgCode(e.target.value)}
+                disabled={lockedOrg != null}
+                title={lockedOrg ? `Acting as ${lockedOrg}'s steward` : undefined}
                 className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
               >
                 {orgs.data?.map((org) => (

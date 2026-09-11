@@ -17,8 +17,9 @@ router = APIRouter(tags=["questions"])
 
 @router.get("/questions", response_model=s.QuestionPage)
 def questions(cursor: str | None = None, limit: int = Query(50, ge=1, le=200),
+              actor_org: str | None = Query(None, description="Only this CPSE's records"),
               svc: QuestionService = Depends(question_service)):
-    return svc.questions(cursor, limit)
+    return svc.questions(cursor, limit, actor_org)
 
 
 @router.post("/records/{record_id}/unresolvable", response_model=s.AnswerResult)
@@ -29,6 +30,9 @@ def unresolvable(record_id: int, req: s.UnresolvableRequest,
         return svc.unresolvable(record_id, req)
     except KeyError:
         raise HTTPException(404, f"no record with id {record_id}")
+    except PermissionError as exc:
+        # 403: the person is not wrong, they are not the one who can say.
+        raise HTTPException(403, str(exc))
 
 
 @router.post("/records/{record_id}/answer", response_model=s.AnswerResult)
@@ -38,3 +42,6 @@ def answer(record_id: int, req: s.AnswerRequest,
         return svc.answer(record_id, req)
     except KeyError:
         raise HTTPException(404, f"no record with id {record_id}")
+    except PermissionError as exc:
+        # 403: the person is not wrong, they are not the one who can say.
+        raise HTTPException(403, str(exc))

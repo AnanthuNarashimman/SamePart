@@ -12,7 +12,7 @@ import uuid
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_, or_, case
 
 from samepart import audit
 from samepart.api import schemas as s
@@ -388,23 +388,54 @@ class LiveReview:
                 "auto_merged": auto, "sampled_for_audit": audit}
 
     # -- reads --------------------------------------------------------------
-    def queue(self, group: str | None, cursor: str | None, limit: int) -> s.QueuePage:
+    def queue(self, group: str | None, cursor: str | None, limit: int,
+              actor_role: str | None = None, actor_org: str | None = None) -> s.QueuePage:
+        """The pairs this person can act on, and nothing they cannot.
+
+        A steward sees pairs inside their own organisation, plus cross-organisation pairs
+        that are stuck on a question — because answering is theirs to do even where approving
+        is not. The national approver sees everything. Counts are computed under the same
+        scope, so the four tiles above the queue describe the queue actually shown.
+        """
+        from sqlalchemy.orm import aliased
+
         with session_scope() as db:
+            A, B = aliased(SourceRecord), aliased(SourceRecord)
+            base = (select(CandidateMatch)
+                    .join(A, CandidateMatch.a_id == A.id)
+                    .join(B, CandidateMatch.b_id == B.id)
+                    .where(CandidateMatch.review_state == "queued"))
+            if actor_role == "steward" and actor_org:
+                org_id = db.scalar(select(Organisation.id).where(Organisation.code == actor_org))
+                mine = or_(A.org_id == org_id, B.org_id == org_id)
+                both_mine = and_(A.org_id == org_id, B.org_id == org_id)
+                stuck_on_a_question = CandidateMatch.verdict == "insufficient_evidence"
+                base = base.where(or_(both_mine, and_(mine, stuck_on_a_question)))
+
             counts = s.QueueCounts()
             for verdict, n in db.execute(
-                select(CandidateMatch.verdict, func.count(CandidateMatch.id))
-                .where(CandidateMatch.review_state == "queued")
+                base.with_only_columns(CandidateMatch.verdict, func.count(CandidateMatch.id))
                 .group_by(CandidateMatch.verdict)
             ).all():
                 setattr(counts, _GROUP_OF[verdict], n)
 
-            q = select(CandidateMatch).where(CandidateMatch.review_state == "queued")
+            q = base
             if group:
                 wanted = [v for v, g in _GROUP_OF.items() if g == group]
                 q = q.where(CandidateMatch.verdict.in_(wanted))
 
+            # Ordered in SQL, not on the page: with three thousand questions ahead of them,
+            # the twenty-five cross-organisation confirmations never reached a page at all.
+            order = _GROUP_ORDER
+            if actor_role == "national_approver":
+                order = ["same_material", "possible_alternative", "needs_input", "different"]
+            rank = {v: order.index(g) for v, g in _GROUP_OF.items()}
+            by_role = case(rank, value=CandidateMatch.verdict, else_=len(order))
+            cross_first = case((A.org_id == B.org_id, 1), else_=0)
+
             offset = int(cursor) if cursor and cursor.isdigit() else 0
-            rows = list(db.scalars(q.order_by(CandidateMatch.id).offset(offset).limit(limit + 1)))
+            rows = list(db.scalars(q.order_by(by_role, cross_first, CandidateMatch.id)
+                                   .offset(offset).limit(limit + 1)))
             more = len(rows) > limit
             rows = rows[:limit]
 
@@ -421,7 +452,6 @@ class LiveReview:
                     a_org=a.org.code, b_org=b.org.code,
                     headline=_HEADLINE[g].format(detail=detail or m.rationale or ""),
                 ))
-            items.sort(key=lambda i: _GROUP_ORDER.index(_GROUP_OF[i.verdict.value]))
             return s.QueuePage(counts=counts, items=items,
                                next_cursor=str(offset + limit) if more else None)
 
@@ -809,9 +839,18 @@ class LiveQuestions:
                     entry["counterpart"][str(other[key])] += 1
         return blanks, len(pending)
 
-    def questions(self, cursor: str | None, limit: int) -> s.QuestionPage:
+    def questions(self, cursor: str | None, limit: int,
+                  actor_org: str | None = None) -> s.QuestionPage:
         with session_scope() as db:
             blanks, deferred = self._blanks(db)
+            if actor_org:
+                # A steward is asked only about their own records. The counts and the curve
+                # below are computed from this subset, so they describe the steward's queue.
+                org_of = dict(db.execute(
+                    select(SourceRecord.id, Organisation.code)
+                    .join(Organisation, SourceRecord.org_id == Organisation.id)).all())
+                blanks = {k: v for k, v in blanks.items() if org_of.get(k[0]) == actor_org}
+                deferred = len({pair for info in blanks.values() for pair in info["pairs"]})
 
             per_record: dict[int, list] = {}
             for (record_id, key), info in blanks.items():
@@ -879,6 +918,9 @@ class LiveQuestions:
             record = db.get(SourceRecord, record_id)
             if record is None:
                 raise KeyError(record_id)
+            ruling = gov.may_answer(req.reviewer_role, record.org.code, req.reviewer_org)
+            if not ruling.allowed:
+                raise PermissionError(f"{ruling.reason} Required role: {ruling.required_role}.")
             family = self.dictionary.family(record.family)
             by_key = {a.key: a for a in record.attributes}
             marked = {}
@@ -918,6 +960,9 @@ class LiveQuestions:
             record = db.get(SourceRecord, record_id)
             if record is None:
                 raise KeyError(record_id)
+            ruling = gov.may_answer(req.reviewer_role, record.org.code, req.reviewer_org)
+            if not ruling.allowed:
+                raise PermissionError(f"{ruling.reason} Required role: {ruling.required_role}.")
             family = self.dictionary.family(record.family)
             by_key = {a.key: a for a in record.attributes}
 

@@ -2,13 +2,26 @@ import { useState } from 'react'
 import { Pager, usePaged } from '../shared/Paginated'
 import type { QueueItem, Verdict } from '../../api/types'
 import { VERDICT_TONE } from '../shared/formatters'
+import { useActor } from '../../lib/actor'
 
 // Reviewer priority order, not alphabetical — see knowledge/10-frontend-plan.md.
-const GROUP_ORDER: { verdict: Verdict; title: string; hint: string; collapsedByDefault: boolean }[] = [
-  { verdict: 'insufficient_evidence', title: 'Needs input', hint: 'System is stuck and asking a question — highest priority', collapsedByDefault: false },
-  { verdict: 'possible_alternative', title: 'Possible alternatives', hint: 'Substitute relationship, not identity — needs judgment', collapsedByDefault: false },
-  { verdict: 'same_material', title: 'Confirmed matches', hint: 'Mostly a quick-approve pass', collapsedByDefault: false },
-  { verdict: 'different', title: 'Confirmed different', hint: 'Informational, no action needed', collapsedByDefault: true },
+//
+// The order depends on who is sitting here. A steward's first job is the questions only
+// they can answer; the national approver's is the cross-CPSE confirmations only they can
+// give, and for them the questions are somebody else's queue and start collapsed.
+type Group = { verdict: Verdict; title: string; hint: string; collapsedByDefault: boolean }
+
+const NEEDS_INPUT: Group = { verdict: 'insufficient_evidence', title: 'Needs input', hint: 'System is stuck and asking a question — highest priority', collapsedByDefault: false }
+const ALTERNATIVES: Group = { verdict: 'possible_alternative', title: 'Possible alternatives', hint: 'Substitute relationship, not identity — needs judgment', collapsedByDefault: false }
+const MATCHES: Group = { verdict: 'same_material', title: 'Confirmed matches', hint: 'Mostly a quick-approve pass', collapsedByDefault: false }
+const DIFFERENT: Group = { verdict: 'different', title: 'Confirmed different', hint: 'Informational, no action needed', collapsedByDefault: true }
+
+const STEWARD_ORDER: Group[] = [NEEDS_INPUT, ALTERNATIVES, MATCHES, DIFFERENT]
+const APPROVER_ORDER: Group[] = [
+  { ...MATCHES, title: 'Cross-CPSE confirmations', hint: 'Approving one creates a national identifier — the approver\'s own work' },
+  ALTERNATIVES,
+  { ...NEEDS_INPUT, hint: 'Questions for the owning CPSE\'s steward', collapsedByDefault: true },
+  DIFFERENT,
 ]
 
 interface QueueListProps {
@@ -18,9 +31,17 @@ interface QueueListProps {
 }
 
 export function QueueList({ items, selectedId, onSelect }: QueueListProps) {
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
+  const { actor } = useActor()
+  const GROUP_ORDER = actor.role === 'national_approver' ? APPROVER_ORDER : STEWARD_ORDER
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(GROUP_ORDER.map((g) => [g.verdict, g.collapsedByDefault])),
   )
+  // Switching seats changes which groups start open.
+  const [seenRole, setSeenRole] = useState(actor.role)
+  if (seenRole !== actor.role) {
+    setSeenRole(actor.role)
+    setCollapsed(Object.fromEntries(GROUP_ORDER.map((g) => [g.verdict, g.collapsedByDefault])))
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,7 +74,7 @@ export function QueueList({ items, selectedId, onSelect }: QueueListProps) {
 function QueueGroup({
   group, groupItems, collapsed: isCollapsed, onToggle, selectedId, onSelect,
 }: {
-  group: (typeof GROUP_ORDER)[number]
+  group: Group
   groupItems: QueueItem[]
   collapsed: boolean
   onToggle: () => void

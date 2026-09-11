@@ -4,6 +4,7 @@ import { MigrationPreview } from '../components/import/MigrationPreview'
 import { ColumnMapper } from '../components/import/ColumnMapper'
 import { ImportHistory } from '../components/import/ImportHistory'
 import { QueryState } from '../components/shared/QueryState'
+import { useActor } from '../lib/actor'
 
 // Reads just the header row of the real file the user picked — no synthetic column list.
 function readHeaderRow(file: File): Promise<string[]> {
@@ -36,7 +37,11 @@ export function Import() {
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [importIds, setImportIds] = useState<string[]>([])
 
-  const effectiveOrgCode = orgCode ?? orgs.data?.[0]?.code ?? ''
+  // A steward acts for their own organisation and cannot choose another; the national
+  // approver may act for any.
+  const { actor } = useActor()
+  const lockedOrg = actor.role === 'steward' ? actor.org : null
+  const effectiveOrgCode = lockedOrg ?? orgCode ?? orgs.data?.[0]?.code ?? ''
 
   const handleFile = async (f: File | null) => {
     setFile(f)
@@ -87,6 +92,8 @@ export function Import() {
                 <select
                   value={effectiveOrgCode}
                   onChange={(e) => setOrgCode(e.target.value)}
+                  disabled={lockedOrg != null}
+                  title={lockedOrg ? `Acting as ${lockedOrg}'s steward` : undefined}
                   className="min-w-0 max-w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-primary-300 focus:outline-none"
                 >
                   {orgs.data?.map((org) => (

@@ -386,6 +386,10 @@ class QuestionPage(BaseModel):
 class AnswerRequest(BaseModel):
     values: dict[str, str] = Field(description="Attribute key -> value the reviewer asserts")
     reviewer: str = "demo-reviewer"
+    reviewer_role: str = Field(
+        "national_approver", description="viewer | steward | national_approver | administrator")
+    reviewer_org: str | None = Field(
+        None, description="A steward's own CPSE; they may answer only for its records")
     note: str | None = None
 
 
@@ -393,6 +397,10 @@ class UnresolvableRequest(BaseModel):
     keys: list[str] = Field(description="Attributes that cannot be answered from any source")
     reason: str | None = None
     reviewer: str = "demo-reviewer"
+    reviewer_role: str = Field(
+        "national_approver", description="viewer | steward | national_approver | administrator")
+    reviewer_org: str | None = Field(
+        None, description="A steward's own CPSE; they may answer only for its records")
 
 
 class CurvePoint(BaseModel):

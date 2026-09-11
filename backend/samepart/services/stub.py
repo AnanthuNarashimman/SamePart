@@ -165,7 +165,7 @@ class StubCatalogue:
 
 
 class StubReview:
-    def queue(self, group, cursor, limit):
+    def queue(self, group, cursor, limit, actor_role=None, actor_org=None):
         counts = s.QueueCounts(needs_input=1, possible_alternative=1, same_material=1, different=1)
         items = [
             s.QueueItem(id=m.id, verdict=m.verdict, review_state=m.review_state,
@@ -322,7 +322,7 @@ class StubFamilies:
 
 
 class StubQuestions:
-    def questions(self, cursor, limit):
+    def questions(self, cursor, limit, actor_org=None):
         return s.QuestionPage(
             pairs_deferred=689, questions=228, records=207,
             curve=_stub_curve(),

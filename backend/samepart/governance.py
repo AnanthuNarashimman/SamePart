@@ -94,3 +94,32 @@ def may_decide(role_key: str, orgs_involved: set[str], reviewer_org: str | None 
                 f"{', '.join(sorted(orgs_involved))}'s codes.",
                 required_role="steward")
     return Ruling(True)
+
+
+def may_answer(role_key: str, record_org: str, reviewer_org: str | None = None) -> Ruling:
+    """May this person state a fact about this record, or declare it unknowable?
+
+    Answering is not approving and creates no identifier, so it is open to any role with the
+    permission — but a steward speaks only for their own organisation's records. Nobody else
+    knows what BPCL meant by a blank on a BPCL code.
+    """
+    gov = load()
+    role = gov.role(role_key)
+    if role is None:
+        return Ruling(False, f"unknown role {role_key!r}")
+    if "answer" not in role.permissions:
+        return Ruling(False, f"{role.label} may not answer questions", required_role="steward")
+    if role.scope == "own_organisation" and reviewer_org and reviewer_org != record_org:
+        return Ruling(
+            False,
+            f"{role.label} for {reviewer_org} cannot answer for a {record_org} record; only "
+            f"{record_org} knows what its own description meant.",
+            required_role="steward")
+    return Ruling(True)
+
+
+def actor_name(role_key: str, reviewer_org: str | None) -> str:
+    """The name that goes on the audit event: which organisation, in which role."""
+    if role_key == "steward" and reviewer_org:
+        return f"{reviewer_org}-steward"
+    return role_key.replace("_", "-")

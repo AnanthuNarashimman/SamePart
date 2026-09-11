@@ -98,6 +98,8 @@ export interface DecisionRequest {
   note?: string | null
   provided_attributes?: Record<string, string> | null
   reviewer?: string
+  reviewer_role?: string
+  reviewer_org?: string | null
 }
 
 export interface DecisionResult {
@@ -409,6 +411,8 @@ export interface QuestionPage {
 export interface AnswerRequest {
   values: Record<string, string>
   reviewer?: string
+  reviewer_role?: string
+  reviewer_org?: string | null
   note?: string | null
 }
 
@@ -416,6 +420,8 @@ export interface UnresolvableRequest {
   keys: string[]
   reason?: string | null
   reviewer?: string
+  reviewer_role?: string
+  reviewer_org?: string | null
 }
 
 export interface AnswerResult {

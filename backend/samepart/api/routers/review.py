@@ -17,11 +17,13 @@ def queue(
     group: str | None = Query(None, description=f"One of {sorted(GROUPS)}"),
     cursor: str | None = None,
     limit: int = Query(50, ge=1, le=200),
+    actor_role: str | None = Query(None, description="Scope the queue to what this role may act on"),
+    actor_org: str | None = Query(None, description="The steward's own CPSE"),
     svc: ReviewService = Depends(review_service),
 ):
     if group and group not in GROUPS:
         raise HTTPException(400, f"unknown group {group!r}; expected one of {sorted(GROUPS)}")
-    return svc.queue(group, cursor, limit)
+    return svc.queue(group, cursor, limit, actor_role, actor_org)
 
 
 @router.get("/matches/{match_id}", response_model=s.MatchDetail)

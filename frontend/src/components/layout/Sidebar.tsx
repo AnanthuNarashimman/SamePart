@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useOrgs } from '../../api/catalogue'
+import { NATIONAL, actorRoleLabel, useActor, type Actor } from '../../lib/actor'
 import { PlatformTourModal } from './PlatformTourModal'
 
 const ICONS = {
@@ -72,7 +73,8 @@ const initials = (code: string) => code.slice(0, 2)
 
 export function Sidebar() {
   const { data: orgs, isLoading, isError } = useOrgs()
-  const activeOrg = orgs?.[0]
+  const { actor, setActor } = useActor()
+  const activeOrg = actor.role === 'steward' ? orgs?.find((o) => o.code === actor.org) : undefined
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -147,41 +149,53 @@ export function Sidebar() {
         {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
       </div>
 
-      {/* Company context card — which CPSE this session is acting as */}
+      {/* Who is acting. A session, not a login: the demo key gets you in, this says who you
+          are, and the server rules on every write against the role declared here. Switching
+          refetches the queue and the questions, because both are scoped to the actor. */}
       {collapsed ? (
         <div className="flex shrink-0 flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
-          {isLoading && <span className="h-8 w-8 animate-pulse rounded-full bg-stone-100" />}
-          {activeOrg && (
-            <span
-              title={`${activeOrg.name} — acting as reviewer`}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-[10px] font-semibold text-primary-700"
-            >
-              {initials(activeOrg.code)}
-            </span>
-          )}
+          <span
+            title={`${actorRoleLabel(actor)}${activeOrg ? ` — ${activeOrg.name}` : ''}`}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-[10px] font-semibold text-primary-700"
+          >
+            {actor.role === 'steward' ? initials(actor.org) : 'IN'}
+          </span>
         </div>
       ) : (
         <div className="shrink-0 rounded-2xl bg-white p-4 text-stone-800 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-medium uppercase tracking-wide text-stone-400">
               Acting as
             </span>
             <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-medium text-primary-700">
-              Reviewer
+              {actor.role === 'steward' ? 'Steward' : 'National approver'}
             </span>
           </div>
           {isLoading && <p className="text-xs text-stone-400">Loading organisations…</p>}
           {isError && <p className="text-xs text-rose-500">Could not reach the API</p>}
-          {activeOrg && (
+          {orgs && (
             <>
-              {/* Clamped rather than left to wrap: "Bharat Petroleum Corporation Limited" runs
-                  to three lines and pushed the card past the height it had. The full name is
-                  on the title so nothing is actually lost. */}
-              <p className="line-clamp-2 text-base font-semibold leading-snug" title={activeOrg.name}>
-                {activeOrg.name}
-              </p>
+              <label className="sr-only" htmlFor="acting-as">Acting as</label>
+              <select
+                id="acting-as"
+                value={actor.role === 'steward' ? actor.org : 'national'}
+                onChange={(e) => {
+                  const next: Actor = e.target.value === 'national'
+                    ? NATIONAL
+                    : { role: 'steward', org: e.target.value }
+                  setActor(next)
+                }}
+                className="mb-1.5 w-full rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-sm font-semibold text-stone-900 focus:border-primary-300 focus:outline-none"
+              >
+                {orgs.map((org) => (
+                  <option key={org.code} value={org.code}>{org.code} · {org.name.replace(' (simulated)', '')}</option>
+                ))}
+                <option value="national">National Codification Approver</option>
+              </select>
               <p className="mb-3 text-xs text-stone-400">
-                {activeOrg.code} · {activeOrg.record_count} records{activeOrg.simulated ? ' · simulated' : ''}
+                {actor.role === 'steward'
+                  ? `${activeOrg?.record_count ?? '—'} records · decides within ${actor.org} only`
+                  : 'confirms identity across CPSEs · mints national codes'}
               </p>
               <div className="flex items-center justify-between border-t border-stone-100 pt-3">
                 <div className="flex -space-x-2">
@@ -189,7 +203,11 @@ export function Sidebar() {
                     <span
                       key={org.code}
                       title={org.name}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-stone-100 text-[10px] font-semibold text-stone-600"
+                      className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-semibold ${
+                        actor.role === 'steward' && actor.org === org.code
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-stone-100 text-stone-600'
+                      }`}
                     >
                       {initials(org.code)}
                     </span>
