@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import sys
+import textwrap
 from datetime import datetime
 from pathlib import Path
 
@@ -74,10 +75,21 @@ def pct(x, _pos=None) -> str:
     return f"{x * 100:.0f}%"
 
 
+def provenance(data: dict, width: int = 120) -> str:
+    """Why these are not made-up numbers — the same sentence on every figure, wrapped to fit."""
+    run_date = datetime.fromtimestamp(SRC.stat().st_mtime).strftime("%d %b %Y")
+    return textwrap.fill(
+        f"Measured, not modelled: a single real run on {run_date} over all "
+        f"{data['records']:,} labelled records and {data['candidate_pairs']:,} candidate "
+        "pairs, the matcher never shown the labels. Reproducible with "
+        "`samepart.cli baselines`; every figure is in data/generated/baselines.json.",
+        width=width)
+
+
 def precision_recall(data: dict) -> Path:
     ours = data["ours"]
     fig, ax = plt.subplots(figsize=(3.8, 3.96), dpi=300)
-    fig.subplots_adjust(left=0.15, right=0.97, top=0.80, bottom=0.13)
+    fig.subplots_adjust(left=0.15, right=0.97, top=0.80, bottom=0.215)
 
     ax.set_axisbelow(True)
     ax.grid(axis="y", color=GRID, linewidth=0.5)
@@ -146,6 +158,9 @@ def precision_recall(data: dict) -> Path:
     for t in leg.get_texts():
         t.set_color(INK_2)
 
+    fig.text(0.02, 0.02, provenance(data, width=88), fontsize=5.6, color=INK_2, ha="left",
+             va="bottom", linespacing=1.35)
+
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "precision_recall.png"
     fig.savefig(path)
@@ -212,17 +227,9 @@ def false_merges(data: dict) -> Path:
              "to find the same duplicates. Hatched: LLM-only at its own operating point, sampled.",
              fontsize=7.2, color=INK_2, ha="left", va="top", linespacing=1.35)
 
-    # Provenance, because a bar chart of round numbers looks exactly like one somebody made
-    # up. This is one real run over the whole labelled catalogue, and anyone with the repo can
-    # produce the same picture.
-    run_date = datetime.fromtimestamp(SRC.stat().st_mtime).strftime("%d %b %Y")
-    fig.text(0.02, 0.035,
-             f"Measured, not modelled: a single real run on {run_date} over all "
-             f"{data['records']:,} labelled records and {data['candidate_pairs']:,} candidate "
-             "pairs, the matcher never shown the labels.\n"
-             "Reproducible with `samepart.cli baselines`; every figure here is in "
-             "data/generated/baselines.json.",
-             fontsize=6.3, color=INK_2, ha="left", va="bottom", linespacing=1.35)
+    # Provenance, because a bar chart of round numbers looks exactly like one somebody made up.
+    fig.text(0.02, 0.035, provenance(data), fontsize=6.3, color=INK_2, ha="left", va="bottom",
+             linespacing=1.35)
 
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "false_merges.png"
