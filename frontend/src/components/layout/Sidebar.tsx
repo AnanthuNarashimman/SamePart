@@ -70,6 +70,9 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
 
 const STORAGE_KEY = 'meridian:sidebar-collapsed'
 
+/** Must match the column's `transition-[width] duration-300` below. */
+const WIDTH_MS = 300
+
 const initials = (code: string) => code.slice(0, 2)
 
 export function Sidebar() {
@@ -85,6 +88,14 @@ export function Sidebar() {
       return false
     }
   })
+  // What the *content* renders as, which is not always what the column's width is doing.
+  // Expanded content is laid out at its final 18rem the instant the toggle is hit, and the
+  // widening column uncovers it — so nothing reflows and nothing waits for the animation to
+  // end. Collapsing runs the same picture backwards: the wide content stays put and is
+  // covered over, and only once the column has closed does it become the narrow layout.
+  const [narrow, setNarrow] = useState(collapsed)
+  // Wide-only text fades with the reveal instead of arriving with it.
+  const [revealed, setRevealed] = useState(!collapsed)
   const [tourOpen, setTourOpen] = useState(false)
 
   useEffect(() => {
@@ -94,6 +105,31 @@ export function Sidebar() {
       // ignore — per-viewer convenience only
     }
   }, [collapsed])
+
+  useEffect(() => {
+    // Equal on mount, and again once a toggle has settled — so neither case animates.
+    if (collapsed === narrow) return
+    if (!collapsed) {
+      setNarrow(false)
+      return
+    }
+    const t = setTimeout(() => setNarrow(true), WIDTH_MS)
+    return () => clearTimeout(t)
+  }, [collapsed, narrow])
+
+  useEffect(() => {
+    if (collapsed) {
+      setRevealed(false)
+      return
+    }
+    // A frame late on purpose: the wide content has to be painted at opacity 0 before the
+    // transition to 1 has anything to run from.
+    const f = requestAnimationFrame(() => setRevealed(true))
+    return () => cancelAnimationFrame(f)
+  }, [collapsed])
+
+  // Timed to the column, so the text finishes arriving exactly as the room for it does.
+  const reveal = `transition-opacity duration-300 ease-out ${revealed ? 'opacity-100' : 'opacity-0'}`
 
   return (
     <aside
@@ -120,6 +156,11 @@ export function Sidebar() {
         </svg>
       </button>
 
+      {/* The clip. The column inside is always at its settled width — 5rem or 18rem, switched
+          outright, never animated — and this is what the sidebar's own width uncovers or
+          covers as it moves. Laying the content out at its final width from the first frame
+          is what stops the text reflowing inside a column that is still growing. */}
+      <div className="flex-1 overflow-hidden">
       {/* Everything except the collapse handle scrolls together.
           The handle stays outside because this container has to clip horizontally — a box
           that scrolls on one axis clips the other — and the handle deliberately hangs over
@@ -131,30 +172,34 @@ export function Sidebar() {
           hidden. A card is one object: it fits or the page moves. */}
       <div
         className={`scroll-clean flex h-full flex-col gap-6 overflow-y-auto py-5 ${
-          collapsed ? 'px-3' : 'px-5'
+          narrow ? 'w-20 px-3' : 'w-72 px-5'
         }`}
       >
       <div
-        // Full-bleed through the column's padding so the rule divides the whole sidebar.
-        // The negative margin has to match the padding exactly and the padding has to match
-        // the column's, or the rule overhangs the edge and the mark stops lining up with the
-        // nav beneath it — which is why this picks one pair rather than layering two.
-        className={`flex items-center gap-2 border-b border-stone-900/10 pt-1 pb-4 ${
-          collapsed ? '-mx-3 justify-center px-3' : '-mx-5 px-5'
+        // Full-bleed through the column's padding so the rule divides the whole sidebar. The
+        // negative margin has to match the column's padding exactly or the rule overhangs the
+        // edge; expanded, the inner padding matches it too, which is what lines the mark up
+        // with the nav beneath it. Collapsed the mark is centred rather than aligned, so the
+        // inner padding is free to come in to px-2 — and has to, because a 56px mark in a
+        // 5rem column has exactly 12px a side to give.
+        //
+        // The height is fixed and the mark inside it is one size in both states, so the rule
+        // — and the whole column under it — holds still across the toggle. Sized border-box:
+        // 1px rule + pt-1 + h-14 + pb-4.
+        className={`flex h-[77px] items-center gap-2 border-b border-stone-900/10 pt-1 pb-4 ${
+          narrow ? '-mx-3 justify-center px-2' : '-mx-5 px-5'
         }`}
       >
-        <img
-          src="/logo.png"
-          alt="Meridian"
-          className={`shrink-0 object-contain ${collapsed ? 'h-11 w-11' : 'h-14 w-14'}`}
-        />
-        {!collapsed && <span className="text-base font-semibold tracking-wide">Meridian</span>}
+        <img src="/logo.png" alt="Meridian" className="h-14 w-14 shrink-0 object-contain" />
+        {!narrow && (
+          <span className={`text-base font-semibold tracking-wide ${reveal}`}>Meridian</span>
+        )}
       </div>
 
       {/* The signed-in seat. One account per seat, so this is who the server knows you to be:
           every write is ruled on and signed with this role. Changing seat is signing out and
           in again as someone else. */}
-      {collapsed ? (
+      {narrow ? (
         <div className="flex shrink-0 flex-col items-center gap-2 rounded-2xl bg-white p-2 shadow-sm">
           <span
             title={`${actorRoleLabel(actor)}${activeOrg ? ` — ${activeOrg.name}` : ''}`}
@@ -183,7 +228,7 @@ export function Sidebar() {
           </button>
         </div>
       ) : (
-        <div className="shrink-0 rounded-2xl bg-white p-4 text-stone-800 shadow-sm">
+        <div className={`shrink-0 rounded-2xl bg-white p-4 text-stone-800 shadow-sm ${reveal}`}>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-medium uppercase tracking-wide text-stone-400">
               Acting as
@@ -238,10 +283,10 @@ export function Sidebar() {
           <NavLink
             key={item.n}
             to={item.to}
-            title={collapsed ? item.label : undefined}
+            title={narrow ? item.label : undefined}
             className={({ isActive }) =>
               `flex items-center rounded-xl text-sm font-medium transition-colors ${
-                collapsed ? 'justify-center px-0 py-3' : 'justify-between px-4 py-3'
+                narrow ? 'justify-center px-0 py-3' : 'justify-between px-4 py-3'
               } ${
                 isActive
                   ? 'bg-primary-500 text-white shadow-sm'
@@ -251,10 +296,10 @@ export function Sidebar() {
           >
             {({ isActive }) => (
               <>
-                {collapsed ? (
+                {narrow ? (
                   <Icon name={item.icon} className="h-[22px] w-[22px]" />
                 ) : (
-                  <>
+                  <span className={`flex w-full items-center justify-between ${reveal}`}>
                     <span className="flex items-center gap-3">
                       <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
                       {item.label}
@@ -266,7 +311,7 @@ export function Sidebar() {
                     >
                       {item.n}
                     </span>
-                  </>
+                  </span>
                 )}
               </>
             )}
@@ -275,7 +320,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex shrink-0 flex-col gap-3 pt-2">
-        {collapsed ? (
+        {narrow ? (
           <button
             type="button"
             onClick={() => setTourOpen(true)}
@@ -285,7 +330,7 @@ export function Sidebar() {
             <Icon name="compass" />
           </button>
         ) : (
-          <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
+          <div className={`rounded-2xl bg-white/70 p-4 shadow-sm ${reveal}`}>
             <div className="mb-1 flex items-center gap-2">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700">
                 <Icon name="compass" className="h-3.5 w-3.5" />
@@ -304,6 +349,7 @@ export function Sidebar() {
             </button>
           </div>
         )}
+      </div>
       </div>
       </div>
 
