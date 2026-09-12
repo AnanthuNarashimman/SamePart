@@ -38,7 +38,7 @@ const ICONS = {
   compass: (
     <>
       <circle cx="12" cy="12" r="9" />
-      <path d="m15 9-2 6-6 2 2-6z" />
+      <path d="m15.8 8.2-1.9 5.7-5.7 1.9 1.9-5.7z" />
     </>
   ),
 } as const
