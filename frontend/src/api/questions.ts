@@ -26,6 +26,8 @@ export function useAnswer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['questions'] })
       queryClient.invalidateQueries({ queryKey: ['queue'] })
+      queryClient.invalidateQueries({ queryKey: ['audit'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-verify'] })
     },
   })
 }
@@ -40,6 +42,8 @@ export function useUnresolvable() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['questions'] })
       queryClient.invalidateQueries({ queryKey: ['queue'] })
+      queryClient.invalidateQueries({ queryKey: ['audit'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-verify'] })
     },
   })
 }

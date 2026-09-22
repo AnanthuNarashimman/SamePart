@@ -36,6 +36,8 @@ export function useDecision(matchId: number) {
         { ...reviewerFields(actor), ...req })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['queue'] })
+      queryClient.invalidateQueries({ queryKey: ['audit'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-verify'] })
       queryClient.invalidateQueries({ queryKey: ['match', matchId] })
     },
   })
