@@ -1201,12 +1201,9 @@ class LiveAnalytics:
     def audit_flags(self, limit: int = 50) -> s.AuditFlagResult:
         with session_scope() as db:
             clusters = self._clusters(db)
-            rows = list(db.execute(
+            names = dict(db.execute(
                 select(CanonicalMaterial.canonical_id,
-                       CanonicalMaterial.standardised_short,
-                       CanonicalMaterial.standardised_long)).all())
-            names = {cid: short for cid, short, _ in rows}
-            longs = {cid: long for cid, _, long in rows}
+                       CanonicalMaterial.standardised_short)).all())
 
             spreads = {cid: (max(c["prices"]) / min(c["prices"]))
                        for cid, c in clusters.items()
@@ -1221,7 +1218,6 @@ class LiveAnalytics:
                 s.AuditFlag(
                     canonical_id=cid,
                     standardised_short=names.get(cid),
-                    standardised_long=longs.get(cid),
                     reason=(f"Unit price varies {spread:.1f}x across buyers, against a median "
                             f"of {median:.1f}x. Spend data played no part in this merge, so "
                             f"the pattern is independent evidence it may be wrong."),
@@ -2201,8 +2197,11 @@ class _GraphMixin:
                     select(ApprovedMapping.record_id, ApprovedMapping.canonical_id)).all():
                 members.setdefault(cid, []).append(rid)
 
-            names = dict(db.execute(select(CanonicalMaterial.canonical_id,
-                                           CanonicalMaterial.standardised_short)).all())
+            rows = list(db.execute(select(CanonicalMaterial.canonical_id,
+                                          CanonicalMaterial.standardised_short,
+                                          CanonicalMaterial.standardised_long)).all())
+            names = {cid: short for cid, short, _ in rows}
+            longs = {cid: long for cid, _, long in rows}
             classes = dict(db.execute(select(CanonicalMaterial.canonical_id,
                                              CanonicalMaterial.classification_code)).all())
             per_org = dict(db.execute(
@@ -2292,7 +2291,8 @@ class _GraphMixin:
                 clusters.append(s.GraphCluster(
                     canonical_id=cid,
                     national_code=registry.national_code(cid, classes.get(cid)),
-                    standardised_short=names.get(cid), orgs=orgs,
+                    standardised_short=names.get(cid),
+                    standardised_long=longs.get(cid), orgs=orgs,
                     members=merged, alternatives=alternatives[:2]))
 
             total_records = sum(len(v) for v in members.values())
