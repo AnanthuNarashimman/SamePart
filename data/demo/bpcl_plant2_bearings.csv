@@ -1,0 +1,4 @@
+source_code,description,uom,quantity,unit_price,manufacturer,mfr_part_no,stock_on_hand,last_issue_date
+BPCL-P2-0101,BRG DGB 6006 BORE 30MM  2RS  C-3  BRASS CAGE,EA,1,812.00,,,40,2025-08-22
+BPCL-P2-0102,BRG DGB 6004 BORE 20MM  ZZ  CN  STEEL CAGE,EA,1,438.50,,,80,2026-02-07
+BPCL-P2-0103,BRG DGB 6006 BORE 30MM  SHLD  BRASS CAGE,EA,1,790.00,,,20,2025-05-16

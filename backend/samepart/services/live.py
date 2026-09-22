@@ -434,7 +434,7 @@ class LiveReview:
             cross_first = case((A.org_id == B.org_id, 1), else_=0)
 
             offset = int(cursor) if cursor and cursor.isdigit() else 0
-            rows = list(db.scalars(q.order_by(by_role, cross_first, CandidateMatch.id)
+            rows = list(db.scalars(q.order_by(by_role, cross_first, CandidateMatch.id.desc())
                                    .offset(offset).limit(limit + 1)))
             more = len(rows) > limit
             rows = rows[:limit]
