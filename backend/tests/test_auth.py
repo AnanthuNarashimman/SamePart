@@ -63,6 +63,7 @@ def test_the_api_refuses_unsigned_requests_and_admits_signed_ones():
 
     client = TestClient(create_app())
     assert client.get("/api/health").status_code == 200          # open
+    assert client.get("/api/audit/verify").status_code == 200    # open: anyone may check the chain
     assert client.get("/api/orgs").status_code == 401            # guarded
     assert client.post("/api/auth/login", json={"username": "bpcl", "password": "wrong"}).status_code == 401
 

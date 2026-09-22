@@ -47,7 +47,9 @@ def create_app() -> FastAPI:
     # Everything under /api needs a signed token except the door itself and the health
     # check. The principal is attached to the request; routers that write take the role
     # from it and never from the body.
-    OPEN = {"/api/health", "/api/auth/login"}
+    # The chain check is open on purpose: tamper evidence is worth nothing if only the
+    # operator can run it. It reveals whether the log verifies, not what is in it.
+    OPEN = {"/api/health", "/api/auth/login", "/api/audit/verify"}
 
     @app.middleware("http")
     async def require_signed_in(request: Request, call_next):
