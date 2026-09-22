@@ -1201,9 +1201,12 @@ class LiveAnalytics:
     def audit_flags(self, limit: int = 50) -> s.AuditFlagResult:
         with session_scope() as db:
             clusters = self._clusters(db)
-            names = dict(db.execute(
+            rows = list(db.execute(
                 select(CanonicalMaterial.canonical_id,
-                       CanonicalMaterial.standardised_short)).all())
+                       CanonicalMaterial.standardised_short,
+                       CanonicalMaterial.standardised_long)).all())
+            names = {cid: short for cid, short, _ in rows}
+            longs = {cid: long for cid, _, long in rows}
 
             spreads = {cid: (max(c["prices"]) / min(c["prices"]))
                        for cid, c in clusters.items()
@@ -1218,6 +1221,7 @@ class LiveAnalytics:
                 s.AuditFlag(
                     canonical_id=cid,
                     standardised_short=names.get(cid),
+                    standardised_long=longs.get(cid),
                     reason=(f"Unit price varies {spread:.1f}x across buyers, against a median "
                             f"of {median:.1f}x. Spend data played no part in this merge, so "
                             f"the pattern is independent evidence it may be wrong."),

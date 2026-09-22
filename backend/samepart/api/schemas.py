@@ -783,6 +783,8 @@ class GraphCluster(BaseModel):
     canonical_id: str
     national_code: str | None = None
     standardised_short: str | None = None
+    standardised_long: str | None = Field(
+        None, description="The labelled standard description: noun, then every attribute named")
     orgs: list[str] = Field(default_factory=list)
     members: list[GraphMember] = Field(default_factory=list)
     alternatives: list[GraphMember] = Field(default_factory=list)

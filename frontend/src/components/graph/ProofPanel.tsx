@@ -103,6 +103,20 @@ export function ProofPanel({
           )}
         </div>
 
+        {/* The standard description: the noun and every attribute, named. This is the one
+            string a standards body reads first, and the one every CPSE's own description is
+            a house-style rendering of. */}
+        {cluster.standardised_long && (
+          <div className="mt-3.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5">
+            <p className="font-mono text-[9.5px] uppercase tracking-widest text-emerald-200/45">
+              standard description
+            </p>
+            <p className="mt-1 font-mono text-[12px] leading-relaxed text-emerald-50/90">
+              {cluster.standardised_long}
+            </p>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={downloadPassport}

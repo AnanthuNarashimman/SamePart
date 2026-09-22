@@ -218,6 +218,7 @@ export interface GraphCluster {
   canonical_id: string
   national_code: string | null
   standardised_short: string | null
+  standardised_long?: string | null
   orgs: string[]
   members: GraphMember[]
   alternatives: GraphMember[]
