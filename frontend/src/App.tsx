@@ -9,6 +9,7 @@ import { Insights } from './pages/Insights'
 import { RelationshipGraph } from './pages/RelationshipGraph'
 import { Landing } from './pages/Landing'
 import { Login } from './pages/Login'
+import { AuditTrail } from './pages/AuditTrail'
 import { useAuth } from './lib/auth'
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
         <Route path="/check" element={<DuplicateCheck />} />
         <Route path="/graph" element={<RelationshipGraph />} />
         <Route path="/insights" element={<Insights />} />
+        <Route path="/audit" element={<AuditTrail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

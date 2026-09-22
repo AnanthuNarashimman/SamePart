@@ -439,3 +439,29 @@ export interface FamilySummary {
   gate_count: number
   blocking_key: string[]
 }
+
+export interface AuditEvent {
+  id: number
+  at: string
+  actor: string
+  action: string
+  match_id: number | null
+  canonical_id: string | null
+  summary: string
+  payload: Record<string, unknown> | null
+}
+
+export interface AuditTrail {
+  total: number
+  by_action: Record<string, number>
+  by_actor: Record<string, number>
+  items: AuditEvent[]
+  next_cursor: string | null
+}
+
+export interface ChainStatus {
+  events: number
+  intact: boolean
+  broken_at: number | null
+  reason: string
+}

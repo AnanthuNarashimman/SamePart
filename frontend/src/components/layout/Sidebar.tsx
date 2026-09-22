@@ -41,6 +41,12 @@ const ICONS = {
       <path d="m15.8 8.2-1.9 5.7-5.7 1.9 1.9-5.7z" />
     </>
   ),
+  audit: (
+    <>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M9 12h6M9 16h6M15 3v4h4" />
+    </>
+  ),
 } as const
 
 const NAV_ITEMS = [
@@ -50,6 +56,7 @@ const NAV_ITEMS = [
   { n: '04', label: 'Duplicate check', to: '/check', icon: 'check' },
   { n: '05', label: 'Relationship graph', to: '/graph', icon: 'graph' },
   { n: '06', label: 'Insights', to: '/insights', icon: 'dashboard' },
+  { n: '07', label: 'Audit trail', to: '/audit', icon: 'audit' },
 ] as const
 
 function Icon({ name, className }: { name: keyof typeof ICONS; className?: string }) {
