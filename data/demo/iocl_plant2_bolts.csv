@@ -1,0 +1,8 @@
+source_code,description,uom,quantity,unit_price,manufacturer,mfr_part_no,stock_on_hand,last_issue_date
+IOCL-P2-0001,"Bolt, Hexagon Head, M16 x 70mm  Grade 12.9  Conforming to Din 933  Zinc Plated",EA,1,18.60,,,450,2025-10-12
+IOCL-P2-0002,"Bolt, Hexagon Head, M10 x 100mm  Class 10.9  Conforming to Is 1364  Passivated",EA,1,11.90,,,800,2026-01-06
+IOCL-P2-0003,"Bolt, Hexagon Head, M24 x 120mm  Gr 12.9  Conforming to Iso 4014",EA,1,86.00,,,60,2025-07-29
+IOCL-P2-0004,"Bolt, Hexagon Head, M20 x 100mm  12.9  Conforming to Din931  Electro Galvanised",EA,1,58.40,,,120,2024-03-18
+IOCL-P2-0005,"Bolt, Hexagon Head, M16 x 70mm  Grade 8.8  Conforming to Din 933  Zinc Plated",EA,1,7.25,,,1500,2026-02-11
+IOCL-P2-0006,"Bolt, Hexagon Head, M16 x 70mm  Conforming to Din 933  Zinc Plated",EA,1,15.00,,,90,2023-11-23
+IOCL-P2-0007,"Bolt, Hexagon Head, M30 x 220mm  Grade 10.9  Conforming to Iso 4014  Plain",EA,1,296.00,,,8,2026-01-30
