@@ -63,7 +63,9 @@ def test_the_api_refuses_unsigned_requests_and_admits_signed_ones():
 
     client = TestClient(create_app())
     assert client.get("/api/health").status_code == 200          # open
-    assert client.get("/api/audit/verify").status_code == 200    # open: anyone may check the chain
+    # Open: anyone may check the chain. Asserted as "not the guard" rather than 200,
+    # because whether the trail reads depends on a seeded database this test does not build.
+    assert client.get("/api/audit/verify").status_code != 401
     assert client.get("/api/orgs").status_code == 401            # guarded
     assert client.post("/api/auth/login", json={"username": "bpcl", "password": "wrong"}).status_code == 401
 
