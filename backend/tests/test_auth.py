@@ -19,6 +19,26 @@ def fixed_secret(monkeypatch):
     monkeypatch.delenv("SAMEPART_USERS", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def empty_database(tmp_path, monkeypatch):
+    """A database with the schema and nothing in it.
+
+    The chain check reads the real database whatever the mode, so without this the test
+    depends on a seeded samepart.db that a fresh checkout does not have. A file rather than
+    `sqlite://` because the endpoint runs in a threadpool worker, and an in-memory database
+    is per-connection: the worker thread would open a second, empty one.
+    """
+    from sqlalchemy import create_engine
+
+    from samepart.db import session as db_session
+    from samepart.db.models import Base
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'samepart.db'}", future=True)
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(db_session, "_engine", engine)
+    monkeypatch.setattr(db_session, "_Factory", None)
+
+
 def test_a_correct_password_yields_a_token_for_that_seat():
     token = auth.login("bpcl", auth.DEFAULT_USERS["bpcl"])
     assert token
@@ -63,9 +83,7 @@ def test_the_api_refuses_unsigned_requests_and_admits_signed_ones():
 
     client = TestClient(create_app())
     assert client.get("/api/health").status_code == 200          # open
-    # Open: anyone may check the chain. Asserted as "not the guard" rather than 200,
-    # because whether the trail reads depends on a seeded database this test does not build.
-    assert client.get("/api/audit/verify").status_code != 401
+    assert client.get("/api/audit/verify").status_code == 200    # open: anyone may check the chain
     assert client.get("/api/orgs").status_code == 401            # guarded
     assert client.post("/api/auth/login", json={"username": "bpcl", "password": "wrong"}).status_code == 401
 
