@@ -1,0 +1,238 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Meridian — architecture</title>
+<style>
+  :root{
+    --ink:#1b1b1f; --ink2:#5b5b63; --ink3:#8b8b93; --line:#c9cbd3; --bg:#ffffff;
+    --blue:#2f6fd8; --blue-bg:#eef4fd; --blue-line:#b9cdf2;
+    --purple:#7b5cc9; --purple-bg:#f3effb; --purple-line:#d3c6ee;
+    --green:#2a9a5b; --green-bg:#edf8f0; --green-line:#bfe3cb;
+    --orange:#d7822a; --orange-bg:#fdf3e7; --orange-line:#f0d3ae;
+    --teal:#1f8a9e; --teal-bg:#e9f6f8; --teal-line:#b6dee5;
+    --red:#c8342a; --red-bg:#fdecea; --red-line:#f1b8b2;
+    --grey-bg:#f5f6f8; --grey-line:#d9dbe1;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);width:2560px;height:1500px;position:relative;font-family:Inter,"Helvetica Neue",Arial,sans-serif;color:var(--ink);overflow:hidden}
+  .region{position:absolute;border-radius:16px;border:1.5px solid;padding:0}
+  .region .rt{position:absolute;left:18px;top:12px;font-size:17px;letter-spacing:.08em;font-weight:700;text-transform:uppercase}
+  .region .rs{position:absolute;left:18px;top:36px;font-size:14px;color:var(--ink2)}
+  .node{position:absolute;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:14px 16px 12px 58px;box-shadow:0 1px 2px rgba(20,20,30,.04)}
+  .node .ic{position:absolute;left:16px;top:16px;width:28px;height:28px;color:var(--ink2)}
+  .node .ic svg{width:28px;height:28px}
+  .node .t{font-size:19px;font-weight:700;line-height:1.15;letter-spacing:-.005em}
+  .node .s{font-size:13.5px;color:var(--ink2);margin-top:4px;line-height:1.3}
+  .node .k{font-size:13px;margin-top:6px;font-weight:600;font-family:"JetBrains Mono",Menlo,monospace;letter-spacing:-.01em}
+  .node.red{border-color:var(--red-line);background:var(--red-bg)}
+  .node.red .t{color:var(--red)}
+  .node.hot{border-color:var(--green);border-width:2px}
+  .cyl{position:absolute;background:#fff;border:1.5px solid var(--line);border-radius:60px/16px;padding:26px 16px 14px;text-align:center}
+  .cyl:before{content:"";position:absolute;left:0;right:0;top:0;height:22px;border-radius:60px/11px;border:1.5px solid var(--line);border-top:none;background:linear-gradient(#fff,#fff)}
+  .cyl .t{font-size:18px;font-weight:700}
+  .cyl .s{font-size:13px;color:var(--ink2);margin-top:3px}
+  .cyl .k{font-size:12.5px;margin-top:5px;font-weight:600;font-family:"JetBrains Mono",Menlo,monospace}
+  .lbl{position:absolute;font-size:13px;color:var(--ink3);background:#fff;padding:0 6px;border-radius:6px;white-space:nowrap;font-family:"JetBrains Mono",Menlo,monospace}
+  .pill{position:absolute;font-size:13px;color:var(--ink2);background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:5px 12px;white-space:nowrap}
+  .verdicts{position:absolute;display:flex;gap:6px}
+  .v{font-size:12.5px;padding:5px 9px;border-radius:8px;font-weight:600;font-family:"JetBrains Mono",Menlo,monospace}
+  .v.s{background:#dff5e3;color:#0f5a2a}.v.a{background:#fff3d6;color:#7a5200}.v.d{background:#eeeeeb;color:#444}.v.i{background:#fde8e8;color:#8a1c1c}
+  svg.wires{position:absolute;inset:0;width:2560px;height:1500px;pointer-events:none}
+  .foot{position:absolute;left:40px;right:40px;bottom:14px;display:flex;justify-content:space-between;font-size:13px;color:var(--ink3)}
+</style>
+<body>
+<svg class="wires" id="wires">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8b8b93"/></marker>
+    <marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#2f6fd8"/></marker>
+    <marker id="aho" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#d7822a"/></marker>
+  </defs>
+</svg>
+<div id="root"></div>
+<div class="foot"><span>SIH26099 · Meridian · system architecture</span><span>Every box is a module or screen that exists; figures are from the 11 Sep 2026 run over simulated data.</span></div>
+
+<script>
+const ICON = {
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
+  desk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+  graph:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="m8.2 7.3 3 8.7m4.6-8.7-3 8.7M8.5 6h7"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.6 7.5 9 4.3-1.4 7.5-4.5 7.5-9V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+  log:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6M15 3v4h4"/></svg>',
+  api:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="6" rx="1.5"/><rect x="3" y="13" width="18" height="6" rx="1.5"/><path d="M7 8h.01M7 16h.01"/></svg>',
+  file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>',
+  filter:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>',
+  scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/></svg>',
+  key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21m-3 0v3m-3-3v2"/></svg>',
+  fp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12a6 6 0 0 1 12 0v3M9 12a3 3 0 0 1 6 0v6M12 12v8M4 9a8 8 0 0 1 16 0"/></svg>',
+  rules:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>',
+  alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>',
+  queue:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>',
+  person:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  chain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+  tag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h6M14 12h6M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>',
+  out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>',
+  model:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.9A6 6 0 0 1 18 9a4.5 4.5 0 0 1 0 9z"/></svg>',
+  chip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/></svg>',
+  gauge:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg>',
+  server:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
+  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+};
+
+const C = {blue:'#2f6fd8',purple:'#7b5cc9',green:'#2a9a5b',orange:'#d7822a',teal:'#1f8a9e',red:'#c8342a',grey:'#5b5b63'};
+
+const REGIONS = [
+  {id:'fe', x:40, y:36,  w:2480, h:230, tone:'blue',   t:'01  Frontend', s:'React 19 · Vite · TypeScript · Tailwind 4 · TanStack Query · Recharts — six screens, one seat signed in'},
+  {id:'p1', x:40, y:470, w:470,  h:520, tone:'blue',   t:'1  Ingest & extract', s:'per CPSE, nothing altered'},
+  {id:'p2', x:534,y:470, w:400,  h:520, tone:'purple', t:'2  Blocking · not O(n²)', s:'declared keys, no vector index'},
+  {id:'p3', x:958,y:470, w:520,  h:520, tone:'green',  t:'3  Matching cascade', s:'cheapest tier first; gates outside the model'},
+  {id:'p4', x:1502,y:470,w:520,  h:520, tone:'orange', t:'4  Review & govern', s:'two seats, one rule'},
+  {id:'p5', x:2046,y:470,w:474,  h:520, tone:'teal',   t:'5  National code', s:'minted once, mapped additively'},
+  {id:'ai', x:40, y:1050,w:820,  h:390, tone:'purple', t:'03  AI / ML · one model interface', s:'JSON in, JSON out; the guard decides whether a call may leave the network'},
+  {id:'da', x:884,y:1050,w:1000, h:390, tone:'grey',   t:'Data · SQLAlchemy persistence', s:'one process, one file; dictionaries are data'},
+  {id:'ho', x:1908,y:1050,w:612, h:390, tone:'grey',   t:'Hosting', s:'demo today; on-prem is the same build'},
+];
+
+const NODES = [
+  // frontend
+  {id:'fe1', x:70,  y:100, w:390, h:118, ic:'upload', t:'Import',              s:'Per-CPSE material lists · CSV / Excel · column detection · migration preview', k:'React 19 · Vite · TypeScript', tone:'blue'},
+  {id:'fe2', x:480, y:100, w:390, h:118, ic:'desk',   t:'Reconciliation desk', s:'Queue scoped to the seat · questions · approve / reject / answer', k:'TanStack Query · Tailwind 4', tone:'blue'},
+  {id:'fe3', x:890, y:100, w:390, h:118, ic:'graph',  t:'Relationship graph', s:'Consensus matrix + proof panel · standard description · passport', k:'SVG · Axios', tone:'blue'},
+  {id:'fe4', x:1300,y:100, w:390, h:118, ic:'chart',  t:'Dashboard & insights',s:'One part one price · transfer instead of buy · cascade cost', k:'Recharts · React 19', tone:'blue'},
+  {id:'fe5', x:1710,y:100, w:390, h:118, ic:'shield', t:'Duplicate check',    s:'A description against the registry before a code is minted', k:'/check', tone:'blue'},
+  {id:'fe6', x:2120,y:100, w:370, h:118, ic:'log',    t:'Audit trail',        s:'Every decision, signed by its seat · chain verified on screen', k:'/audit · /audit/verify', tone:'blue'},
+  // api
+  {id:'api', x:1000,y:330, w:560, h:96,  ic:'api',    t:'FastAPI · REST / JSON', s:'HMAC sessions · role from the token, never the body · CORS', k:'Python 3.12 · pydantic · pytest (102)', tone:'grey'},
+  // p1
+  {id:'p1a', x:70,  y:540, w:410, h:110, ic:'file',   t:'CSV / Excel upload',  s:'Column aliases detected; units and prices normalised to a base unit', k:'openpyxl · column_aliases.yaml · units.yaml', tone:'blue'},
+  {id:'p1b', x:70,  y:690, w:410, h:110, ic:'scan',   t:'Typed extraction',    s:'Rules read each attribute with its evidence span; unknown stays unknown', k:'family dictionaries (YAML) · extract.py', tone:'blue'},
+  {id:'p1c', x:70,  y:840, w:410, h:110, ic:'spark',  t:'Model for the residue',s:'Only fields the rules could not read; never a verdict', k:'via model interface · 21.9% left unknown', tone:'blue'},
+  // p2
+  {id:'p2a', x:564, y:560, w:340, h:110, ic:'key',    t:'Blocking keys',       s:'Declared per family: noun + size class + family', k:'blocking (YAML)', tone:'purple'},
+  {id:'p2b', x:564, y:760, w:340, h:120, ic:'filter', t:'Candidate pairs',     s:'13,797 pairs from 2.3M possible · 99.4% skipped · 0 true pairs missed', k:'retrieval.py', tone:'purple'},
+  // p3
+  {id:'p3a', x:988, y:540, w:460, h:86,  ic:'fp',     t:'Deterministic identity', s:'Same maker + part number → same; same maker, different number → different', k:'identity tier', tone:'green'},
+  {id:'p3b', x:988, y:642, w:460, h:86,  ic:'rules',  t:'Attribute rules',     s:'Weighted agreement over stated facts; required facts must be known', k:'attribute tier', tone:'green'},
+  {id:'p3c', x:988, y:744, w:460, h:86,  ic:'spark',  t:'Ambiguous-band model', s:'Asked last, never trusted alone · 0 calls in the benchmark', k:'model tier · optional', tone:'green'},
+  {id:'p3d', x:988, y:846, w:460, h:86,  ic:'alert',  t:'Conflict gates',      s:'A critical difference vetoes any verdict — declared, auditable', k:'gates (YAML) · gates.py', tone:'red', cls:'red'},
+  // p4
+  {id:'p4a', x:1532,y:540, w:460, h:104, ic:'queue',  t:'Queue by seat',       s:'Steward: own organisation · National approver: cross-CPSE confirmations', k:'queue ordering · newest first', tone:'orange'},
+  {id:'p4b', x:1532,y:664, w:460, h:104, ic:'person', t:'Questions',           s:'Which missing field unblocks the most pairs; only the owner may answer', k:'/questions · may_answer', tone:'orange'},
+  {id:'p4c', x:1532,y:788, w:460, h:104, ic:'shield', t:'Decisions & rulings', s:'Approve · reject · unresolvable · reverse — refused with the reason when the seat may not', k:'governance.yaml · may_decide', tone:'orange'},
+  {id:'p4d', x:1532,y:912, w:460, h:64,  ic:'chain',  t:'Hash-chained audit',  s:'SHA-256 over each event and the one before', k:'audit.py', tone:'orange'},
+  // p5
+  {id:'p5a', x:2076,y:540, w:414, h:104, ic:'tag',    t:'National code minted', s:'UNSPSC class · permanent serial · Luhn check digit', k:'IN-31161600-0000417-3', tone:'teal', cls:'hot'},
+  {id:'p5b', x:2076,y:664, w:414, h:104, ic:'link',   t:'Additive mapping',    s:'Every source code keeps its code; a cross-reference is added beside it', k:'0 existing fields altered', tone:'teal'},
+  {id:'p5c', x:2076,y:788, w:414, h:104, ic:'out',    t:'Outputs',             s:'MATMAS05 IDoc payload · material passport · standard description', k:'export.py · passport', tone:'teal'},
+  // ai
+  {id:'ai1', x:70,  y:1120, w:560, h:96, ic:'model',  t:'Model interface',     s:'One contract · structured JSON · evidence returned with every field', k:'model/client.py · egress guard', tone:'purple'},
+  {id:'ai2', x:70,  y:1270, w:360, h:110, ic:'cloud', t:'Azure OpenAI',        s:'Hosted option for the demo', k:'gpt-5.6-terra', tone:'purple'},
+  {id:'ai3', x:470, y:1270, w:360, h:110, ic:'chip',  t:'Qwen 2.5 7B · Ollama', s:'On-prem option; nothing leaves the network', k:'local model client', tone:'purple'},
+  // data
+  {id:'da1', x:914, y:1130, w:300, h:120, ic:'server', t:'SQLite',             s:'Records, attributes, pairs, mappings, audit chain', k:'on a Railway volume · Postgres-ready', tone:'grey'},
+  {id:'da2', x:1234,y:1130, w:310, h:120, ic:'book',  t:'Dictionaries',        s:'Families, units, gates, house styles, governance, thresholds', k:'dictionaries/*.yaml', tone:'grey'},
+  {id:'da3', x:1564,y:1130, w:300, h:120, ic:'gauge', t:'Evaluation harness',  s:'Labels held out · 12 frozen thresholds · baselines', k:'evaluation/ · 0.993 precision', tone:'grey'},
+  // hosting
+  {id:'ho1', x:1938,y:1130, w:270, h:110, ic:'globe',  t:'Vercel',             s:'Frontend build · Mumbai edge', k:'meridian-ind.vercel.app', tone:'grey'},
+  {id:'ho2', x:2232,y:1130, w:258, h:110, ic:'server', t:'Railway',            s:'FastAPI + SQLite volume · Singapore', k:'samepart-production', tone:'grey'},
+];
+
+const WIRES = [
+  // frontend ↔ api
+  {from:'fe2', to:'api', label:'REST / JSON · Bearer token', dashed:false, tone:'blue', via:'v'},
+  // api → pipeline
+  {from:'api', to:'p1a', dashed:false, tone:'grey', via:'elbowL'},
+  {from:'api', to:'p4a', dashed:false, tone:'grey', via:'elbowR'},
+  // pipeline
+  {from:'p1a', to:'p1b', via:'v'}, {from:'p1b', to:'p1c', via:'v'},
+  {from:'p1b', to:'p2a', via:'h'}, {from:'p2a', to:'p2b', via:'v'},
+  {from:'p2b', to:'p3a', via:'h'},
+  {from:'p3a', to:'p3b', via:'v', label:'no identity'}, {from:'p3b', to:'p3c', via:'v', label:'ambiguous'},
+  {from:'p3c', to:'p3d', via:'v'},
+  {from:'p3d', to:'p4a', via:'h', tone:'orange'},
+  {from:'p4a', to:'p4b', via:'v'}, {from:'p4b', to:'p4c', via:'v'}, {from:'p4c', to:'p4d', via:'v'},
+  {from:'p4b', to:'p3b', via:'h', dashed:true, tone:'orange', label:'answer → re-decide', back:true},
+  {from:'p4c', to:'p5a', via:'h', tone:'teal', label:'confirmed'},
+  {from:'p5a', to:'p5b', via:'v'}, {from:'p5b', to:'p5c', via:'v'},
+  // model
+  {from:'p1c', to:'ai1', via:'row', row:1012, dashed:true, tone:'purple'},
+  {from:'p3c', to:'ai1', via:'rowL', row:1012, dashed:true, tone:'purple', label:'only when needed', lx:700},
+  {from:'ai1', to:'ai2', via:'v'}, {from:'ai1', to:'ai3', via:'vR'},
+  // data
+  {from:'p2b', to:'da1', via:'row', row:1026, dashed:true, tone:'grey', label:'pipeline read / write', lx:1000},
+  {from:'da2', to:'p3d', via:'rowUp', row:1026, dashed:true, tone:'grey', label:'gates · families', lx:1330},
+  // hosting
+  {from:'ho1', to:'ho2', via:'h', label:'HTTPS'},
+];
+
+const root = document.getElementById('root');
+const tone = (t)=>({fill:getComputedStyle(document.documentElement).getPropertyValue(`--${t}-bg`), line:getComputedStyle(document.documentElement).getPropertyValue(`--${t}-line`), ink:C[t]||C.grey});
+
+for (const r of REGIONS) {
+  const d = document.createElement('div'); d.className='region';
+  const tn = tone(r.tone);
+  d.style.cssText=`left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;background:${tn.fill};border-color:${tn.line}`;
+  d.innerHTML=`<div class="rt" style="color:${tn.ink}">${r.t}</div><div class="rs">${r.s}</div>`;
+  root.appendChild(d);
+}
+const box = {};
+for (const n of NODES) {
+  const d = document.createElement('div'); d.className='node'+(n.cls?' '+n.cls:'');
+  d.style.cssText=`left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px`;
+  const ink = C[n.tone]||C.grey;
+  d.innerHTML=`<div class="ic" style="color:${ink}">${ICON[n.ic]}</div><div class="t">${n.t}</div><div class="s">${n.s}</div><div class="k" style="color:${ink}">${n.k}</div>`;
+  root.appendChild(d); box[n.id]=n;
+}
+// verdict chips under the cascade
+const vd = document.createElement('div'); vd.className='verdicts'; vd.style.cssText='left:988px;top:946px';
+vd.innerHTML='<span class="v s">same_material</span><span class="v a">possible_alternative</span><span class="v d">different</span><span class="v i">insufficient_evidence</span>';
+root.appendChild(vd);
+// seat pill on the frontend band
+const pill = document.createElement('div'); pill.className='pill'; pill.style.cssText='left:2210px;top:46px'; pill.textContent='sign-in · one account per seat'; root.appendChild(pill);
+
+// wires
+const svg = document.getElementById('wires');
+const anchors = (n)=>({L:[n.x,n.y+n.h/2], R:[n.x+n.w,n.y+n.h/2], T:[n.x+n.w/2,n.y], B:[n.x+n.w/2,n.y+n.h]});
+function path(w) {
+  const a=box[w.from], b=box[w.to]; const A=anchors(a), B=anchors(b);
+  let d, mid;
+  switch (w.via) {
+    case 'v':       if (Math.abs(A.B[0]-B.T[0])<4) { d=`M${A.B} L${B.T}`; mid=[A.B[0]+8,(A.B[1]+B.T[1])/2]; }
+                    else { const my=(A.B[1]+B.T[1])/2; d=`M${A.B} L${A.B[0]} ${my} L${B.T[0]} ${my} L${B.T}`; mid=[(A.B[0]+B.T[0])/2, my-12]; } break;
+    case 'up':      { const my=(A.T[1]+B.B[1])/2; d=`M${A.T} L${A.T[0]} ${my} L${B.B[0]} ${my} L${B.B}`; } break;
+    case 'row':     d=`M${A.B} L${A.B[0]} ${w.row} L${B.T[0]} ${w.row} L${B.T}`; mid=[w.lx||(A.B[0]+B.T[0])/2, w.row]; break;
+    case 'rowL':    d=`M${A.L} L${A.L[0]-16} ${A.L[1]} L${A.L[0]-16} ${w.row} L${B.T[0]+140} ${w.row} L${B.T[0]+140} ${B.T[1]}`; mid=[w.lx||A.L[0]-16, w.row]; break;
+    case 'rowUp':   d=`M${A.T} L${A.T[0]} ${w.row} L${B.B[0]} ${w.row} L${B.B}`; mid=[w.lx||(A.T[0]+B.B[0])/2, w.row]; break;
+    case 'vR':      d=`M${A.B[0]+120} ${A.B[1]} L${A.B[0]+120} ${B.T[1]-18} L${B.T[0]} ${B.T[1]-18} L${B.T}`; break;
+    case 'vUp':     d=`M${A.T} L${A.T[0]} ${A.T[1]-40} L${B.B[0]} ${A.T[1]-40} L${B.B}`; mid=[(A.T[0]+B.B[0])/2, A.T[1]-46]; break;
+    case 'vDown':   d=`M${A.B} L${A.B[0]} ${B.T[1]-20} L${B.T[0]-160} ${B.T[1]-20} L${B.T[0]-160} ${B.T[1]}`; break;
+    case 'vDownL':  d=`M${A.L} L${A.L[0]-16} ${A.L[1]} L${A.L[0]-16} ${B.T[1]-40} L${B.T[0]+120} ${B.T[1]-40} L${B.T[0]+120} ${B.T[1]}`; mid=[A.L[0]-16, B.T[1]-46]; break;
+    case 'vDownR':  d=`M${A.B} L${A.B[0]} ${A.B[1]+90} L${B.T[0]} ${A.B[1]+90} L${B.T}`; mid=[(A.B[0]+B.T[0])/2, A.B[1]+84]; break;
+    case 'h':       if (w.back) { d=`M${A.L} L${B.R}`; mid=[(A.L[0]+B.R[0])/2, A.L[1]-10]; } else { d=`M${A.R} L${B.L}`; mid=[(A.R[0]+B.L[0])/2, A.R[1]-10]; } break;
+    case 'elbowL':  d=`M${A.L} L${a.x-40} ${A.L[1]} L${a.x-40} ${b.y-32} L${B.T[0]} ${b.y-32} L${B.T}`; break;
+    case 'elbowR':  d=`M${A.R} L${a.x+a.w+40} ${A.R[1]} L${a.x+a.w+40} ${b.y-32} L${B.T[0]} ${b.y-32} L${B.T}`; break;
+  }
+  return {d, mid};
+}
+for (const w of WIRES) {
+  const {d, mid} = path(w);
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  const col = w.tone==='blue'?'#2f6fd8':w.tone==='orange'?'#d7822a':w.tone==='teal'?'#1f8a9e':w.tone==='purple'?'#7b5cc9':'#8b8b93';
+  p.setAttribute('d', d); p.setAttribute('fill','none'); p.setAttribute('stroke', col); p.setAttribute('stroke-width','2');
+  if (w.dashed) p.setAttribute('stroke-dasharray','7 6');
+  p.setAttribute('marker-end', w.tone==='blue'?'url(#ahb)':w.tone==='orange'?'url(#aho)':'url(#ah)');
+  svg.appendChild(p);
+  if (w.label && mid) {
+    const l = document.createElement('div'); l.className='lbl'; l.textContent=w.label;
+    l.style.cssText=`left:${mid[0]}px;top:${mid[1]}px;transform:translate(-50%,-50%);color:${col}`;
+    root.appendChild(l);
+  }
+}
+</script>
+</body>
