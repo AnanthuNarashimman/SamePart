@@ -1,0 +1,155 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Meridian — system flow</title>
+<style>
+  :root{
+    --ink:#0b0b0b; --ink2:#52514e; --ink3:#8a8984; --rule:#dedcd6; --bg:#ffffff;
+    --green:#2fb85e; --green-bg:#eafbea; --green-ink:#103621;
+    --blue:#3987e5; --orange:#e8703c; --teal:#24b985; --yellow:#e0a119; --red:#b3261e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:Inter,"Helvetica Neue",Arial,sans-serif;color:var(--ink);width:2560px;height:1180px;padding:64px 72px;position:relative}
+  .mono{font-family:"JetBrains Mono",Menlo,Consolas,monospace}
+  h1{margin:0;font-size:44px;letter-spacing:-.01em;font-weight:700}
+  .sub{margin:8px 0 0;font-size:22px;color:var(--ink2)}
+  .flow{display:grid;grid-template-columns:repeat(6,1fr);gap:28px;margin-top:44px;align-items:stretch;position:relative}
+  .stage{border:2px solid var(--rule);border-radius:22px;padding:26px 26px 22px;background:#fff;position:relative;min-height:560px;display:flex;flex-direction:column}
+  .stage.hot{border-color:var(--green);background:var(--green-bg)}
+  .n{font-size:15px;letter-spacing:.18em;color:var(--ink3);font-weight:700}
+  .t{font-size:28px;font-weight:700;margin:10px 0 6px;letter-spacing:-.01em;line-height:1.1}
+  .d{font-size:18px;color:var(--ink2);line-height:1.4;margin:0 0 16px}
+  .out{font-size:17px;line-height:1.45;margin:0;padding:12px 14px;border-radius:12px;background:#f5f5f2;color:var(--ink)}
+  .hot .out{background:#fff}
+  .out b{font-weight:700}
+  .stack{margin-top:auto;padding-top:16px;border-top:1px dashed var(--rule)}
+  .stack .lbl{font-size:13px;letter-spacing:.16em;color:var(--ink3);font-weight:700;margin-bottom:8px}
+  .chip{display:inline-block;font-size:15px;padding:5px 9px;border-radius:8px;background:#f0efeb;color:var(--ink);margin:0 6px 6px 0;font-family:"JetBrains Mono",Menlo,monospace}
+  .chip.k{background:#e6eef9;color:#1d4e9a}
+  .chip.y{background:#fff3d6;color:#7a5200}
+  .arrow{position:absolute;top:262px;right:-26px;width:24px;height:24px;z-index:2}
+  .arrow svg{width:24px;height:24px}
+  .verdicts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .v{font-size:14px;padding:6px 8px;border-radius:8px;font-weight:600;font-family:"JetBrains Mono",Menlo,monospace}
+  .v.s{background:#dff5e3;color:#0f5a2a}.v.a{background:#fff3d6;color:#7a5200}.v.d{background:#eeeeeb;color:#444}.v.i{background:#fde8e8;color:#8a1c1c}
+  .band{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:28px;margin-top:34px}
+  .box{border:2px solid var(--rule);border-radius:18px;padding:20px 24px}
+  .box .h{font-size:14px;letter-spacing:.16em;color:var(--ink3);font-weight:700;margin-bottom:10px}
+  .host{display:flex;align-items:center;gap:14px;font-size:18px}
+  .host .node{border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px;line-height:1.3}
+  .host .node b{display:block;font-size:17px}
+  .host .node small{color:var(--ink2);font-size:14px}
+  .host .ar{color:var(--ink3);font-size:26px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:17px;line-height:1.35}
+  .kv b{font-family:"JetBrains Mono",Menlo,monospace;font-weight:700}
+  .kv span{color:var(--ink2)}
+  .foot{position:absolute;left:72px;right:72px;bottom:40px;font-size:15px;color:var(--ink3);display:flex;justify-content:space-between}
+  .gate{margin-top:10px;font-size:15px;color:var(--red);font-weight:600}
+</style>
+
+<h1>Meridian — how a material code becomes a national identity</h1>
+<p class="sub">Six stages, deterministic first. Every arrow is a real API boundary; the stack under each stage is what actually runs it.</p>
+
+<div class="flow">
+
+  <div class="stage">
+    <div class="n">01 · IMPORT</div>
+    <div class="t">Four masters, four house styles</div>
+    <p class="d">Each CPSE uploads its own material master and purchase history. Columns are detected, units normalised to a base unit, nothing is altered.</p>
+    <p class="out"><b>In:</b> CSV / Excel exports from SAP<br><b>Out:</b> source records, prices per base unit</p>
+    <div class="stack"><div class="lbl">STACK</div>
+      <span class="chip k">FastAPI</span><span class="chip">openpyxl</span><span class="chip">column_aliases.yaml</span><span class="chip">units.yaml</span>
+    </div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+  </div>
+
+  <div class="stage">
+    <div class="n">02 · EXTRACT</div>
+    <div class="t">Typed attributes with evidence</div>
+    <p class="d">Rules read the description into typed fields — diameter, grade, standard — each with the words it came from. Unknown stays unknown; a model is asked only for what the rules could not read.</p>
+    <p class="out"><b>Out:</b> attribute · value · unit · evidence span<br>21.9% of fields honestly <b>unknown</b></p>
+    <div class="stack"><div class="lbl">STACK</div>
+      <span class="chip k">Python 3.12</span><span class="chip">pydantic</span><span class="chip">family dictionaries (YAML)</span><span class="chip y">Azure OpenAI · hosted</span><span class="chip y">Qwen 2.5 7B · on-prem</span><span class="chip">egress guard</span>
+    </div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+  </div>
+
+  <div class="stage">
+    <div class="n">03 · BLOCK &amp; DECIDE</div>
+    <div class="t">Cascade with gates</div>
+    <p class="d">Blocking skips 99.4% of comparisons and misses no true pair. Each candidate pair passes identity → attribute rules → model, and deterministic gates can veto any verdict.</p>
+    <div class="verdicts"><span class="v s">same_material</span><span class="v a">possible_alternative</span><span class="v d">different</span><span class="v i">insufficient_evidence</span></div>
+    <div class="gate">critical conflict → always separate</div>
+    <div class="stack"><div class="lbl">STACK</div>
+      <span class="chip k">cascade.py</span><span class="chip">gates · substitution groups (YAML)</span><span class="chip">NumPy</span><span class="chip">SQLAlchemy · SQLite</span>
+    </div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+  </div>
+
+  <div class="stage">
+    <div class="n">04 · REVIEW &amp; GOVERN</div>
+    <div class="t">Two seats, one rule</div>
+    <p class="d">A CPSE steward answers questions and decides within its own codes. Only the national approver may join two CPSEs' codes. Every decision is signed and hash-chained.</p>
+    <p class="out"><b>Out:</b> approvals, answers, refusals — each an append-only event with SHA-256 chain</p>
+    <div class="stack"><div class="lbl">STACK</div>
+      <span class="chip k">React 19</span><span class="chip">TanStack Query</span><span class="chip">Tailwind 4</span><span class="chip">governance.yaml</span><span class="chip">HMAC sessions</span><span class="chip">audit.py</span>
+    </div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+  </div>
+
+  <div class="stage hot">
+    <div class="n">05 · REGISTRY</div>
+    <div class="t">One national code</div>
+    <p class="d">A confirmed identity is minted once: UNSPSC class, a permanent serial, a Luhn check digit. Every source code is mapped to it additively — nothing is renamed or deleted.</p>
+    <p class="out mono" style="font-size:19px;font-weight:700;color:var(--green-ink)">IN-31161600-0000417-3</p>
+    <p class="out"><b>Standard description</b> per identity; substitutes linked, kept separate</p>
+    <div class="stack"><div class="lbl">STACK</div>
+      <span class="chip k">registry.py</span><span class="chip">national_code.yaml</span><span class="chip">UNSPSC</span><span class="chip">Luhn</span>
+    </div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+  </div>
+
+  <div class="stage">
+    <div class="n">06 · USE</div>
+    <div class="t">Back to every CPSE</div>
+    <p class="d">Cross-reference export beside each code (0 fields altered), a passport per identity, dashboards, and a duplicate check that runs before any new code is minted.</p>
+    <p class="out"><b>Out:</b> MATMAS05 IDoc payload · material passport · price spread · transfer-instead-of-buy · demand aggregation</p>
+    <div class="stack"><div class="lbl">STACK</div>
+      <span class="chip k">Recharts</span><span class="chip">export.py · IDoc</span><span class="chip">passport JSON</span><span class="chip">/check</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="band">
+  <div class="box">
+    <div class="h">HOSTING · DEMO</div>
+    <div class="host">
+      <div class="node"><b>Vercel</b><small>React build · Mumbai edge</small></div>
+      <span class="ar">→</span>
+      <div class="node"><b>Railway</b><small>FastAPI · SQLite on a volume · Singapore</small></div>
+      <span class="ar">→</span>
+      <div class="node"><b>Azure OpenAI</b><small>only when a pair needs a model</small></div>
+    </div>
+    <div style="margin-top:10px;font-size:15px;color:var(--ink2)">On-prem: same build, model via Ollama, egress off — no description leaves the network.</div>
+  </div>
+  <div class="box">
+    <div class="h">EVALUATION · FROZEN BENCHMARK</div>
+    <div class="kv">
+      <b>0.993</b><span>precision · 2,141 simulated records, 4 CPSEs, 4 families</span>
+      <b>0.0012</b><span>false-merge rate on 10,551 hard negatives</span>
+      <b>257×</b><span>fewer false merges than the best fuzzy matcher</span>
+      <b>0</b><span>model calls to decide 13,797 pairs</span>
+    </div>
+  </div>
+  <div class="box">
+    <div class="h">DICTIONARIES, NOT CODE</div>
+    <div class="kv">
+      <b>families/</b><span>hex_bolt · bearing_ball · gasket_spiral_wound · valve_ball</span>
+      <b>gates</b><span>declared per family; veto sits outside the model</span>
+      <b>house_styles</b><span>how each CPSE writes; the reason the problem exists</span>
+      <b>evaluation</b><span>12 thresholds a build must hold</span>
+    </div>
+  </div>
+</div>
+
+<div class="foot"><span>SIH26099 · Meridian</span><span>All figures from the 11 Sep 2026 run over simulated data; every vendor and plant is marked (sim).</span></div>
