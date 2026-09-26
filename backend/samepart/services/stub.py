@@ -317,8 +317,12 @@ class StubFamilies:
                                 attribute_count=10, gate_count=4,
                                 blocking_key=["thread_diameter_mm", "length_mm"])]
 
-    def load_family(self, yaml_text):
-        return s.FamilyLoadResult(family="gasket", loaded=True, attribute_count=7, gate_count=3)
+    def load_family(self, yaml_text, *, actor="", replace=False):
+        return s.FamilyLoadResult(family="gasket", label="Gasket (fixture)", loaded=True,
+                                  attribute_count=7, gate_count=3)
+
+    def family_yaml(self, name):
+        return "family: hex_bolt\nlabel: Bolt, hex head (fixture)\n"
 
 
 class StubQuestions:

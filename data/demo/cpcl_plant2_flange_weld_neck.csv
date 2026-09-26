@@ -1,0 +1,9 @@
+source_code,description,uom,quantity,unit_price,manufacturer,mfr_part_no,stock_on_hand,last_issue_date
+CPCL-P2-F001,"Flange, Weld Neck, 50mm NB, Class 150, Raised Face, ASTM A105, Sch 40, ANSI B16.5",EA,1,1190.00,,,0,2025-05-20
+CPCL-P2-F002,"Flange, Weld Neck, 80mm NB, Class 300, Raised Face, ASTM A105, Sch 80, ANSI B16.5",EA,1,2210.00,,,15,2025-03-02
+CPCL-P2-F003,"Flange, Weld Neck, 100mm NB, Class 150, Raised Face, SS 316, Sch 40, ANSI B16.5",EA,1,5600.00,,,8,2025-06-11
+CPCL-P2-F004,"Flange, Weld Neck, 150mm NB, Class 600, Ring Joint, A182 F22, Sch 160, ANSI B16.5",EA,1,15900.00,,,4,2025-01-27
+CPCL-P2-F005,"Flange, Weld Neck, 50mm NB, Class 150, Raised Face, ASTM A105, Sch 80, ANSI B16.5",EA,1,1240.00,,,30,2025-02-14
+CPCL-P2-F006,"Flange, Weld Neck, 25mm NB, Class 300, Raised Face, SS 304, Sch 80, IS 6392",EA,1,1480.00,,,45,2025-04-05
+CPCL-P2-F007,"Flange, Weld Neck, 200mm NB, Class 150, Raised Face, ASTM A105, ANSI B16.5",EA,1,4400.00,,,10,2025-07-19
+CPCL-P2-F008,"Flange, Weld Neck, 50mm NB, Class 150, Flat Face, ASTM A105, Sch 40, ANSI B16.5",EA,1,1150.00,,,20,2025-03-30

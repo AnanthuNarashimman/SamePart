@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../lib/apiClient'
-import type { FamilySummary, ImportStatus, Org } from './types'
+import type { FamilyLoadResult, FamilySummary, ImportStatus, Org } from './types'
 
 export function useOrgs() {
   return useQuery({
@@ -51,4 +51,26 @@ export function useImportStatus(importId: string | null) {
       return status && !['done', 'failed', 'complete'].includes(status) ? 1500 : false
     },
   })
+}
+
+/** Add a family from its YAML. The approver's act; the server refuses anyone else. */
+export function useLoadFamily() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ yaml, replace = false }: { yaml: string; replace?: boolean }) =>
+      (await apiClient.post<FamilyLoadResult>('/families', yaml, {
+        params: replace ? { replace: true } : undefined,
+        headers: { 'Content-Type': 'text/plain' },
+      })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['families'] })
+      queryClient.invalidateQueries({ queryKey: ['audit'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-verify'] })
+    },
+  })
+}
+
+/** An existing family's file, to start a new one from. */
+export async function fetchFamilyYaml(name: string): Promise<string> {
+  return (await apiClient.get<string>(`/families/${name}/yaml`, { responseType: 'text' })).data
 }

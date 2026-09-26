@@ -6,9 +6,11 @@ cannot tell the difference.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import random
 import uuid
+from pathlib import Path
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -1903,7 +1905,13 @@ class LivePrevention:
 
 
 class LiveFamilies:
-    """Material families, read from the dictionaries at runtime."""
+    """Material families, read from the dictionaries at runtime.
+
+    Adding one is a governed act, not a hot patch: only the national approver may, the file is
+    written to the families directory so it is still there after a restart, and the audit
+    chain records who added what. Existing records are not re-extracted; a family applies to
+    imports made after it exists.
+    """
 
     def __init__(self, dictionary: Dictionary) -> None:
         self.dictionary = dictionary
@@ -1920,23 +1928,50 @@ class LiveFamilies:
                 attribute_count=len(family.attributes), gate_count=len(family.gates),
                 blocking_key=list(family.blocking.primary_key),
                 classification_code=code,
-                classification_path=tax.label(code) if (tax and code) else None))
+                classification_path=tax.label(code) if (tax and code) else None,
+                added=family.family in self.dictionary.added))
         return out
 
-    def load_family(self, yaml_text: str) -> s.FamilyLoadResult:
-        """Add a family at runtime. This is the live-bootstrap demo."""
-        import yaml as _yaml
+    def load_family(self, yaml_text: str, *, actor: str, replace: bool = False) -> s.FamilyLoadResult:
+        from samepart.dictionary.loader import parse_family
 
-        from samepart.dictionary.loader import _validate_family
-        from samepart.dictionary.models import Family
+        family = parse_family(yaml_text, self.dictionary.units)    # ValueError on a bad file
+        exists = family.family in self.dictionary.families
+        if exists and not replace:
+            raise FileExistsError(
+                f"a family named {family.family!r} is already loaded; send replace=true to "
+                f"overwrite it, or rename this one")
 
-        raw = _yaml.safe_load(yaml_text)
-        family = Family.model_validate(raw)
-        _validate_family(family, self.dictionary.units)
+        target = settings.families_dir / f"{family.family}.yaml"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(yaml_text)
+
         self.dictionary.families[family.family] = family
-        return s.FamilyLoadResult(family=family.family, loaded=True,
+        self.dictionary.added.add(family.family)
+
+        with session_scope() as db:
+            audit.record(
+                db, actor=actor,
+                action="family_replaced" if exists else "family_loaded",
+                payload={"family": family.family, "label": family.label,
+                         "version": family.version,
+                         "attributes": len(family.attributes), "gates": len(family.gates),
+                         "sha256": hashlib.sha256(yaml_text.encode()).hexdigest()})
+
+        return s.FamilyLoadResult(family=family.family, label=family.label, loaded=True,
+                                  replaced=exists,
                                   attribute_count=len(family.attributes),
                                   gate_count=len(family.gates))
+
+    def family_yaml(self, name: str) -> str:
+        """The file as written, so a new family can start from an existing one."""
+        if name not in self.dictionary.families:
+            raise KeyError(name)
+        for base in (settings.families_dir, settings.dictionary_dir / "families"):
+            path = Path(base) / f"{name}.yaml"
+            if path.exists():
+                return path.read_text()
+        raise KeyError(name)
 
 
 # ---------------------------------------------------------------------------

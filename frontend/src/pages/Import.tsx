@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useFamilies, useOrgs, useStartImport } from '../api/catalogue'
 import { MigrationPreview } from '../components/import/MigrationPreview'
 import { ColumnMapper } from '../components/import/ColumnMapper'
+import { FamilyManager } from '../components/import/FamilyManager'
 import { ImportHistory } from '../components/import/ImportHistory'
 import { QueryState } from '../components/shared/QueryState'
 import { useActor } from '../lib/actor'
@@ -128,6 +129,10 @@ export function Import() {
               hardcoded per-source parser.
             </p>
           </div>
+
+          {/* Families live here rather than on their own page: this is where one is chosen,
+              so this is where a missing one is noticed. */}
+          <FamilyManager />
 
           {columns.length > 0 && (
             <ColumnMapper

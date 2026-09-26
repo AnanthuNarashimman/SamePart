@@ -24,7 +24,7 @@ def mode() -> str:
 @lru_cache(maxsize=1)
 def dictionary() -> Dictionary:
     """Loaded once at first use. Families, units, gates and blocking all come from YAML."""
-    return load_dictionary(settings.dictionary_dir)
+    return load_dictionary(settings.dictionary_dir, settings.families_dir)
 
 
 def catalogue_service() -> CatalogueService:

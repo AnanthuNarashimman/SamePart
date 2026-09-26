@@ -21,6 +21,8 @@ const ACTION_LABEL: Record<string, string> = {
   attributes_supplied: 'Answered a question',
   declared_unresolvable: 'Marked a blank unresolvable',
   mapping_reversed: 'Reversed a mapping',
+  family_loaded: 'Added a material family',
+  family_replaced: 'Replaced a material family',
 }
 
 const ACTION_TONE: Record<string, string> = {
@@ -32,6 +34,8 @@ const ACTION_TONE: Record<string, string> = {
   declared_unresolvable: 'bg-stone-100 text-stone-700',
   mapping_reversed: 'bg-rose-50 text-rose-700',
   request_info: 'bg-sky-50 text-sky-800',
+  family_loaded: 'bg-brand-100 text-brand-900',
+  family_replaced: 'bg-khaki-100 text-khaki-800',
 }
 
 // Stewards carry their organisation's colour so a mixed page reads at a glance.
@@ -61,6 +65,9 @@ function detail(e: AuditEvent): string {
     return `${(p.keys as string[]).join(', ')}${p.reason ? ` · ${p.reason}` : ''}`
   }
   if (e.action === 'mapping_reversed' && p.reason) return String(p.reason)
+  if ((e.action === 'family_loaded' || e.action === 'family_replaced') && p.family) {
+    return `${p.label ?? p.family} · ${p.attributes} attributes, ${p.gates} gates`
+  }
   if (p.condition) return String(p.condition)
   return e.summary
 }

@@ -1,0 +1,206 @@
+# Material family definition. This file is DATA, not code.
+#
+# Weld-neck flanges are the fifth family, and the one added live: the four in the repository
+# were loaded at boot; this one goes in through the Import screen, in front of whoever is
+# watching, with no restart and no code change. Everything the pipeline needs to read, block,
+# gate and name a flange is below. Values are real: ASME B16.5 sizes and classes, ASME B16.5
+# facings, ASTM material grades, pipe schedules from ASME B36.10.
+family: flange_weld_neck
+label: Flange, weld neck
+version: 1
+
+naming:
+  noun: FLANGE
+  modifier: WELD NECK
+  short_template: "{noun}, {modifier}; {nominal_size_mm}NB; CL{pressure_class}; {facing}; {material}"
+  long_template: "{noun}, {modifier}; nominal bore {nominal_size_mm} MM; class {pressure_class}; facing {facing}; material {material}; bore schedule {schedule}; standard {standard}"
+
+attributes:
+  - key: manufacturer
+    label: Manufacturer
+    type: string
+    criticality: identity
+    aliases: [make, brand, mfr, manufacturer name, oem]
+
+  - key: manufacturer_part_number
+    label: Manufacturer part number
+    type: string
+    criticality: identity
+    normalise: [upper, strip_non_alnum]
+    aliases: [mpn, part no, part number, cat no, catalogue no, mfr part no]
+
+  - key: nominal_size_mm
+    label: Nominal bore
+    type: number
+    unit: mm
+    dimension: length
+    criticality: critical
+    aliases: [nb, nominal bore, size, dn]
+    patterns:
+      - '(?P<value>\d+(?:\.\d+)?)\s?NB\b'
+      - '\bNB\s*(?P<value>\d+(?:\.\d+)?)\s?MM'
+      - '(?P<value>\d+(?:\.\d+)?)\s?mm\s+NB'
+      - '\bDN\s*(?P<value>\d+(?:\.\d+)?)'
+
+  - key: pressure_class
+    label: Pressure class
+    type: string
+    criticality: critical
+    values: ["150", "300", "600", "900", "1500"]
+    aliases: [class, cl, rating, pressure rating, lb]
+    patterns:
+      - '(?P<value>150|300|600|900|1500)\s?#'
+      - '\bCLASS\s+(?P<value>150|300|600|900|1500)\b'
+      - '\bCL\s?(?P<value>150|300|600|900|1500)\b'
+      - '(?P<value>150|300|600|900|1500)\s?LBS?\b'
+
+  # The face is what seals. A ring-joint flange cannot mate with a raised-face one, so the
+  # facing is critical even though half of all descriptions leave it out.
+  - key: facing
+    label: Facing
+    type: string
+    criticality: critical
+    required_for_decision: false
+    values: [RF, FF, RTJ]
+    aliases: [face, facing, face type]
+    value_aliases:
+      "RAISED FACE": RF
+      "RAISED FACED": RF
+      "R/F": RF
+      "FLAT FACE": FF
+      "FLAT FACED": FF
+      "F/F": FF
+      "RING JOINT": RTJ
+      "RING TYPE JOINT": RTJ
+      "RJ": RTJ
+    patterns:
+      - '\b(?P<value>RF|FF|RTJ)\b'
+
+  - key: material
+    label: Material grade
+    type: string
+    criticality: critical
+    values: [A105, F304, F316, F11, F22, F51]
+    aliases: [material, matl, grade, body material, forging]
+    value_aliases:
+      "ASTM A105": A105
+      "A105N": A105
+      "CARBON STEEL": A105
+      "CS": A105
+      "A182 F304": F304
+      "SS304": F304
+      "SS 304": F304
+      "A182 F316": F316
+      "SS316": F316
+      "SS 316": F316
+      "A182 F11": F11
+      "A182 F22": F22
+      "A182 F51": F51
+      "DUPLEX": F51
+    patterns:
+      - '\b(?P<value>A105|F304|F316|F11|F22|F51)\b'
+
+  # The neck bore must match the pipe wall, so schedule matters to fit-up; a mismatch is a
+  # substitution question for the piping engineer, not proof of a different item.
+  - key: schedule
+    label: Bore schedule
+    type: string
+    criticality: major
+    required_for_decision: false
+    values: [SCH40, SCH80, SCH160, STD, XS]
+    aliases: [schedule, sch, bore, bore schedule, wall]
+    normalise: [upper, strip_spaces]
+    value_aliases:
+      "SCH 40": SCH40
+      "S40": SCH40
+      "SCH 80": SCH80
+      "S80": SCH80
+      "SCH 160": SCH160
+      "STANDARD": STD
+      "EXTRA STRONG": XS
+    patterns:
+      - '\bSCH\s?(?P<value>40|80|160)\b'
+      - '\b(?P<value>STD|XS)\s+BORE\b'
+
+  - key: standard
+    label: Governing specification
+    type: string
+    criticality: major
+    values: [ASMEB16.5, IS6392, EN1092]
+    aliases: [standard, spec, specification, as per]
+    normalise: [upper, strip_spaces]
+    value_aliases:
+      "ASME B16.5": ASMEB16.5
+      "ANSI B16.5": ASMEB16.5
+      "B16.5": ASMEB16.5
+      "IS 6392": IS6392
+      "IS:6392": IS6392
+      "EN 1092": EN1092
+      "EN 1092-1": EN1092
+    patterns:
+      - '\b(?:ASME|ANSI)\s?(?P<value>B16\.5)\b'
+      - '\b(?P<value>IS\s?6392)\b'
+      - '\b(?P<value>EN\s?1092)(?:-1)?\b'
+
+# 40174700 "Pipe threaded flanges" is the only flange class the free UNSPSC codeset carries;
+# weld-neck flanges anchor there at class level until a licensed commodity code is available.
+classification:
+  system: UNSPSC
+  code: "40174700"
+
+blocking:
+  primary_key: [nominal_size_mm, pressure_class]
+  fallback: canonical_text
+  fallback_top_k: 20
+
+auto_merge:
+  enabled: false
+  require_all_known: true
+  require_score: 1.0
+  forbid_gate_override: true
+  audit_sample_rate: 0.05
+
+gates:
+  - id: identity_match
+    when: all_present
+    attributes: [manufacturer, manufacturer_part_number]
+    rule: all_equal
+    action: force_same
+    message: "Same manufacturer and part number. Identity is established without inference."
+
+  - id: critical_conflict
+    when: both_present
+    attributes: [nominal_size_mm, pressure_class, facing, material]
+    rule: any_not_equal
+    action: force_different
+    message: "Size, class, facing or material differs. These are not the same flange."
+
+  - id: missing_critical
+    when: either_missing
+    attributes: [nominal_size_mm, pressure_class, material]
+    action: force_insufficient
+    message: "Size, class or material is unknown on at least one record. Cannot decide safely."
+
+  - id: major_conflict
+    when: both_present
+    attributes: [schedule, standard]
+    rule: any_not_equal
+    action: downgrade_to_alternative
+    message: "Bore schedule or governing standard differs. Fit-up must be checked before substitution."
+
+substitution_groups:
+  - id: stainless_grade
+    attribute: material
+    members: [F304, F316]
+    relation: possible_alternative
+    condition: >-
+      F316 may substitute for F304 in any service. F304 must not substitute for F316 where
+      chlorides are present. Direction matters.
+
+  - id: flange_standard
+    attribute: standard
+    members: [ASMEB16.5, IS6392]
+    relation: equivalent
+    condition: >-
+      IS 6392 flanges are dimensionally aligned with ASME B16.5 for the same class and size.
+      Bolting and gasket dimensions interchange.

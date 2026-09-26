@@ -439,6 +439,19 @@ export interface FamilySummary {
   attribute_count: number
   gate_count: number
   blocking_key: string[]
+  classification_code?: string | null
+  classification_path?: string | null
+  /** Loaded at runtime rather than shipped in the repository. */
+  added?: boolean
+}
+
+export interface FamilyLoadResult {
+  family: string
+  label: string
+  loaded: boolean
+  replaced: boolean
+  attribute_count: number
+  gate_count: number
 }
 
 export interface AuditEvent {

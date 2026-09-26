@@ -823,10 +823,13 @@ class FamilySummary(BaseModel):
     blocking_key: list[str] = Field(default_factory=list)
     classification_code: str | None = None
     classification_path: str | None = None
+    added: bool = Field(False, description="Loaded at runtime rather than shipped in the repository")
 
 
 class FamilyLoadResult(BaseModel):
     family: str
+    label: str = ""
     loaded: bool
+    replaced: bool = False
     attribute_count: int
     gate_count: int

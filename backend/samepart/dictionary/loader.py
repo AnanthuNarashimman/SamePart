@@ -1,10 +1,11 @@
 """Loads the YAML dictionaries into typed objects at startup."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from pydantic import ValidationError
 
 from samepart.dictionary.models import Family
 from samepart.units import UnitRegistry
@@ -14,6 +15,8 @@ from samepart.units import UnitRegistry
 class Dictionary:
     units: UnitRegistry
     families: dict[str, Family]
+    # Names of families that came from the runtime directory rather than the repository.
+    added: set[str] = field(default_factory=set)
 
     def family(self, name: str) -> Family:
         try:
@@ -27,21 +30,53 @@ class Dictionary:
         return sorted(self.families)
 
 
-def load_dictionary(root: Path) -> Dictionary:
+def load_dictionary(root: Path, added_dir: Path | None = None) -> Dictionary:
+    """Built-in families from the repository, then any added at runtime.
+
+    A family added through the API is written to `added_dir` and read back here on the next
+    boot, so it survives a restart. One with the same name as a built-in family replaces it:
+    that is what "replace" on the endpoint means, and it is the only way a running deployment
+    can correct a family without a code change.
+    """
     root = Path(root)
     units = UnitRegistry.from_file(root / "units.yaml")
 
     families: dict[str, Family] = {}
-    family_dir = root / "families"
-    for path in sorted(family_dir.glob("*.yaml")):
-        raw = yaml.safe_load(path.read_text())
-        fam = Family.model_validate(raw)
+    for path in sorted((root / "families").glob("*.yaml")):
+        fam = parse_family(path.read_text(), units)
         if fam.family in families:
             raise ValueError(f"duplicate family {fam.family!r} in {path}")
-        _validate_family(fam, units)
         families[fam.family] = fam
 
-    return Dictionary(units=units, families=families)
+    added: set[str] = set()
+    if added_dir is not None and Path(added_dir).is_dir():
+        for path in sorted(Path(added_dir).glob("*.yaml")):
+            fam = parse_family(path.read_text(), units)
+            families[fam.family] = fam
+            added.add(fam.family)
+
+    return Dictionary(units=units, families=families, added=added)
+
+
+def parse_family(yaml_text: str, units: UnitRegistry) -> Family:
+    """One family from its YAML, validated. Raises ValueError with a message a person can act
+    on: the unit or attribute that is wrong, not a stack trace."""
+    try:
+        raw = yaml.safe_load(yaml_text)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"not valid YAML: {exc}") from None
+    if not isinstance(raw, dict):
+        raise ValueError("expected a YAML mapping with at least `family`, `label`, `naming` "
+                         "and `attributes`")
+    try:
+        fam = Family.model_validate(raw)
+    except ValidationError as exc:
+        problems = "; ".join(
+            f"{'.'.join(str(p) for p in e['loc']) or 'document'}: {e['msg']}"
+            for e in exc.errors()[:6])
+        raise ValueError(problems) from None
+    _validate_family(fam, units)
+    return fam
 
 
 def _validate_family(fam: Family, units: UnitRegistry) -> None:

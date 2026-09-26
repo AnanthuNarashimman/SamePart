@@ -17,6 +17,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class Settings:
     db_url: str = os.getenv("SAMEPART_DB_URL", "sqlite:///samepart.db")
     dictionary_dir: Path = REPO_ROOT / os.getenv("SAMEPART_DICTIONARY_DIR", "dictionaries")
+    # Families added at runtime are written here and loaded on every boot after the built-in
+    # ones. Under SAMEPART_DATA_DIR so that on a host it sits on the persistent volume.
+    families_dir: Path = Path(
+        os.getenv("SAMEPART_FAMILIES_DIR")
+        or (Path(os.environ["SAMEPART_DATA_DIR"]) / "families" if os.getenv("SAMEPART_DATA_DIR")
+            else REPO_ROOT / "data" / "generated" / "families"))
 
     azure_endpoint: str | None = os.getenv("AZURE_OPENAI_ENDPOINT") or None
     azure_api_key: str | None = os.getenv("AZURE_OPENAI_API_KEY") or None
