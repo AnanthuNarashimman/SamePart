@@ -321,6 +321,9 @@ class StubFamilies:
         return s.FamilyLoadResult(family="gasket", label="Gasket (fixture)", loaded=True,
                                   attribute_count=7, gate_count=3)
 
+    def remove_family(self, name, *, actor="", purge=False):
+        return s.FamilyRemoveResult(family=name, removed=True)
+
     def family_yaml(self, name):
         return "family: hex_bolt\nlabel: Bolt, hex head (fixture)\n"
 

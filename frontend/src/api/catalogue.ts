@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../lib/apiClient'
-import type { FamilyLoadResult, FamilySummary, ImportStatus, Org } from './types'
+import type { FamilyLoadResult, FamilyRemoveResult, FamilySummary, ImportStatus, Org } from './types'
 
 export function useOrgs() {
   return useQuery({
@@ -73,4 +73,23 @@ export function useLoadFamily() {
 /** An existing family's file, to start a new one from. */
 export async function fetchFamilyYaml(name: string): Promise<string> {
   return (await apiClient.get<string>(`/families/${name}/yaml`, { responseType: 'text' })).data
+}
+
+/** Take a runtime-added family out. Refused while records exist under it unless `purge`;
+ *  refused for good once a signed decision references them. */
+export function useRemoveFamily() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ name, purge = false }: { name: string; purge?: boolean }) =>
+      (await apiClient.delete<FamilyRemoveResult>(`/families/${name}`, {
+        params: purge ? { purge: true } : undefined,
+      })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['families'] })
+      queryClient.invalidateQueries({ queryKey: ['audit'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-verify'] })
+      queryClient.invalidateQueries({ queryKey: ['queue'] })
+      queryClient.invalidateQueries({ queryKey: ['summary'] })
+    },
+  })
 }

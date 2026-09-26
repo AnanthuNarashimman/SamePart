@@ -125,3 +125,55 @@ def test_an_existing_family_can_be_fetched_as_a_starting_point():
     r = c.get("/api/families/hex_bolt/yaml")
     assert r.status_code == 200 and r.text.startswith("#") and "family: hex_bolt" in r.text
     assert c.get("/api/families/nope/yaml").status_code == 404
+
+
+def test_an_added_family_can_be_removed_and_a_built_in_one_cannot(tmp_path):
+    c = client_as("national")
+    c.post("/api/families", content=MINIMAL, headers={"content-type": "text/plain"})
+    assert (settings.families_dir / "flange_test.yaml").exists()
+
+    r = c.delete("/api/families/flange_test")
+    assert r.status_code == 200 and r.json()["records_removed"] == 0
+    assert not (settings.families_dir / "flange_test.yaml").exists()
+    assert "flange_test" not in {f["family"] for f in c.get("/api/families").json()}
+    assert c.delete("/api/families/flange_test").status_code == 404
+
+    assert c.delete("/api/families/hex_bolt").status_code == 409     # shipped in the repository
+    assert client_as("bpcl").delete("/api/families/hex_bolt").status_code == 403
+
+
+def test_records_block_removal_until_purged_and_decisions_block_it_for_good():
+    from samepart.db.models import CandidateMatch, Organisation, SourceRecord
+    from samepart.db.session import session_scope
+
+    c = client_as("national")
+    c.post("/api/families", content=MINIMAL, headers={"content-type": "text/plain"})
+    with session_scope() as db:
+        org = Organisation(code="BPCL", name="BPCL (test)")
+        db.add(org); db.flush()
+        a = SourceRecord(org_id=org.id, source_code="X1", raw_description="50NB", family="flange_test", currency="INR")
+        b = SourceRecord(org_id=org.id, source_code="X2", raw_description="50 NB", family="flange_test", currency="INR")
+        db.add_all([a, b]); db.flush()
+        db.add(CandidateMatch(a_id=a.id, b_id=b.id, verdict="same_material", review_state="queued", gate_overrode=False))
+
+    refused = c.delete("/api/families/flange_test")
+    assert refused.status_code == 409 and refused.json()["detail"]["records"] == 2
+
+    purged = c.delete("/api/families/flange_test?purge=true")
+    assert purged.status_code == 200 and purged.json()["records_removed"] == 2
+    with session_scope() as db:
+        assert db.query(SourceRecord).count() == 0 and db.query(CandidateMatch).count() == 0
+
+    # Same again, but this time somebody decided a pair. That row is in the chain; it stays.
+    c.post("/api/families", content=MINIMAL, headers={"content-type": "text/plain"})
+    with session_scope() as db:
+        org_id = db.query(Organisation.id).scalar()
+        a = SourceRecord(org_id=org_id, source_code="Y1", raw_description="50NB", family="flange_test", currency="INR")
+        b = SourceRecord(org_id=org_id, source_code="Y2", raw_description="50 NB", family="flange_test", currency="INR")
+        db.add_all([a, b]); db.flush()
+        m = CandidateMatch(a_id=a.id, b_id=b.id, verdict="same_material", review_state="decided", gate_overrode=False)
+        db.add(m); db.flush()
+        from samepart import audit
+        audit.record(db, pair_id=m.id, actor="national-approver", action="approve_same", payload={})
+    stays = c.delete("/api/families/flange_test?purge=true")
+    assert stays.status_code == 409 and stays.json()["detail"]["decided"] == 1

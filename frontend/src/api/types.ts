@@ -445,6 +445,12 @@ export interface FamilySummary {
   added?: boolean
 }
 
+export interface FamilyRemoveResult {
+  family: string
+  removed: boolean
+  records_removed: number
+}
+
 export interface FamilyLoadResult {
   family: string
   label: string

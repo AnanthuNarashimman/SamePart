@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { fetchFamilyYaml, useFamilies, useLoadFamily } from '../../api/catalogue'
+import { fetchFamilyYaml, useFamilies, useLoadFamily, useRemoveFamily } from '../../api/catalogue'
 import { useActor } from '../../lib/actor'
 
 // The families the dictionary carries, and the way a new one gets in.
@@ -14,7 +14,34 @@ import { useActor } from '../../lib/actor'
 export function FamilyManager() {
   const families = useFamilies()
   const load = useLoadFamily()
+  const remove = useRemoveFamily()
   const { actor } = useActor()
+  // A removal the server refused because records exist: name and count, awaiting a purge.
+  const [pendingPurge, setPendingPurge] = useState<{ name: string; records: number } | null>(null)
+  const [removeNote, setRemoveNote] = useState<string | null>(null)
+
+  const askRemove = (name: string, purge = false) => {
+    setRemoveNote(null)
+    remove.mutate({ name, purge }, {
+      onSuccess: (r) => {
+        setPendingPurge(null)
+        setRemoveNote(r.records_removed
+          ? `Removed ${r.family} and its ${r.records_removed} records.`
+          : `Removed ${r.family}.`)
+      },
+      onError: (err) => {
+        const detail = (err as { response?: { status?: number; data?: { detail?: unknown } } })?.response?.data?.detail
+        if (typeof detail === 'object' && detail && 'records' in detail) {
+          const d = detail as { message: string; records: number; decided: number }
+          if (d.decided > 0) { setPendingPurge(null); setRemoveNote(d.message) }
+          else setPendingPurge({ name, records: d.records })
+          return
+        }
+        setPendingPurge(null)
+        setRemoveNote(typeof detail === 'string' ? detail : 'Could not remove the family.')
+      },
+    })
+  }
   const mayAdd = actor.role === 'national_approver'
 
   const [open, setOpen] = useState(false)
@@ -88,6 +115,17 @@ export function FamilyManager() {
                 added
               </span>
             )}
+            {mayAdd && f.added && (
+              <button
+                type="button"
+                onClick={() => askRemove(f.family)}
+                disabled={remove.isPending}
+                className="text-[10px] text-rose-500 underline-offset-2 hover:underline disabled:text-stone-300"
+                title="Remove this family (only families added at runtime can be removed here)"
+              >
+                remove
+              </button>
+            )}
             {mayAdd && (
               <button
                 type="button"
@@ -101,6 +139,28 @@ export function FamilyManager() {
           </li>
         ))}
       </ul>
+
+      {pendingPurge && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-khaki-50 px-4 py-3 text-sm text-khaki-800">
+          <span>
+            <b>{pendingPurge.records}</b> records were imported under <b>{pendingPurge.name}</b>.
+            Remove the family together with those records and everything matched from them?
+          </span>
+          <span className="flex gap-2">
+            <button type="button" onClick={() => setPendingPurge(null)} className="rounded-lg border border-khaki-200 px-3 py-1.5 text-xs">Keep</button>
+            <button
+              type="button"
+              onClick={() => askRemove(pendingPurge.name, true)}
+              className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700"
+            >
+              Remove family and {pendingPurge.records} records
+            </button>
+          </span>
+        </div>
+      )}
+      {removeNote && (
+        <p className="mt-3 rounded-lg bg-stone-50 px-4 py-2 text-xs text-stone-600">{removeNote}</p>
+      )}
 
       {mayAdd && open && (
         <div className="mt-4 border-t border-stone-100 pt-4">

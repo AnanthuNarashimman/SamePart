@@ -42,3 +42,22 @@ def load_family(request: Request, replace: bool = False,
         raise HTTPException(409, str(exc))
     except ValueError as exc:
         raise HTTPException(422, str(exc))
+
+
+@router.delete("/families/{name}", response_model=s.FamilyRemoveResult)
+def remove_family(name: str, request: Request, purge: bool = False,
+                  svc: FamilyService = Depends(family_service)):
+    p = getattr(request.state, "principal", None)
+    if p is not None and p.role != "national_approver":
+        raise HTTPException(403, "only the national codification approver may remove a family")
+    try:
+        return svc.remove_family(name, actor=p.actor_name if p else "system", purge=purge)
+    except KeyError:
+        raise HTTPException(404, f"no family named {name!r}")
+    except FileExistsError as exc:
+        raise HTTPException(409, str(exc))
+    except Exception as exc:                      # FamilyHasRecords, kept out of the stub's way
+        if type(exc).__name__ != "FamilyHasRecords":
+            raise
+        raise HTTPException(409, {"message": str(exc), "records": exc.records,   # type: ignore[attr-defined]
+                                  "decided": exc.decided})                        # type: ignore[attr-defined]

@@ -1904,6 +1904,19 @@ class LivePrevention:
             message="Safe to create. No existing material matches.")
 
 
+class FamilyHasRecords(Exception):
+    """Removal refused: records were imported under the family. `decided` is how many signed
+    decisions reference them, which is the part no purge may touch."""
+
+    def __init__(self, records: int, decided: int) -> None:
+        self.records, self.decided = records, decided
+        super().__init__(
+            f"{decided} signed decisions reference this family's records; the audit trail is "
+            f"append-only, so the family stays" if decided else
+            f"{records} records were imported under this family; remove them with it "
+            f"(purge) or leave it loaded")
+
+
 class LiveFamilies:
     """Material families, read from the dictionaries at runtime.
 
@@ -1962,6 +1975,64 @@ class LiveFamilies:
                                   replaced=exists,
                                   attribute_count=len(family.attributes),
                                   gate_count=len(family.gates))
+
+    def remove_family(self, name: str, *, actor: str, purge: bool = False) -> s.FamilyRemoveResult:
+        """Take a runtime-added family out again.
+
+        Built-in families are not removable here: they are files in the repository, and
+        removing one is a code change. Records imported under the family block removal unless
+        `purge` is given, and even then the audit trail is the limit: a family whose pairs or
+        identities carry signed decisions stays, because the chain is append-only and those
+        rows are what it seals.
+        """
+        from samepart.db.models import KnownConflict, PossibleAlternative
+
+        if name not in self.dictionary.families:
+            raise KeyError(name)
+        if name not in self.dictionary.added:
+            raise FileExistsError(
+                f"{name!r} is shipped with the repository; edit or delete "
+                f"dictionaries/families/{name}.yaml and redeploy instead")
+
+        with session_scope() as db:
+            ids = list(db.scalars(select(SourceRecord.id).where(SourceRecord.family == name)))
+            if ids and not purge:
+                raise FamilyHasRecords(records=len(ids), decided=0)
+
+            removed = 0
+            if ids:
+                pair_ids = list(db.scalars(select(CandidateMatch.id).where(
+                    or_(CandidateMatch.a_id.in_(ids), CandidateMatch.b_id.in_(ids)))))
+                canon_ids = list(db.scalars(select(CanonicalMaterial.canonical_id)
+                                            .where(CanonicalMaterial.family == name)))
+                decided = db.scalar(select(func.count(DecisionEvent.id)).where(or_(
+                    DecisionEvent.pair_id.in_(pair_ids) if pair_ids else False,
+                    DecisionEvent.canonical_id.in_(canon_ids) if canon_ids else False)))
+                if decided:
+                    raise FamilyHasRecords(records=len(ids), decided=decided)
+
+                from sqlalchemy import delete as _delete
+                db.execute(_delete(ProcurementLine).where(ProcurementLine.record_id.in_(ids)))
+                db.execute(_delete(ExtractedAttribute).where(ExtractedAttribute.record_id.in_(ids)))
+                for table in (CandidateMatch, PossibleAlternative, KnownConflict):
+                    db.execute(_delete(table).where(or_(table.a_id.in_(ids), table.b_id.in_(ids))))
+                db.execute(_delete(ApprovedMapping).where(ApprovedMapping.record_id.in_(ids)))
+                if canon_ids:
+                    db.execute(_delete(CanonicalMaterial)
+                               .where(CanonicalMaterial.canonical_id.in_(canon_ids)))
+                db.execute(_delete(SourceRecord).where(SourceRecord.id.in_(ids)))
+                removed = len(ids)
+
+            audit.record(db, actor=actor, action="family_removed",
+                         payload={"family": name, "label": self.dictionary.families[name].label,
+                                  "records_removed": removed})
+
+        path = settings.families_dir / f"{name}.yaml"
+        if path.exists():
+            path.unlink()
+        del self.dictionary.families[name]
+        self.dictionary.added.discard(name)
+        return s.FamilyRemoveResult(family=name, removed=True, records_removed=removed)
 
     def family_yaml(self, name: str) -> str:
         """The file as written, so a new family can start from an existing one."""

@@ -826,6 +826,12 @@ class FamilySummary(BaseModel):
     added: bool = Field(False, description="Loaded at runtime rather than shipped in the repository")
 
 
+class FamilyRemoveResult(BaseModel):
+    family: str
+    removed: bool
+    records_removed: int = 0
+
+
 class FamilyLoadResult(BaseModel):
     family: str
     label: str = ""
