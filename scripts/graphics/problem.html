@@ -2,67 +2,160 @@
 <meta charset="utf-8">
 <title>Meridian — the problem</title>
 <style>
-  :root{--ink:#0b0b0b;--ink2:#52514e;--ink3:#8a8984;--rule:#dedcd6;--bg:#fff;
-        --blue:#3987e5;--orange:#e8703c;--teal:#24b985;--red:#b3261e;--red-bg:#fdecea}
+  :root{--ink:#0b0b0b;--ink2:#52514e;--ink3:#8a8984;--rule:#e3e1db;--bg:#fff;
+        --a:#3987e5;--a-bg:#e6eef9;--a-ink:#1d4e9a;
+        --b:#e8703c;--b-bg:#fdebe3;--b-ink:#8a3a12;
+        --c:#24b985;--c-bg:#dff5ea;--c-ink:#0f5a3a;
+        --red:#b3261e;--red-bg:#fdecea}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);font-family:Inter,"Helvetica Neue",Arial,sans-serif;color:var(--ink);width:2400px;height:1000px;padding:64px 90px;position:relative}
+  body{margin:0;background:var(--bg);font-family:Inter,"Helvetica Neue",Arial,sans-serif;color:var(--ink);width:2400px;height:1350px;padding:64px 84px;position:relative}
   .mono{font-family:"JetBrains Mono",Menlo,Consolas,monospace}
-  h1{margin:0;font-size:54px;font-weight:700;letter-spacing:-.01em}
+  h1{margin:0;font-size:56px;font-weight:700;letter-spacing:-.015em}
   .sub{margin:10px 0 0;font-size:26px;color:var(--ink2)}
-  .row{display:grid;grid-template-columns:1fr 120px 1fr;gap:0;margin-top:56px;align-items:center}
-  .plants{display:grid;grid-template-rows:repeat(3,1fr);gap:22px}
-  .plant{border:2.5px solid var(--rule);border-radius:20px;padding:24px 30px;display:grid;grid-template-columns:230px 1fr;align-items:center;gap:26px;background:#fff}
-  .plant .who{font-size:18px;letter-spacing:.18em;font-weight:700;color:var(--ink3)}
-  .plant .who b{display:block;font-size:30px;letter-spacing:0;color:var(--ink);margin-top:4px}
-  .plant .code{font-size:34px;font-weight:700;padding:16px 22px;border-radius:12px;background:#f5f5f2}
-  .p1 .code{color:#1d4e9a;background:#e6eef9}.p2 .code{color:#8a3a12;background:#fdebe3}.p3 .code{color:#0f5a3a;background:#dff5ea}
-  .plant .code small{display:block;font-size:17px;font-weight:500;color:var(--ink3);margin-top:6px;font-family:Inter,Arial,sans-serif}
-  .mid{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--ink3)}
-  .mid svg{width:90px;height:90px}
-  .mid span{font-size:17px;letter-spacing:.16em;font-weight:700;text-align:center}
-  .one{border:3px solid var(--ink);border-radius:24px;padding:34px 38px;background:#fff}
-  .one .lbl{font-size:18px;letter-spacing:.18em;color:var(--ink3);font-weight:700}
-  .one .t{font-size:44px;font-weight:700;margin:8px 0 26px;letter-spacing:-.01em}
-  .cons{display:grid;gap:16px}
-  .con{display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:center;font-size:27px;line-height:1.3}
-  .con i{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-style:normal;background:#f5f5f2}
-  .con i svg{width:30px;height:30px}
-  .cag{margin-top:44px;border-radius:22px;background:var(--red-bg);border:2.5px solid #f2c6c2;padding:30px 40px;display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center}
-  .cag .n{font-size:84px;font-weight:800;color:var(--red);letter-spacing:-.02em;line-height:1}
-  .cag .d{font-size:28px;line-height:1.35;color:var(--ink)}
-  .cag .d small{display:block;font-size:20px;color:var(--ink2);margin-top:8px}
-  .foot{position:absolute;left:90px;right:90px;bottom:40px;font-size:17px;color:var(--ink3);display:flex;justify-content:space-between}
+  .grid{display:grid;grid-template-columns:760px 380px 1fr;gap:0;margin-top:44px;height:760px}
+
+  /* left: plants */
+  .plants{display:grid;grid-template-rows:repeat(3,1fr);gap:26px}
+  .plant{border-radius:22px;padding:26px 30px;display:grid;grid-template-columns:96px 1fr;gap:22px;align-items:center;border:2.5px solid var(--rule);background:#fff;position:relative}
+  .plant .ic{width:96px;height:96px;border-radius:20px;display:flex;align-items:center;justify-content:center}
+  .plant .ic svg{width:56px;height:56px}
+  .plant .who{font-size:17px;letter-spacing:.18em;font-weight:700;color:var(--ink3)}
+  .plant .name{font-size:30px;font-weight:700;margin:2px 0 12px}
+  .plant .code{font-size:31px;font-weight:700;padding:12px 18px;border-radius:12px;display:inline-block}
+  .plant .how{font-size:16px;color:var(--ink3);margin-top:8px}
+  .pa{border-color:var(--a)}.pa .ic{background:var(--a-bg)}.pa .code{background:var(--a-bg);color:var(--a-ink)}
+  .pb{border-color:var(--b)}.pb .ic{background:var(--b-bg)}.pb .code{background:var(--b-bg);color:var(--b-ink)}
+  .pc{border-color:var(--c)}.pc .ic{background:var(--c-bg)}.pc .code{background:var(--c-bg);color:var(--c-ink)}
+
+  /* middle: convergence + bolt */
+  .mid{position:relative}
+  .mid svg{position:absolute;inset:0;width:100%;height:100%}
+  .mid .cap{position:absolute;left:0;right:0;bottom:-6px;text-align:center;font-size:17px;letter-spacing:.16em;font-weight:700;color:var(--ink3)}
+  .mid .cap b{display:block;font-size:24px;letter-spacing:0;color:var(--ink);margin-bottom:4px}
+
+  /* right: consequences */
+  .cons{display:grid;grid-template-rows:repeat(3,1fr);gap:26px;padding-left:34px}
+  .con{border:2.5px solid var(--rule);border-radius:22px;padding:24px 30px;display:grid;grid-template-columns:1fr 360px;gap:26px;align-items:center;background:#fafaf8}
+  .con .n{font-size:15px;letter-spacing:.18em;font-weight:700;color:var(--ink3)}
+  .con .t{font-size:34px;font-weight:700;margin:4px 0 8px;letter-spacing:-.01em}
+  .con .d{font-size:21px;color:var(--ink2);line-height:1.35}
+  .viz{height:150px;position:relative}
+  /* viz 1: duplicate chips */
+  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;height:100%;align-content:center}
+  .chip{height:34px;border-radius:8px;background:#e9e8e3;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-family:"JetBrains Mono",Menlo,monospace}
+  .chip.a{background:var(--a-bg);color:var(--a-ink);font-weight:700}.chip.b{background:var(--b-bg);color:var(--b-ink);font-weight:700}.chip.c{background:var(--c-bg);color:var(--c-ink);font-weight:700}
+  /* viz 2: idle vs fresh */
+  .stock{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:100%}
+  .bin{border:2px solid var(--rule);border-radius:12px;position:relative;overflow:hidden;background:#fff}
+  .bin .fill{position:absolute;left:0;right:0;bottom:0;background:var(--a-bg)}
+  .bin .lab{position:absolute;left:12px;top:10px;font-size:15px;font-weight:700}
+  .bin .lab small{display:block;font-weight:500;color:var(--ink2);font-size:13px;margin-top:2px}
+  .bin .po{position:absolute;right:10px;bottom:10px;font-size:13px;padding:5px 8px;border-radius:7px;background:var(--b-bg);color:var(--b-ink);font-weight:700;font-family:"JetBrains Mono",Menlo,monospace}
+  /* viz 3: price bars */
+  .bars{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:end;height:100%;padding-top:6px}
+  .bar{border-radius:8px 8px 0 0;position:relative;text-align:center}
+  .bar span{position:absolute;left:0;right:0;top:-30px;font-size:18px;font-weight:700;font-family:"JetBrains Mono",Menlo,monospace}
+  .bar i{position:absolute;left:0;right:0;bottom:-22px;font-size:13px;font-style:normal;color:var(--ink3);letter-spacing:.1em}
+  .bar.a{background:var(--a)}.bar.b{background:var(--b)}.bar.c{background:var(--c)}
+
+  /* bottom: CAG */
+  .cag{margin-top:46px;border-radius:24px;background:var(--red-bg);border:2.5px solid #f2c6c2;padding:30px 44px;display:grid;grid-template-columns:auto 1fr auto;gap:48px;align-items:center}
+  .cag .big{font-size:96px;font-weight:800;color:var(--red);letter-spacing:-.025em;line-height:1}
+  .cag .big small{display:block;font-size:20px;font-weight:700;letter-spacing:.14em;color:var(--red);margin-top:8px}
+  .cag .txt{font-size:28px;line-height:1.35}
+  .cag .txt small{display:block;font-size:19px;color:var(--ink2);margin-top:8px}
+  .years{display:flex;gap:8px;align-items:flex-end}
+  .yr{width:56px;text-align:center}
+  .yr b{display:block;height:44px;border-radius:6px;background:#e9a5a0}
+  .yr span{display:block;font-size:13px;color:var(--ink2);margin-top:6px;font-family:"JetBrains Mono",Menlo,monospace}
+  .foot{position:absolute;left:84px;right:84px;bottom:34px;font-size:16px;color:var(--ink3);display:flex;justify-content:space-between}
 </style>
 
-<h1>The same part, a different name in every CPSE</h1>
-<p class="sub">Nobody can tell what the network already owns.</p>
+<h1>Same bolt. Three names. Nobody knows what the network already owns.</h1>
+<p class="sub">Every CPSE writes its material master in its own house style, so the same part gets a new code at every plant.</p>
 
-<div class="row">
+<div class="grid">
+
   <div class="plants">
-    <div class="plant p1"><div class="who">PLANT A<b>Refinery</b></div><div class="code mono">HEX BOLT M12X50 8.8<small>terse caps · one line</small></div></div>
-    <div class="plant p2"><div class="who">PLANT B<b>Petrochemical</b></div><div class="code mono">Bolt, Hexagonal, M12, 50mm<small>verbose · comma separated</small></div></div>
-    <div class="plant p3"><div class="who">PLANT C<b>Gas processing</b></div><div class="code mono">BOLT HEX HD M12 X 50 GR 8.8<small>abbreviated · spaces</small></div></div>
+    <div class="plant pa">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#1d4e9a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V9l5-3 5 3v12M14 21V5l6 3v13M4 21h16"/><path d="M8 13h2M8 17h2M17 12h1M17 16h1"/></svg></div>
+      <div><div class="who">PLANT A</div><div class="name">Refinery</div>
+        <span class="code mono">HEX BOLT M12X50 8.8</span><div class="how">terse caps, one line</div></div>
+    </div>
+    <div class="plant pb">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#8a3a12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l3 3v11H6V10l3-3z"/><path d="M9 14h6M9 18h6"/></svg></div>
+      <div><div class="who">PLANT B</div><div class="name">Petrochemical</div>
+        <span class="code mono">Bolt, Hexagonal, M12, 50mm</span><div class="how">verbose, comma separated</div></div>
+    </div>
+    <div class="plant pc">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#0f5a3a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3 3 5 6 5 9a5 5 0 0 1-10 0c0-3 2-6 5-9z"/><path d="M12 12c1 1 1.5 2 1.5 3a1.5 1.5 0 0 1-3 0c0-1 .5-2 1.5-3z"/><path d="M5 21h14"/></svg></div>
+      <div><div class="who">PLANT C</div><div class="name">Gas processing</div>
+        <span class="code mono">BOLT HEX HD M12 X 50 GR 8.8</span><div class="how">abbreviated, spaces</div></div>
+    </div>
   </div>
 
   <div class="mid">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-    <span>THREE CODES<br>ONE BOLT</span>
+    <svg viewBox="0 0 380 760" fill="none">
+      <!-- three curves converging on the bolt -->
+      <path d="M0 118 C 110 118, 120 380, 190 380" stroke="#3987e5" stroke-width="4" stroke-linecap="round"/>
+      <path d="M0 380 L 190 380" stroke="#e8703c" stroke-width="4" stroke-linecap="round"/>
+      <path d="M0 642 C 110 642, 120 380, 190 380" stroke="#24b985" stroke-width="4" stroke-linecap="round"/>
+      <!-- bolt -->
+      <g transform="translate(190 380)">
+        <circle r="92" fill="#fff" stroke="#0b0b0b" stroke-width="3"/>
+        <!-- head (hex, side view) -->
+        <rect x="-70" y="-26" width="34" height="52" rx="3" fill="#0b0b0b"/>
+        <rect x="-62" y="-14" width="18" height="28" rx="2" fill="#5c5b57"/>
+        <!-- shank with threads -->
+        <rect x="-36" y="-13" width="106" height="26" fill="#0b0b0b"/>
+        <g stroke="#fff" stroke-width="2.5">
+          <path d="M-14 -13 l-6 26M-2 -13 l-6 26M10 -13 l-6 26M22 -13 l-6 26M34 -13 l-6 26M46 -13 l-6 26M58 -13 l-6 26"/>
+        </g>
+        <polygon points="70,-13 78,0 70,13" fill="#0b0b0b"/>
+      </g>
+      <!-- single arrow out -->
+      <path d="M282 380 L 380 380" stroke="#8a8984" stroke-width="4" stroke-linecap="round"/>
+      <path d="M366 366 L 380 380 L 366 394" stroke="#8a8984" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="cap"><b>One bolt</b>M12 × 50 · GRADE 8.8</div>
   </div>
 
-  <div class="one">
-    <div class="lbl">WHAT HAPPENS</div>
-    <div class="t">Duplicates, idle stock, drifting prices</div>
-    <div class="cons">
-      <div class="con"><i><svg viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="2"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg></i><span><b>Duplicate codes</b> pile up in every master</span></div>
-      <div class="con"><i><svg viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></i><span><b>Stock sits idle</b> in one plant while another buys it fresh</span></div>
-      <div class="con"><i><svg viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></i><span><b>Prices drift</b> for one item across the network</span></div>
+  <div class="cons">
+    <div class="con">
+      <div><div class="n">01 · DUPLICATES</div><div class="t">Duplicate codes pile up</div>
+        <div class="d">Each plant mints its own code. The masters grow; nothing links them.</div></div>
+      <div class="viz"><div class="chips">
+        <span class="chip a">BP-40117</span><span class="chip">BP-40118</span><span class="chip">BP-40201</span><span class="chip b">CP-2210</span>
+        <span class="chip">CP-2213</span><span class="chip c">GP-77-A</span><span class="chip">GP-77-B</span><span class="chip">GP-78-C</span>
+      </div></div>
+    </div>
+    <div class="con">
+      <div><div class="n">02 · IDLE STOCK</div><div class="t">Stock sits idle, stock gets bought</div>
+        <div class="d">One plant holds it for years while the plant next door raises a fresh PO.</div></div>
+      <div class="viz"><div class="stock">
+        <div class="bin"><div class="fill" style="height:78%"></div><div class="lab">Plant A<small>1,200 pcs · idle 3 yrs</small></div></div>
+        <div class="bin"><div class="fill" style="height:6%"></div><div class="lab">Plant B<small>0 pcs</small></div><span class="po">PO · 500 pcs</span></div>
+      </div></div>
+    </div>
+    <div class="con">
+      <div><div class="n">03 · PRICE DRIFT</div><div class="t">One item, three prices</div>
+        <div class="d">Nobody can compare what they pay, because nobody knows it is the same item.</div></div>
+      <div class="viz"><div class="bars">
+        <div class="bar a" style="height:52%"><span>₹18</span><i>A</i></div>
+        <div class="bar b" style="height:74%"><span>₹26</span><i>B</i></div>
+        <div class="bar c" style="height:100%"><span>₹35</span><i>C</i></div>
+      </div></div>
     </div>
   </div>
 </div>
 
 <div class="cag">
-  <div class="n">₹12,743 cr</div>
-  <div class="d">Losses at SAIL alone from poor inventory and procurement over seven years.<small>CAG Report No. 10 of 2025, presented to Parliament 29 July 2025</small></div>
+  <div class="big">₹12,743 cr<small>AUDITED LOSS · SAIL ALONE</small></div>
+  <div class="txt">What poor inventory and procurement cost one CPSE over seven years, per the Comptroller and Auditor General.<small>CAG Report No. 10 of 2025 · Performance Audit on Inventory Management in SAIL · presented to Parliament 29 July 2025</small></div>
+  <div class="years">
+    <div class="yr"><b></b><span>16-17</span></div><div class="yr"><b></b><span>17-18</span></div><div class="yr"><b></b><span>18-19</span></div>
+    <div class="yr"><b></b><span>19-20</span></div><div class="yr"><b></b><span>20-21</span></div><div class="yr"><b></b><span>21-22</span></div><div class="yr"><b></b><span>22-23</span></div>
+  </div>
 </div>
 
-<div class="foot"><span>SIH26099 · Meridian</span><span>Plant names illustrative; the three descriptions are real house styles seen in CPSE material masters</span></div>
+<div class="foot"><span>SIH26099 · Meridian</span><span>Plant names, codes, quantities and prices on the right are illustrative; the three description styles are real house styles found in CPSE material masters.</span></div>
