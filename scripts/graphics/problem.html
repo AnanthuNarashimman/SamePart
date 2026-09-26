@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Meridian — the problem</title>
+<style>
+  :root{--ink:#0b0b0b;--ink2:#52514e;--ink3:#8a8984;--rule:#dedcd6;--bg:#fff;
+        --blue:#3987e5;--orange:#e8703c;--teal:#24b985;--red:#b3261e;--red-bg:#fdecea}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:Inter,"Helvetica Neue",Arial,sans-serif;color:var(--ink);width:2400px;height:1000px;padding:64px 90px;position:relative}
+  .mono{font-family:"JetBrains Mono",Menlo,Consolas,monospace}
+  h1{margin:0;font-size:54px;font-weight:700;letter-spacing:-.01em}
+  .sub{margin:10px 0 0;font-size:26px;color:var(--ink2)}
+  .row{display:grid;grid-template-columns:1fr 120px 1fr;gap:0;margin-top:56px;align-items:center}
+  .plants{display:grid;grid-template-rows:repeat(3,1fr);gap:22px}
+  .plant{border:2.5px solid var(--rule);border-radius:20px;padding:24px 30px;display:grid;grid-template-columns:230px 1fr;align-items:center;gap:26px;background:#fff}
+  .plant .who{font-size:18px;letter-spacing:.18em;font-weight:700;color:var(--ink3)}
+  .plant .who b{display:block;font-size:30px;letter-spacing:0;color:var(--ink);margin-top:4px}
+  .plant .code{font-size:34px;font-weight:700;padding:16px 22px;border-radius:12px;background:#f5f5f2}
+  .p1 .code{color:#1d4e9a;background:#e6eef9}.p2 .code{color:#8a3a12;background:#fdebe3}.p3 .code{color:#0f5a3a;background:#dff5ea}
+  .plant .code small{display:block;font-size:17px;font-weight:500;color:var(--ink3);margin-top:6px;font-family:Inter,Arial,sans-serif}
+  .mid{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--ink3)}
+  .mid svg{width:90px;height:90px}
+  .mid span{font-size:17px;letter-spacing:.16em;font-weight:700;text-align:center}
+  .one{border:3px solid var(--ink);border-radius:24px;padding:34px 38px;background:#fff}
+  .one .lbl{font-size:18px;letter-spacing:.18em;color:var(--ink3);font-weight:700}
+  .one .t{font-size:44px;font-weight:700;margin:8px 0 26px;letter-spacing:-.01em}
+  .cons{display:grid;gap:16px}
+  .con{display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:center;font-size:27px;line-height:1.3}
+  .con i{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-style:normal;background:#f5f5f2}
+  .con i svg{width:30px;height:30px}
+  .cag{margin-top:44px;border-radius:22px;background:var(--red-bg);border:2.5px solid #f2c6c2;padding:30px 40px;display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center}
+  .cag .n{font-size:84px;font-weight:800;color:var(--red);letter-spacing:-.02em;line-height:1}
+  .cag .d{font-size:28px;line-height:1.35;color:var(--ink)}
+  .cag .d small{display:block;font-size:20px;color:var(--ink2);margin-top:8px}
+  .foot{position:absolute;left:90px;right:90px;bottom:40px;font-size:17px;color:var(--ink3);display:flex;justify-content:space-between}
+</style>
+
+<h1>The same part, a different name in every CPSE</h1>
+<p class="sub">Nobody can tell what the network already owns.</p>
+
+<div class="row">
+  <div class="plants">
+    <div class="plant p1"><div class="who">PLANT A<b>Refinery</b></div><div class="code mono">HEX BOLT M12X50 8.8<small>terse caps · one line</small></div></div>
+    <div class="plant p2"><div class="who">PLANT B<b>Petrochemical</b></div><div class="code mono">Bolt, Hexagonal, M12, 50mm<small>verbose · comma separated</small></div></div>
+    <div class="plant p3"><div class="who">PLANT C<b>Power</b></div><div class="code mono">BOLT HEX HD M12 X 50 GR 8.8<small>abbreviated · spaces</small></div></div>
+  </div>
+
+  <div class="mid">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#8a8984" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+    <span>THREE CODES<br>ONE BOLT</span>
+  </div>
+
+  <div class="one">
+    <div class="lbl">WHAT HAPPENS</div>
+    <div class="t">Duplicates, idle stock, drifting prices</div>
+    <div class="cons">
+      <div class="con"><i><svg viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="2"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg></i><span><b>Duplicate codes</b> pile up in every master</span></div>
+      <div class="con"><i><svg viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></i><span><b>Stock sits idle</b> in one plant while another buys it fresh</span></div>
+      <div class="con"><i><svg viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></i><span><b>Prices drift</b> for one item across the network</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="cag">
+  <div class="n">₹12,743 cr</div>
+  <div class="d">Losses at SAIL alone from poor inventory and procurement over seven years.<small>CAG Report No. 10 of 2025, presented to Parliament 29 July 2025</small></div>
+</div>
+
+<div class="foot"><span>SIH26099 · Meridian</span><span>Plant names illustrative; the three descriptions are real house styles seen in CPSE material masters</span></div>
